@@ -45,6 +45,8 @@ public class SerialInputOutputManager implements Runnable {
     private final UsbSerialDriver mDriver;
 
     private final ByteBuffer mReadBuffer = ByteBuffer.allocate(BUFSIZ);
+
+    // Synchronized by 'mWriteBuffer'
     private final ByteBuffer mWriteBuffer = ByteBuffer.allocate(BUFSIZ);
 
     private enum State {
@@ -96,7 +98,9 @@ public class SerialInputOutputManager implements Runnable {
     }
 
     public void writeAsync(byte[] data) {
-        mWriteBuffer.put(data);
+        synchronized (mWriteBuffer) {
+            mWriteBuffer.put(data);
+        }
     }
 
     public synchronized void stop() {
@@ -164,16 +168,19 @@ public class SerialInputOutputManager implements Runnable {
         }
 
         // Handle outgoing data.
-        if (mWriteBuffer.position() > 0) {
-            final byte[] outBuff;
-            synchronized (mWriteBuffer) {
+        byte[] outBuff = null;
+        synchronized (mWriteBuffer) {
+            if (mWriteBuffer.position() > 0) {
                 len = mWriteBuffer.position();
                 outBuff = new byte[len];
                 mWriteBuffer.get(outBuff, 0, len);
                 mWriteBuffer.clear();
             }
-            if (DEBUG)
+        }
+        if (outBuff != null) {
+            if (DEBUG) {
                 Log.d(TAG, "Writing data len=" + len);
+            }
             mDriver.write(outBuff, READ_WAIT_MILLIS);
         }
     }
