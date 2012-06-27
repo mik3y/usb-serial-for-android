@@ -49,6 +49,20 @@ public enum UsbSerialProber {
             }
             return new FtdiSerialDriver(usbDevice, connection);
         }
+    },
+
+    CDC_ACM_SERIAL {
+        @Override
+        public UsbSerialDriver getDevice(UsbManager manager, UsbDevice usbDevice) {
+            if (!CdcAcmSerialDriver.probe(usbDevice)) {
+                return null;
+            }
+            final UsbDeviceConnection connection = manager.openDevice(usbDevice);
+            if (connection == null) {
+                return null;
+            }
+            return new CdcAcmSerialDriver(usbDevice, connection);
+        }
     };
 
     /**
