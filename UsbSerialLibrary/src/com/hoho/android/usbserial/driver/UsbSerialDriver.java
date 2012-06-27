@@ -22,6 +22,8 @@ package com.hoho.android.usbserial.driver;
 
 import java.io.IOException;
 
+import android.hardware.usb.UsbDevice;
+
 /**
  * Driver interface for a supported USB serial device.
  *
@@ -32,7 +34,7 @@ public interface UsbSerialDriver {
     /**
      * Opens and initializes the device as a USB serial device. Upon success,
      * caller must ensure that {@link #close()} is eventually called.
-     * 
+     *
      * @throws IOException on error opening or initializing the device.
      */
     public void open() throws IOException;
@@ -72,5 +74,12 @@ public interface UsbSerialDriver {
      * @throws IOException on error setting the baud rate
      */
     public int setBaudRate(final int baudRate) throws IOException;
+
+    /**
+     * Returns the currently-bound USB device.
+     *
+     * @return the device
+     */
+    public UsbDevice getDevice();
 
 }

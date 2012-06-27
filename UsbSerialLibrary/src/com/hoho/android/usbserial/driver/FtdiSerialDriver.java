@@ -20,14 +20,14 @@
 
 package com.hoho.android.usbserial.driver;
 
+import java.io.IOException;
+import java.util.Arrays;
+
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.util.Log;
-
-import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * A {@link UsbSerialDriver} implementation for a variety of FTDI devices
@@ -239,7 +239,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
     @Override
     public int write(byte[] src, int timeoutMillis) throws IOException {
-        final UsbEndpoint endpoint = mDevice.getInterface(0).getEndpoint(0);
+        final UsbEndpoint endpoint = mDevice.getInterface(0).getEndpoint(1);
         int offset = 0;
 
         while (offset < src.length) {
@@ -258,8 +258,9 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                     timeoutMillis);
             if (amt <= 0) {
                 throw new IOException("Error writing " + writeLength
-                        + " bytes at offset " + offset);
+                        + " bytes at offset " + offset + " length=" + src.length);
             }
+            Log.d(TAG, "Wrote amt=" + amt + " attempted=" + writeBuffer.length);
             offset += amt;
         }
         return offset;
@@ -371,6 +372,11 @@ public class FtdiSerialDriver implements UsbSerialDriver {
     public static boolean probe(UsbDevice usbDevice) {
         // TODO(mikey): Support other devices.
         return usbDevice.getVendorId() == 0x0403 && usbDevice.getProductId() == 0x6001;
+    }
+
+    @Override
+    public UsbDevice getDevice() {
+        return mDevice;
     }
 
 }
