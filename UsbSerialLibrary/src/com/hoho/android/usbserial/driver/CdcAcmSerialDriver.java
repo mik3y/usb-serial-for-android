@@ -106,7 +106,11 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 timeoutMillis);
 
         if (transferred < 0) {
-            throw new IOException("Timeout reading timeoutMillis=" + timeoutMillis);
+            // This sucks: we get -1 on timeout, not 0 as preferred.
+            // We *should* use UsbRequest, except it has a bug/api oversight
+            // where there is no way to determine the number of bytes read
+            // in response :\ -- http://b.android.com/28023
+            return 0;
         }
         System.arraycopy(mReadBuffer, 0, dest, 0, transferred);
         return transferred;
