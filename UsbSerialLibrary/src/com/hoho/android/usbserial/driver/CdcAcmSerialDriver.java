@@ -157,7 +157,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
     }
 
     public static boolean probe(UsbDevice usbDevice) {
-        return usbDevice.getVendorId() == 0x2341 && usbDevice.getProductId() == 0x001;
+        return usbDevice.getVendorId() == 0x2341;
     }
 
 }
