@@ -20,14 +20,18 @@
 
 package com.hoho.android.usbserial.driver;
 
-import java.io.IOException;
-import java.util.Arrays;
-
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
+import android.hardware.usb.UsbRequest;
 import android.util.Log;
+
+import com.hoho.android.usbserial.util.HexDump;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 /**
  * A {@link UsbSerialDriver} implementation for a variety of FTDI devices
@@ -166,6 +170,13 @@ public class FtdiSerialDriver implements UsbSerialDriver {
     private int mMaxPacketSize = 64; // TODO(mikey): detect
 
     /**
+     * Due to http://b.android.com/28023 , we cannot use UsbRequest async reads
+     * since it gives no indication of number of bytes read. Set this to
+     * {@code true} on platforms where it is fixed.
+     */
+    private static final boolean ENABLE_ASYNC_READS = false;
+
+    /**
      * Constructor.
      *
      * @param usbDevice the {@link UsbDevice} to use
@@ -224,17 +235,41 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         final int readAmt = Math.min(dest.length, mReadBuffer.length);
         final UsbEndpoint endpoint = mDevice.getInterface(0).getEndpoint(0);
 
-        final int transferred = mConnection.bulkTransfer(endpoint, mReadBuffer, readAmt,
-                timeoutMillis);
-        if (transferred < MODEM_STATUS_HEADER_LENGTH) {
-            throw new IOException("Expected at least " + MODEM_STATUS_HEADER_LENGTH + " bytes");
+        if (ENABLE_ASYNC_READS) {
+            final UsbRequest request = new UsbRequest();
+            request.initialize(mConnection, endpoint);
+
+            final ByteBuffer buf = ByteBuffer.wrap(dest);
+            if (!request.queue(buf, readAmt)) {
+                throw new IOException("Error queueing request.");
+            }
+
+            final UsbRequest response = mConnection.requestWait();
+            if (response == null) {
+                throw new IOException("Null response");
+            }
+
+            final int nread = buf.position() - MODEM_STATUS_HEADER_LENGTH;
+            if (nread > 0) {
+                Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
+                return nread;
+            } else {
+                return 0;
+            }
+        } else {
+            final int transferred = mConnection.bulkTransfer(endpoint, mReadBuffer, readAmt,
+                    timeoutMillis);
+            if (transferred < MODEM_STATUS_HEADER_LENGTH) {
+                throw new IOException("Expected at least " + MODEM_STATUS_HEADER_LENGTH + " bytes");
+            }
+
+            final int nread = transferred - MODEM_STATUS_HEADER_LENGTH;
+            if (nread > 0) {
+                System.arraycopy(mReadBuffer, MODEM_STATUS_HEADER_LENGTH, dest, 0, nread);
+            }
+            return nread;
         }
 
-        final int nread = transferred - MODEM_STATUS_HEADER_LENGTH;
-        if (nread > 0) {
-            System.arraycopy(mReadBuffer, MODEM_STATUS_HEADER_LENGTH, dest, 0, nread);
-        }
-        return nread;
     }
 
     @Override
