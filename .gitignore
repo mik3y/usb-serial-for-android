@@ -1,0 +1,9 @@
+UsbSerialLibrary/bin
+UsbSerialLibrary/gen
+
+UsbSerialExamples/bin
+UsbSerialExamples/gen
+UsbSerialLibrary/dictionary.txt
+UsbSerialLibrary/local.properties
+UsbSerialLibrary/proguard-project.txt
+UsbSerialLibrary/build.xml
