@@ -20,6 +20,12 @@
 
 package com.hoho.android.usbserial.driver;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
@@ -28,10 +34,6 @@ import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
 import com.hoho.android.usbserial.util.HexDump;
-
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 /**
  * A {@link UsbSerialDriver} implementation for a variety of FTDI devices
@@ -86,7 +88,7 @@ import java.util.Arrays;
  * @see <a href="http://www.ftdichip.com/">FTDI Homepage</a>
  * @see <a href="http://www.intra2net.com/en/developer/libftdi">libftdi</a>
  */
-public class FtdiSerialDriver implements UsbSerialDriver {
+public class FtdiSerialDriver extends UsbSerialDriver {
 
     private static final int DEFAULT_BAUD_RATE = 115200;
 
@@ -152,8 +154,6 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
     private final String TAG = FtdiSerialDriver.class.getSimpleName();
 
-    private UsbDevice mDevice;
-    private UsbDeviceConnection mConnection;
     private DeviceType mType;
 
     private final byte[] mReadBuffer = new byte[4096];
@@ -185,11 +185,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
      *             with this driver
      */
     public FtdiSerialDriver(UsbDevice usbDevice, UsbDeviceConnection usbConnection) {
-        if (!probe(usbDevice)) {
-            throw new UsbSerialRuntimeException("Device type not supported.");
-        }
-        mConnection = usbConnection;
-        mDevice = usbDevice;
+        super(usbDevice, usbConnection);
         mType = null;
     }
 
@@ -404,14 +400,13 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         };
     }
 
-    public static boolean probe(UsbDevice usbDevice) {
-        // TODO(mikey): Support other devices.
-        return usbDevice.getVendorId() == 0x0403 && usbDevice.getProductId() == 0x6001;
-    }
-
-    @Override
-    public UsbDevice getDevice() {
-        return mDevice;
+    public static Map<Integer, int[]> getSupportedDevices() {
+        final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
+        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_FTDI),
+                new int[] {
+                    UsbId.FTDI_FT232R,
+                });
+        return supportedDevices;
     }
 
 }

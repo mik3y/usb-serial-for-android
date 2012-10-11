@@ -2,6 +2,8 @@ package com.hoho.android.usbserial.driver;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
@@ -15,11 +17,10 @@ import android.util.Log;
  *
  * @author mike wakerly (opensource@hoho.com)
  */
-public class CdcAcmSerialDriver implements UsbSerialDriver {
+public class CdcAcmSerialDriver extends UsbSerialDriver {
+
     private final String TAG = CdcAcmSerialDriver.class.getSimpleName();
 
-    private UsbDevice mDevice;
-    private UsbDeviceConnection mConnection;
     private final byte[] mReadBuffer = new byte[4096];
 
     private UsbInterface mControlInterface;
@@ -29,13 +30,8 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
     private UsbEndpoint mReadEndpoint;
     private UsbEndpoint mWriteEndpoint;
 
-    /**
-     * @param usbDevice
-     * @param connection
-     */
-    public CdcAcmSerialDriver(UsbDevice usbDevice, UsbDeviceConnection connection) {
-        mDevice = usbDevice;
-        mConnection = connection;
+    public CdcAcmSerialDriver(UsbDevice device, UsbDeviceConnection connection) {
+        super(device, connection);
     }
 
     @Override
@@ -151,13 +147,25 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         return baudRate;
     }
 
-    @Override
-    public UsbDevice getDevice() {
-        return mDevice;
-    }
-
-    public static boolean probe(UsbDevice usbDevice) {
-        return usbDevice.getVendorId() == 0x2341;
+    public static Map<Integer, int[]> getSupportedDevices() {
+        final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
+        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_ARDUINO),
+                new int[] {
+                        UsbId.ARDUINO_UNO,
+                        UsbId.ARDUINO_UNO_R3,
+                        UsbId.ARDUINO_MEGA_2560,
+                        UsbId.ARDUINO_MEGA_2560_R3,
+                        UsbId.ARDUINO_SERIAL_ADAPTER,
+                        UsbId.ARDUINO_SERIAL_ADAPTER_R3,
+                        UsbId.ARDUINO_MEGA_ADK,
+                        UsbId.ARDUINO_MEGA_ADK_R3,
+                        UsbId.ARDUINO_LEONARDO,
+                });
+        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_VAN_OOIJEN_TECH),
+                new int[] {
+                    UsbId.VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL,
+                });
+        return supportedDevices;
     }
 
 }

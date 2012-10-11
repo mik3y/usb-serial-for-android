@@ -20,6 +20,8 @@
 
 package com.hoho.android.usbserial.driver;
 
+import java.util.Map;
+
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
@@ -32,6 +34,8 @@ import android.hardware.usb.UsbManager;
  */
 public enum UsbSerialProber {
 
+    // TODO(mikey): Too much boilerplate.
+
     /**
      * Prober for {@link FtdiSerialDriver}.
      *
@@ -40,7 +44,7 @@ public enum UsbSerialProber {
     FTDI_SERIAL {
         @Override
         public UsbSerialDriver getDevice(final UsbManager manager, final UsbDevice usbDevice) {
-            if (!FtdiSerialDriver.probe(usbDevice)) {
+            if (!testIfSupported(usbDevice, FtdiSerialDriver.getSupportedDevices())) {
                 return null;
             }
             final UsbDeviceConnection connection = manager.openDevice(usbDevice);
@@ -54,8 +58,8 @@ public enum UsbSerialProber {
     CDC_ACM_SERIAL {
         @Override
         public UsbSerialDriver getDevice(UsbManager manager, UsbDevice usbDevice) {
-            if (!CdcAcmSerialDriver.probe(usbDevice)) {
-                return null;
+            if (!testIfSupported(usbDevice, CdcAcmSerialDriver.getSupportedDevices())) {
+               return null;
             }
             final UsbDeviceConnection connection = manager.openDevice(usbDevice);
             if (connection == null) {
@@ -114,6 +118,30 @@ public enum UsbSerialProber {
             }
         }
         return null;
+    }
+
+    /**
+     * Returns {@code true} if the given device is found in the vendor/product map.
+     *
+     * @param usbDevice the device to test
+     * @param supportedDevices map of vendor ids to product id(s)
+     * @return {@code true} if supported
+     */
+    private static boolean testIfSupported(final UsbDevice usbDevice,
+            final Map<Integer, int[]> supportedDevices) {
+        final int[] supportedProducts = supportedDevices.get(
+                Integer.valueOf(usbDevice.getVendorId()));
+        if (supportedProducts == null) {
+            return false;
+        }
+
+        final int productId = usbDevice.getProductId();
+        for (int supportedProductId : supportedProducts) {
+            if (productId == supportedProductId) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }

@@ -2,6 +2,11 @@
 <resources>
     <!-- 0x0403 / 0x6001: FTDI FT232R UART -->
     <usb-device vendor-id="1027" product-id="24577" />
-    <!-- 0x2341 / 0x0001: Arduino Uno -->
-    <usb-device vendor-id="9025" product-id="1" />
+
+    <!-- 0x2341 / Arduino -->
+    <usb-device vendor-id="9025" />
+
+    <!-- 0x16C0 / 0x0483: Teensyduino  -->
+    <usb-device vendor-id="5824" product-id="1155" />
+
 </resources>

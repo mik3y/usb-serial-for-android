@@ -23,13 +23,22 @@ package com.hoho.android.usbserial.driver;
 import java.io.IOException;
 
 import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbDeviceConnection;
 
 /**
  * Driver interface for a supported USB serial device.
  *
  * @author mike wakerly (opensource@hoho.com)
  */
-public interface UsbSerialDriver {
+public abstract class UsbSerialDriver {
+
+    protected final UsbDevice mDevice;
+    protected final UsbDeviceConnection mConnection;
+
+    public UsbSerialDriver(UsbDevice device, UsbDeviceConnection connection) {
+        mDevice = device;
+        mConnection = connection;
+    }
 
     /**
      * Opens and initializes the device as a USB serial device. Upon success,
@@ -37,14 +46,14 @@ public interface UsbSerialDriver {
      *
      * @throws IOException on error opening or initializing the device.
      */
-    public void open() throws IOException;
+    public abstract void open() throws IOException;
 
     /**
      * Closes the serial device.
      *
      * @throws IOException on error closing the device.
      */
-    public void close() throws IOException;
+    public abstract void close() throws IOException;
 
     /**
      * Reads as many bytes as possible into the destination buffer.
@@ -54,7 +63,7 @@ public interface UsbSerialDriver {
      * @return the actual number of bytes read
      * @throws IOException if an error occurred during reading
      */
-    public int read(final byte[] dest, final int timeoutMillis) throws IOException;
+    public abstract int read(final byte[] dest, final int timeoutMillis) throws IOException;
 
     /**
      * Writes as many bytes as possible from the source buffer.
@@ -64,7 +73,7 @@ public interface UsbSerialDriver {
      * @return the actual number of bytes written
      * @throws IOException if an error occurred during writing
      */
-    public int write(final byte[] src, final int timeoutMillis) throws IOException;
+    public abstract int write(final byte[] src, final int timeoutMillis) throws IOException;
 
     /**
      * Sets the baud rate of the serial device.
@@ -73,13 +82,15 @@ public interface UsbSerialDriver {
      * @return the actual rate set
      * @throws IOException on error setting the baud rate
      */
-    public int setBaudRate(final int baudRate) throws IOException;
+    public abstract int setBaudRate(final int baudRate) throws IOException;
 
     /**
      * Returns the currently-bound USB device.
      *
      * @return the device
      */
-    public UsbDevice getDevice();
+    public final UsbDevice getDevice() {
+        return mDevice;
+    }
 
 }
