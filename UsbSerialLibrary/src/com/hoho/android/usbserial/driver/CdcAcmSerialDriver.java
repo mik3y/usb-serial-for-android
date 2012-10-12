@@ -96,7 +96,6 @@ public class CdcAcmSerialDriver extends UsbSerialDriver {
         final int numBytesRead;
         synchronized (mReadBufferLock) {
             int readAmt = Math.min(dest.length, mReadBuffer.length);
-            readAmt = Math.min(readAmt, mReadEndpoint.getMaxPacketSize());
             numBytesRead = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer, readAmt,
                     timeoutMillis);
             if (numBytesRead < 0) {
