@@ -22,7 +22,6 @@ package com.hoho.android.usbserial.driver;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -38,8 +37,8 @@ import com.hoho.android.usbserial.util.HexDump;
 /**
  * A {@link UsbSerialDriver} implementation for a variety of FTDI devices
  * <p>
- * This driver is based on <a
- * href="http://www.intra2net.com/en/developer/libftdi">libftdi</a>, and is
+ * This driver is based on
+ * <a href="http://www.intra2net.com/en/developer/libftdi">libftdi</a>, and is
  * copyright and subject to the following terms:
  *
  * <pre>
@@ -143,11 +142,6 @@ public class FtdiSerialDriver extends UsbSerialDriver {
             UsbConstants.USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN;
 
     /**
-     * Size of chunks, used in {@link #write(byte[], int)}.
-     */
-    private static final int WRITE_CHUNKSIZE = 4096;
-
-    /**
      * Length of the modem status header, transmitted with every read.
      */
     private static final int MODEM_STATUS_HEADER_LENGTH = 2;
@@ -155,8 +149,6 @@ public class FtdiSerialDriver extends UsbSerialDriver {
     private final String TAG = FtdiSerialDriver.class.getSimpleName();
 
     private DeviceType mType;
-
-    private final byte[] mReadBuffer = new byte[4096];
 
     /**
      * FTDI chip types.
@@ -228,10 +220,15 @@ public class FtdiSerialDriver extends UsbSerialDriver {
 
     @Override
     public int read(byte[] dest, int timeoutMillis) throws IOException {
-        final int readAmt = Math.min(dest.length, mReadBuffer.length);
         final UsbEndpoint endpoint = mDevice.getInterface(0).getEndpoint(0);
 
         if (ENABLE_ASYNC_READS) {
+            final int readAmt;
+            synchronized (mReadBufferLock) {
+                // mReadBuffer is only used for maximum read size.
+                readAmt = Math.min(dest.length, mReadBuffer.length);
+            }
+
             final UsbRequest request = new UsbRequest();
             request.initialize(mConnection, endpoint);
 
@@ -245,27 +242,32 @@ public class FtdiSerialDriver extends UsbSerialDriver {
                 throw new IOException("Null response");
             }
 
-            final int nread = buf.position() - MODEM_STATUS_HEADER_LENGTH;
-            if (nread > 0) {
+            final int payloadBytesRead = buf.position() - MODEM_STATUS_HEADER_LENGTH;
+            if (payloadBytesRead > 0) {
                 Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
-                return nread;
+                return payloadBytesRead;
             } else {
                 return 0;
             }
         } else {
-            final int transferred = mConnection.bulkTransfer(endpoint, mReadBuffer, readAmt,
-                    timeoutMillis);
-            if (transferred < MODEM_STATUS_HEADER_LENGTH) {
+            final int totalBytesRead;
+
+            synchronized (mReadBufferLock) {
+                final int readAmt = Math.min(dest.length, mReadBuffer.length);
+                totalBytesRead = mConnection.bulkTransfer(endpoint, mReadBuffer,
+                        readAmt, timeoutMillis);
+            }
+
+            if (totalBytesRead < MODEM_STATUS_HEADER_LENGTH) {
                 throw new IOException("Expected at least " + MODEM_STATUS_HEADER_LENGTH + " bytes");
             }
 
-            final int nread = transferred - MODEM_STATUS_HEADER_LENGTH;
-            if (nread > 0) {
-                System.arraycopy(mReadBuffer, MODEM_STATUS_HEADER_LENGTH, dest, 0, nread);
+            final int payloadBytesRead = totalBytesRead - MODEM_STATUS_HEADER_LENGTH;
+            if (payloadBytesRead > 0) {
+                System.arraycopy(mReadBuffer, MODEM_STATUS_HEADER_LENGTH, dest, 0, payloadBytesRead);
             }
-            return nread;
+            return payloadBytesRead;
         }
-
     }
 
     @Override
@@ -274,25 +276,32 @@ public class FtdiSerialDriver extends UsbSerialDriver {
         int offset = 0;
 
         while (offset < src.length) {
-            final byte[] writeBuffer;
             final int writeLength;
+            final int amtWritten;
 
-            // bulkTransfer does not support offsets; make a copy if necessary.
-            writeLength = Math.min(src.length - offset, WRITE_CHUNKSIZE);
-            if (offset == 0) {
-                writeBuffer = src;
-            } else {
-                writeBuffer = Arrays.copyOfRange(src, offset, offset + writeLength);
+            synchronized (mWriteBufferLock) {
+                final byte[] writeBuffer;
+
+                writeLength = Math.min(src.length - offset, mWriteBuffer.length);
+                if (offset == 0) {
+                    writeBuffer = src;
+                } else {
+                    // bulkTransfer does not support offsets, make a copy.
+                    System.arraycopy(src, offset, mWriteBuffer, 0, writeLength);
+                    writeBuffer = mWriteBuffer;
+                }
+
+                amtWritten = mConnection.bulkTransfer(endpoint, writeBuffer, writeLength,
+                        timeoutMillis);
             }
 
-            final int amt = mConnection.bulkTransfer(endpoint, writeBuffer, writeLength,
-                    timeoutMillis);
-            if (amt <= 0) {
+            if (amtWritten <= 0) {
                 throw new IOException("Error writing " + writeLength
                         + " bytes at offset " + offset + " length=" + src.length);
             }
-            Log.d(TAG, "Wrote amt=" + amt + " attempted=" + writeBuffer.length);
-            offset += amt;
+
+            Log.d(TAG, "Wrote amtWritten=" + amtWritten + " attempted=" + writeLength);
+            offset += amtWritten;
         }
         return offset;
     }

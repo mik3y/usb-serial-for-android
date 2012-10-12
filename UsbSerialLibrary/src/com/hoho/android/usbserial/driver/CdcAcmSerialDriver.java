@@ -1,7 +1,6 @@
 package com.hoho.android.usbserial.driver;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -20,8 +19,6 @@ import android.util.Log;
 public class CdcAcmSerialDriver extends UsbSerialDriver {
 
     private final String TAG = CdcAcmSerialDriver.class.getSimpleName();
-
-    private final byte[] mReadBuffer = new byte[4096];
 
     private UsbInterface mControlInterface;
     private UsbInterface mDataInterface;
@@ -96,47 +93,55 @@ public class CdcAcmSerialDriver extends UsbSerialDriver {
 
     @Override
     public int read(byte[] dest, int timeoutMillis) throws IOException {
-        int readAmt = Math.min(dest.length, mReadBuffer.length);
-        readAmt = Math.min(readAmt, mReadEndpoint.getMaxPacketSize());
-        final int transferred = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer, readAmt,
-                timeoutMillis);
-
-        if (transferred < 0) {
-            // This sucks: we get -1 on timeout, not 0 as preferred.
-            // We *should* use UsbRequest, except it has a bug/api oversight
-            // where there is no way to determine the number of bytes read
-            // in response :\ -- http://b.android.com/28023
-            return 0;
+        final int numBytesRead;
+        synchronized (mReadBufferLock) {
+            int readAmt = Math.min(dest.length, mReadBuffer.length);
+            readAmt = Math.min(readAmt, mReadEndpoint.getMaxPacketSize());
+            numBytesRead = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer, readAmt,
+                    timeoutMillis);
+            if (numBytesRead < 0) {
+                // This sucks: we get -1 on timeout, not 0 as preferred.
+                // We *should* use UsbRequest, except it has a bug/api oversight
+                // where there is no way to determine the number of bytes read
+                // in response :\ -- http://b.android.com/28023
+                return 0;
+            }
+            System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);
         }
-        System.arraycopy(mReadBuffer, 0, dest, 0, transferred);
-        return transferred;
+        return numBytesRead;
     }
 
     @Override
     public int write(byte[] src, int timeoutMillis) throws IOException {
+        // TODO(mikey): Nearly identical to FtdiSerial write. Refactor.
         int offset = 0;
-        final int chunksize = mWriteEndpoint.getMaxPacketSize();
 
         while (offset < src.length) {
-            final byte[] writeBuffer;
             final int writeLength;
+            final int amtWritten;
 
-            // bulkTransfer does not support offsets; make a copy if necessary.
-            writeLength = Math.min(src.length - offset, chunksize);
-            if (offset == 0) {
-                writeBuffer = src;
-            } else {
-                writeBuffer = Arrays.copyOfRange(src, offset, offset + writeLength);
+            synchronized (mWriteBufferLock) {
+                final byte[] writeBuffer;
+
+                writeLength = Math.min(src.length - offset, mWriteBuffer.length);
+                if (offset == 0) {
+                    writeBuffer = src;
+                } else {
+                    // bulkTransfer does not support offsets, make a copy.
+                    System.arraycopy(src, offset, mWriteBuffer, 0, writeLength);
+                    writeBuffer = mWriteBuffer;
+                }
+
+                amtWritten = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, writeLength,
+                        timeoutMillis);
             }
-
-            final int amt = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, writeLength,
-                    timeoutMillis);
-            if (amt <= 0) {
+            if (amtWritten <= 0) {
                 throw new IOException("Error writing " + writeLength
                         + " bytes at offset " + offset + " length=" + src.length);
             }
-            Log.d(TAG, "Wrote amt=" + amt + " attempted=" + writeBuffer.length);
-            offset += amt;
+
+            Log.d(TAG, "Wrote amt=" + amtWritten + " attempted=" + writeLength);
+            offset += amtWritten;
         }
         return offset;
     }
