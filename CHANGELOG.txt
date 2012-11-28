@@ -1,3 +1,11 @@
-2011-12-28  mike wakerly  <opensource@hoho.com>
+Current Version (in development)
+  * New driver methods: getCD, getCTS, getDSR, getDTR, setDTR, getRI, getRTS,
+    setRTS.
+  * Library version is available in `com.hoho.android.usbserial.BuildInfo`.
 
-	* Initial release.
+v0.1.0 (2012-10-12)
+  * New driver: CdcAcmSerialDriver.
+  * Better tuned read and write buffer sizes.
+
+v0.0.1 (2011-12-28)
+  * Initial release.
