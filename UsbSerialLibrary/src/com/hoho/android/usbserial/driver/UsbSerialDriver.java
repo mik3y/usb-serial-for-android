@@ -20,10 +20,10 @@
 
 package com.hoho.android.usbserial.driver;
 
-import java.io.IOException;
-
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
+
+import java.io.IOException;
 
 /**
  * Driver interface for a supported USB serial device.
@@ -98,6 +98,72 @@ public abstract class UsbSerialDriver {
      * @throws IOException on error setting the baud rate
      */
     public abstract int setBaudRate(final int baudRate) throws IOException;
+
+    /**
+     * Gets the CD (Carrier Detect) bit from the underlying UART.
+     *
+     * @return the current state, or {@code false} if not supported.
+     * @throws IOException if an error occurred during reading
+     */
+    public abstract boolean getCD() throws IOException;
+
+    /**
+     * Gets the CTS (Clear To Send) bit from the underlying UART.
+     *
+     * @return the current state, or {@code false} if not supported.
+     * @throws IOException if an error occurred during reading
+     */
+    public abstract boolean getCTS() throws IOException;
+
+    /**
+     * Gets the DSR (Data Set Ready) bit from the underlying UART.
+     *
+     * @return the current state, or {@code false} if not supported.
+     * @throws IOException if an error occurred during reading
+     */
+    public abstract boolean getDSR() throws IOException;
+
+    /**
+     * Gets the DTR (Data Terminal Ready) bit from the underlying UART.
+     *
+     * @return the current state, or {@code false} if not supported.
+     * @throws IOException if an error occurred during reading
+     */
+    public abstract boolean getDTR() throws IOException;
+
+    /**
+     * Sets the DTR (Data Terminal Ready) bit on the underlying UART, if
+     * supported.
+     *
+     * @param value the value to set
+     * @throws IOException if an error occurred during writing
+     */
+    public abstract boolean setDTR(boolean value) throws IOException;
+
+    /**
+     * Gets the RI (Ring Indicator) bit from the underlying UART.
+     *
+     * @return the current state, or {@code false} if not supported.
+     * @throws IOException if an error occurred during reading
+     */
+    public abstract boolean getRI() throws IOException;
+
+    /**
+     * Gets the RTS (Request To Send) bit from the underlying UART.
+     *
+     * @return the current state, or {@code false} if not supported.
+     * @throws IOException if an error occurred during reading
+     */
+    public abstract boolean getRTS() throws IOException;
+
+    /**
+     * Sets the RTS (Request To Send) bit on the underlying UART, if
+     * supported.
+     *
+     * @param value thje value to set
+     * @throws IOException if an error occurred during writing
+     */
+    public abstract boolean setRTS(boolean value) throws IOException;
 
     /**
      * Returns the currently-bound USB device.

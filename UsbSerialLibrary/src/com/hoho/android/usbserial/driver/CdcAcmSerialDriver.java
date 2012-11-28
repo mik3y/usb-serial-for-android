@@ -1,15 +1,15 @@
 package com.hoho.android.usbserial.driver;
 
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.util.Log;
+
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * USB CDC/ACM serial driver implementation.
@@ -149,6 +149,46 @@ public class CdcAcmSerialDriver extends UsbSerialDriver {
     public int setBaudRate(int baudRate) throws IOException {
         setAcmLineCoding(baudRate, 0, 0, 8);
         return baudRate;
+    }
+
+    @Override
+    public boolean getCD() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean getCTS() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean getDSR() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean getDTR() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean setDTR(boolean value) throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean getRI() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean getRTS() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean setRTS(boolean value) throws IOException {
+        return false;
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {

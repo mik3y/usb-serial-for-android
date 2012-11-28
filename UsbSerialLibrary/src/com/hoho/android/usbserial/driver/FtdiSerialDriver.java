@@ -20,11 +20,6 @@
 
 package com.hoho.android.usbserial.driver;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
@@ -33,6 +28,11 @@ import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
 import com.hoho.android.usbserial.util.HexDump;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * A {@link UsbSerialDriver} implementation for a variety of FTDI devices
@@ -407,6 +407,46 @@ public class FtdiSerialDriver extends UsbSerialDriver {
         return new long[] {
                 bestBaud, index, value
         };
+    }
+
+    @Override
+    public boolean getCD() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean getCTS() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean getDSR() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean getDTR() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean setDTR(boolean value) throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean getRI() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean getRTS() throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean setRTS(boolean value) throws IOException {
+        return false;
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {
