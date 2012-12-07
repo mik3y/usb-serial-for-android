@@ -90,6 +90,9 @@ import java.util.Map;
 public class FtdiSerialDriver extends UsbSerialDriver {
 
     private static final int DEFAULT_BAUD_RATE = 115200;
+    private static final int DEFAULT_DATA_BITS = DATABITS_8;
+    private static final int DEFAULT_PARITY = PARITY_NONE;
+    private static final int DEFAULT_STOP_BITS = STOPBITS_1;
 
     public static final int USB_TYPE_STANDARD = 0x00 << 5;
     public static final int USB_TYPE_CLASS = 0x00 << 5;
@@ -161,6 +164,11 @@ public class FtdiSerialDriver extends UsbSerialDriver {
 
     private int mMaxPacketSize = 64; // TODO(mikey): detect
 
+    private int mBaudRate;
+    private int mDataBits;
+    private int mParity;
+    private int mStopBits;
+
     /**
      * Due to http://b.android.com/28023 , we cannot use UsbRequest async reads
      * since it gives no indication of number of bytes read. Set this to
@@ -204,7 +212,7 @@ public class FtdiSerialDriver extends UsbSerialDriver {
                 }
             }
             reset();
-            setBaudRate(DEFAULT_BAUD_RATE);
+            setParameters(DEFAULT_BAUD_RATE, DEFAULT_DATA_BITS, DEFAULT_STOP_BITS, DEFAULT_PARITY);
             opened = true;
         } finally {
             if (!opened) {
@@ -307,13 +315,12 @@ public class FtdiSerialDriver extends UsbSerialDriver {
     }
 
     @Override
+    @Deprecated
     public int setBaudRate(int baudRate) throws IOException {
         long[] vals = convertBaudrate(baudRate);
         long actualBaudrate = vals[0];
         long index = vals[1];
         long value = vals[2];
-        Log.i(TAG, "Requested baudrate=" + baudRate + ", actual=" + actualBaudrate);
-
         int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE,
                 SIO_SET_BAUD_RATE_REQUEST, (int) value, (int) index,
                 null, 0, USB_WRITE_TIMEOUT_MILLIS);
@@ -321,6 +328,59 @@ public class FtdiSerialDriver extends UsbSerialDriver {
             throw new IOException("Setting baudrate failed: result=" + result);
         }
         return (int) actualBaudrate;
+    }
+
+    @Override
+    public void setParameters(int baudRate, int dataBits, int stopBits, int parity)
+            throws IOException {
+        mBaudRate = setBaudRate(baudRate);
+
+        int config = dataBits;
+
+        switch (parity) {
+            case PARITY_NONE:
+                config |= (0x00 << 8);
+                break;
+            case PARITY_ODD:
+                config |= (0x01 << 8);
+                break;
+            case PARITY_EVEN:
+                config |= (0x02 << 8);
+                break;
+            case PARITY_MARK:
+                config |= (0x03 << 8);
+                break;
+            case PARITY_SPACE:
+                config |= (0x04 << 8);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown parity value: " + parity);
+        }
+
+        switch (stopBits) {
+            case STOPBITS_1:
+                config |= (0x00 << 11);
+                break;
+            case STOPBITS_1_5:
+                config |= (0x01 << 11);
+                break;
+            case STOPBITS_2:
+                config |= (0x02 << 11);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
+        }
+
+        int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE,
+                SIO_SET_DATA_REQUEST, config, 0 /* index */,
+                null, 0, USB_WRITE_TIMEOUT_MILLIS);
+        if (result != 0) {
+            throw new IOException("Setting parameters failed: result=" + result);
+        }
+
+        mParity = parity;
+        mStopBits = stopBits;
+        mDataBits = dataBits;
     }
 
     private long[] convertBaudrate(int baudrate) {
@@ -430,8 +490,7 @@ public class FtdiSerialDriver extends UsbSerialDriver {
     }
 
     @Override
-    public boolean setDTR(boolean value) throws IOException {
-        return false;
+    public void setDTR(boolean value) throws IOException {
     }
 
     @Override
@@ -445,8 +504,7 @@ public class FtdiSerialDriver extends UsbSerialDriver {
     }
 
     @Override
-    public boolean setRTS(boolean value) throws IOException {
-        return false;
+    public void setRTS(boolean value) throws IOException {
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {

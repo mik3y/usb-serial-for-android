@@ -47,6 +47,30 @@ public abstract class UsbSerialDriver {
     /** Internal write buffer.  Guarded by {@link #mWriteBufferLock}. */
     protected byte[] mWriteBuffer;
 
+    public static final int DATABITS_5 = 5;
+    public static final int DATABITS_6 = 6;
+    public static final int DATABITS_7 = 7;
+    public static final int DATABITS_8 = 8;
+
+    public static final int FLOWCONTROL_NONE = 0;
+    public static final int FLOWCONTROL_RTSCTS_IN = 1;
+    public static final int FLOWCONTROL_RTSCTS_OUT = 2;
+    public static final int FLOWCONTROL_XONXOFF_IN = 4;
+    public static final int FLOWCONTROL_XONXOFF_OUT = 8;
+
+    public static final int PARITY_EVEN = 2;
+    public static final int PARITY_MARK = 3;
+    public static final int PARITY_NONE = 0;
+    public static final int PARITY_ODD = 1;
+    public static final int PARITY_SPACE = 4;
+
+    /** 1 stop bit. */
+    public static final int STOPBITS_1 = 1;
+    /** 1.5 stop bits. */
+    public static final int STOPBITS_1_5 = 3;
+    /** 2 stop bits. */
+    public static final int STOPBITS_2 = 2;
+
     public UsbSerialDriver(UsbDevice device, UsbDeviceConnection connection) {
         mDevice = device;
         mConnection = connection;
@@ -96,8 +120,26 @@ public abstract class UsbSerialDriver {
      * @param baudRate the desired baud rate, in bits per second
      * @return the actual rate set
      * @throws IOException on error setting the baud rate
+     * @deprecated Use {@link #setParameters(int, int, int, int)} instead of this method.
      */
+    @Deprecated
     public abstract int setBaudRate(final int baudRate) throws IOException;
+
+    /**
+     * Sets various serial port parameters.
+     *
+     * @param baudRate baud rate as an integer, for example {@code 115200}.
+     * @param dataBits one of {@link #DATABITS_5}, {@link #DATABITS_6},
+     *            {@link #DATABITS_7}, or {@link #DATABITS_8}.
+     * @param stopBits one of {@link #STOPBITS_1}, {@link #STOPBITS_1_5}, or
+     *            {@link #STOPBITS_2}.
+     * @param parity one of {@link #PARITY_NONE}, {@link #PARITY_ODD},
+     *            {@link #PARITY_EVEN}, {@link #PARITY_MARK}, or
+     *            {@link #PARITY_SPACE}.
+     * @throws IOException on error setting the port parameters
+     */
+    public abstract void setParameters(
+            int baudRate, int dataBits, int stopBits, int parity) throws IOException;
 
     /**
      * Gets the CD (Carrier Detect) bit from the underlying UART.
@@ -138,7 +180,7 @@ public abstract class UsbSerialDriver {
      * @param value the value to set
      * @throws IOException if an error occurred during writing
      */
-    public abstract boolean setDTR(boolean value) throws IOException;
+    public abstract void setDTR(boolean value) throws IOException;
 
     /**
      * Gets the RI (Ring Indicator) bit from the underlying UART.
@@ -160,10 +202,10 @@ public abstract class UsbSerialDriver {
      * Sets the RTS (Request To Send) bit on the underlying UART, if
      * supported.
      *
-     * @param value thje value to set
+     * @param value the value to set
      * @throws IOException if an error occurred during writing
      */
-    public abstract boolean setRTS(boolean value) throws IOException;
+    public abstract void setRTS(boolean value) throws IOException;
 
     /**
      * Returns the currently-bound USB device.
