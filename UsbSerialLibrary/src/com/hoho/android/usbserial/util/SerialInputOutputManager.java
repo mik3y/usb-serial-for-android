@@ -20,13 +20,13 @@
 
 package com.hoho.android.usbserial.util;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-
 import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * Utility class which services a {@link UsbSerialDriver} in its {@link #run()}
@@ -173,6 +173,7 @@ public class SerialInputOutputManager implements Runnable {
             if (mWriteBuffer.position() > 0) {
                 len = mWriteBuffer.position();
                 outBuff = new byte[len];
+                mWriteBuffer.rewind();
                 mWriteBuffer.get(outBuff, 0, len);
                 mWriteBuffer.clear();
             }
