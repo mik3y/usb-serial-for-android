@@ -254,6 +254,10 @@ public class CdcAcmSerialDriver extends UsbSerialDriver {
                 new int[] {
                     UsbId.VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL,
                 });
+        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_LUFA),
+                new int[] {
+                    UsbId.LUFA_VIRTUAL_SERIAL,
+                });
         return supportedDevices;
     }
 

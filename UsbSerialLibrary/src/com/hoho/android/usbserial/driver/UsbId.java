@@ -32,6 +32,9 @@ public final class UsbId {
     public static final int VENDOR_FTDI = 0x0403;
     public static final int FTDI_FT232R = 0x6001;
 
+    public static final int VENDOR_LUFA = 0x03EB;
+    public static final int LUFA_VIRTUAL_SERIAL = 0x2044;
+
     public static final int VENDOR_ARDUINO = 0x2341;
     public static final int ARDUINO_UNO = 0x0001;
     public static final int ARDUINO_MEGA_2560 = 0x0010;

@@ -2,6 +2,7 @@ Current Version (in development)
   * New driver methods: getCD, getCTS, getDSR, getDTR, setDTR, getRI, getRTS,
     setRTS.
   * Library version is available in `com.hoho.android.usbserial.BuildInfo`.
+  * Adds probe support for LUFA CDC device.
 
 v0.1.0 (2012-10-12)
   * New driver: CdcAcmSerialDriver.
