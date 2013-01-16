@@ -32,8 +32,8 @@ public final class UsbId {
     public static final int VENDOR_FTDI = 0x0403;
     public static final int FTDI_FT232R = 0x6001;
 
-    public static final int VENDOR_LUFA = 0x03EB;
-    public static final int LUFA_VIRTUAL_SERIAL = 0x2044;
+    public static final int VENDOR_ATMEL = 0x03EB;
+    public static final int ATMEL_LUFA_CDC_DEMO_APP = 0x2044;
 
     public static final int VENDOR_ARDUINO = 0x2341;
     public static final int ARDUINO_UNO = 0x0001;
@@ -48,6 +48,9 @@ public final class UsbId {
 
     public static final int VENDOR_VAN_OOIJEN_TECH = 0x16c0;
     public static final int VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL = 0x0483;
+
+    public static final int VENDOR_LEAFLABS = 0x1eaf;
+    public static final int LEAFLABS_MAPLE = 0x0004;
 
     private UsbId() {
         throw new IllegalAccessError("Non-instantiable class.");
