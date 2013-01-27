@@ -67,6 +67,20 @@ public enum UsbSerialProber {
             }
             return new CdcAcmSerialDriver(usbDevice, connection);
         }
+    },
+    
+    SILAB_SERIAL {
+        @Override
+        public UsbSerialDriver getDevice(final UsbManager manager, final UsbDevice usbDevice) {
+            if (!testIfSupported(usbDevice, Cp2102SerialDriver.getSupportedDevices())) {
+                return null;
+            }
+            final UsbDeviceConnection connection = manager.openDevice(usbDevice);
+            if (connection == null) {
+                return null;
+            }
+            return new Cp2102SerialDriver(usbDevice, connection);
+        }
     };
 
     /**

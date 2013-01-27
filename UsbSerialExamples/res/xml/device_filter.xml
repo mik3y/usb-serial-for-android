@@ -9,4 +9,7 @@
     <!-- 0x16C0 / 0x0483: Teensyduino  -->
     <usb-device vendor-id="5824" product-id="1155" />
 
+    <!-- 0x10C4 / 0xEA60: CP210x UART Bridge -->
+    <usb-device vender-id="4292" product-id="60000" />
+    
 </resources>

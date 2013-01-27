@@ -51,6 +51,9 @@ public final class UsbId {
 
     public static final int VENDOR_LEAFLABS = 0x1eaf;
     public static final int LEAFLABS_MAPLE = 0x0004;
+    
+    public static final int VENDOR_SILAB = 0x10c4;
+    public static final int SILAB_CP2102 = 0xea60;
 
     private UsbId() {
         throw new IllegalAccessError("Non-instantiable class.");
