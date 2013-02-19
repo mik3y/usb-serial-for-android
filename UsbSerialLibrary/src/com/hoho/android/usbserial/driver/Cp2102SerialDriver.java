@@ -11,7 +11,7 @@ import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.util.Log;
 
-public class Cp2102SerialDriver extends UsbSerialDriver {
+public class Cp2102SerialDriver extends CommonUsbSerialDriver {
     
     private static final String TAG = Cp2102SerialDriver.class.getSimpleName();
     

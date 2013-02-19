@@ -20,64 +20,65 @@
 
 package com.hoho.android.usbserial.driver;
 
-import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
-
 import java.io.IOException;
 
 /**
- * Driver interface for a supported USB serial device.
+ * Driver interface for a USB serial device.
  *
  * @author mike wakerly (opensource@hoho.com)
  */
-public abstract class UsbSerialDriver {
+public interface UsbSerialDriver {
 
-    public static final int DEFAULT_READ_BUFFER_SIZE = 16 * 1024;
-    public static final int DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024;
-
-    protected final UsbDevice mDevice;
-    protected final UsbDeviceConnection mConnection;
-
-    protected final Object mReadBufferLock = new Object();
-    protected final Object mWriteBufferLock = new Object();
-
-    /** Internal read buffer.  Guarded by {@link #mReadBufferLock}. */
-    protected byte[] mReadBuffer;
-
-    /** Internal write buffer.  Guarded by {@link #mWriteBufferLock}. */
-    protected byte[] mWriteBuffer;
-
+    /** 5 data bits. */
     public static final int DATABITS_5 = 5;
+
+    /** 6 data bits. */
     public static final int DATABITS_6 = 6;
+
+    /** 7 data bits. */
     public static final int DATABITS_7 = 7;
+
+    /** 8 data bits. */
     public static final int DATABITS_8 = 8;
 
+    /** No flow control. */
     public static final int FLOWCONTROL_NONE = 0;
+
+    /** RTS/CTS input flow control. */
     public static final int FLOWCONTROL_RTSCTS_IN = 1;
+
+    /** RTS/CTS output flow control. */
     public static final int FLOWCONTROL_RTSCTS_OUT = 2;
+
+    /** XON/XOFF input flow control. */
     public static final int FLOWCONTROL_XONXOFF_IN = 4;
+
+    /** XON/XOFF output flow control. */
     public static final int FLOWCONTROL_XONXOFF_OUT = 8;
 
-    public static final int PARITY_EVEN = 2;
-    public static final int PARITY_MARK = 3;
+    /** No parity. */
     public static final int PARITY_NONE = 0;
+
+    /** Odd parity. */
     public static final int PARITY_ODD = 1;
+
+    /** Even parity. */
+    public static final int PARITY_EVEN = 2;
+
+    /** Mark parity. */
+    public static final int PARITY_MARK = 3;
+
+    /** Space parity. */
     public static final int PARITY_SPACE = 4;
 
     /** 1 stop bit. */
     public static final int STOPBITS_1 = 1;
+
     /** 1.5 stop bits. */
     public static final int STOPBITS_1_5 = 3;
+
     /** 2 stop bits. */
     public static final int STOPBITS_2 = 2;
-
-    public UsbSerialDriver(UsbDevice device, UsbDeviceConnection connection) {
-        mDevice = device;
-        mConnection = connection;
-
-        mReadBuffer = new byte[DEFAULT_READ_BUFFER_SIZE];
-        mWriteBuffer = new byte[DEFAULT_WRITE_BUFFER_SIZE];
-    }
 
     /**
      * Opens and initializes the device as a USB serial device. Upon success,
@@ -85,14 +86,14 @@ public abstract class UsbSerialDriver {
      *
      * @throws IOException on error opening or initializing the device.
      */
-    public abstract void open() throws IOException;
+    public void open() throws IOException;
 
     /**
      * Closes the serial device.
      *
      * @throws IOException on error closing the device.
      */
-    public abstract void close() throws IOException;
+    public void close() throws IOException;
 
     /**
      * Reads as many bytes as possible into the destination buffer.
@@ -102,7 +103,7 @@ public abstract class UsbSerialDriver {
      * @return the actual number of bytes read
      * @throws IOException if an error occurred during reading
      */
-    public abstract int read(final byte[] dest, final int timeoutMillis) throws IOException;
+    public int read(final byte[] dest, final int timeoutMillis) throws IOException;
 
     /**
      * Writes as many bytes as possible from the source buffer.
@@ -112,7 +113,7 @@ public abstract class UsbSerialDriver {
      * @return the actual number of bytes written
      * @throws IOException if an error occurred during writing
      */
-    public abstract int write(final byte[] src, final int timeoutMillis) throws IOException;
+    public int write(final byte[] src, final int timeoutMillis) throws IOException;
 
     /**
      * Sets the baud rate of the serial device.
@@ -123,7 +124,7 @@ public abstract class UsbSerialDriver {
      * @deprecated Use {@link #setParameters(int, int, int, int)} instead of this method.
      */
     @Deprecated
-    public abstract int setBaudRate(final int baudRate) throws IOException;
+    public int setBaudRate(final int baudRate) throws IOException;
 
     /**
      * Sets various serial port parameters.
@@ -138,7 +139,7 @@ public abstract class UsbSerialDriver {
      *            {@link #PARITY_SPACE}.
      * @throws IOException on error setting the port parameters
      */
-    public abstract void setParameters(
+    public void setParameters(
             int baudRate, int dataBits, int stopBits, int parity) throws IOException;
 
     /**
@@ -147,7 +148,7 @@ public abstract class UsbSerialDriver {
      * @return the current state, or {@code false} if not supported.
      * @throws IOException if an error occurred during reading
      */
-    public abstract boolean getCD() throws IOException;
+    public boolean getCD() throws IOException;
 
     /**
      * Gets the CTS (Clear To Send) bit from the underlying UART.
@@ -155,7 +156,7 @@ public abstract class UsbSerialDriver {
      * @return the current state, or {@code false} if not supported.
      * @throws IOException if an error occurred during reading
      */
-    public abstract boolean getCTS() throws IOException;
+    public boolean getCTS() throws IOException;
 
     /**
      * Gets the DSR (Data Set Ready) bit from the underlying UART.
@@ -163,7 +164,7 @@ public abstract class UsbSerialDriver {
      * @return the current state, or {@code false} if not supported.
      * @throws IOException if an error occurred during reading
      */
-    public abstract boolean getDSR() throws IOException;
+    public boolean getDSR() throws IOException;
 
     /**
      * Gets the DTR (Data Terminal Ready) bit from the underlying UART.
@@ -171,7 +172,7 @@ public abstract class UsbSerialDriver {
      * @return the current state, or {@code false} if not supported.
      * @throws IOException if an error occurred during reading
      */
-    public abstract boolean getDTR() throws IOException;
+    public boolean getDTR() throws IOException;
 
     /**
      * Sets the DTR (Data Terminal Ready) bit on the underlying UART, if
@@ -180,7 +181,7 @@ public abstract class UsbSerialDriver {
      * @param value the value to set
      * @throws IOException if an error occurred during writing
      */
-    public abstract void setDTR(boolean value) throws IOException;
+    public void setDTR(boolean value) throws IOException;
 
     /**
      * Gets the RI (Ring Indicator) bit from the underlying UART.
@@ -188,7 +189,7 @@ public abstract class UsbSerialDriver {
      * @return the current state, or {@code false} if not supported.
      * @throws IOException if an error occurred during reading
      */
-    public abstract boolean getRI() throws IOException;
+    public boolean getRI() throws IOException;
 
     /**
      * Gets the RTS (Request To Send) bit from the underlying UART.
@@ -196,7 +197,7 @@ public abstract class UsbSerialDriver {
      * @return the current state, or {@code false} if not supported.
      * @throws IOException if an error occurred during reading
      */
-    public abstract boolean getRTS() throws IOException;
+    public boolean getRTS() throws IOException;
 
     /**
      * Sets the RTS (Request To Send) bit on the underlying UART, if
@@ -205,45 +206,6 @@ public abstract class UsbSerialDriver {
      * @param value the value to set
      * @throws IOException if an error occurred during writing
      */
-    public abstract void setRTS(boolean value) throws IOException;
-
-    /**
-     * Returns the currently-bound USB device.
-     *
-     * @return the device
-     */
-    public final UsbDevice getDevice() {
-        return mDevice;
-    }
-
-    /**
-     * Sets the size of the internal buffer used to exchange data with the USB
-     * stack for read operations.  Most users should not need to change this.
-     *
-     * @param bufferSize the size in bytes
-     */
-    public final void setReadBufferSize(int bufferSize) {
-        synchronized (mReadBufferLock) {
-            if (bufferSize == mReadBuffer.length) {
-                return;
-            }
-            mReadBuffer = new byte[bufferSize];
-        }
-    }
-
-    /**
-     * Sets the size of the internal buffer used to exchange data with the USB
-     * stack for write operations.  Most users should not need to change this.
-     *
-     * @param bufferSize the size in bytes
-     */
-    public final void setWriteBufferSize(int bufferSize) {
-        synchronized (mWriteBufferLock) {
-            if (bufferSize == mWriteBuffer.length) {
-                return;
-            }
-            mWriteBuffer = new byte[bufferSize];
-        }
-    }
+    public void setRTS(boolean value) throws IOException;
 
 }

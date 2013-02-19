@@ -35,7 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * A {@link UsbSerialDriver} implementation for a variety of FTDI devices
+ * A {@link CommonUsbSerialDriver} implementation for a variety of FTDI devices
  * <p>
  * This driver is based on
  * <a href="http://www.intra2net.com/en/developer/libftdi">libftdi</a>, and is
@@ -87,7 +87,7 @@ import java.util.Map;
  * @see <a href="http://www.ftdichip.com/">FTDI Homepage</a>
  * @see <a href="http://www.intra2net.com/en/developer/libftdi">libftdi</a>
  */
-public class FtdiSerialDriver extends UsbSerialDriver {
+public class FtdiSerialDriver extends CommonUsbSerialDriver {
 
     private static final int DEFAULT_BAUD_RATE = 115200;
     private static final int DEFAULT_DATA_BITS = DATABITS_8;
