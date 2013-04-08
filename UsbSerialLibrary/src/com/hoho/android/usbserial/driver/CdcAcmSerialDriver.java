@@ -238,6 +238,10 @@ public class CdcAcmSerialDriver extends CommonUsbSerialDriver {
                 new int[] {
                     UsbId.ATMEL_LUFA_CDC_DEMO_APP,
                 });
+        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_LEAFLABS),
+                new int[] {
+                    UsbId.LEAFLABS_MAPLE,
+                });
         return supportedDevices;
     }
 
