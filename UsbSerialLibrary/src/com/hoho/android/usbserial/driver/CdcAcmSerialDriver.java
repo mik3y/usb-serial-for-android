@@ -142,9 +142,9 @@ public class CdcAcmSerialDriver extends CommonUsbSerialDriver {
     public void setParameters(int baudRate, int dataBits, int stopBits, int parity) {
         byte stopBitsByte;
         switch (stopBits) {
-            case STOPBITS_1: stopBitsByte = 1; break;
-            case STOPBITS_1_5: stopBitsByte = 2; break;
-            case STOPBITS_2: stopBitsByte = 3; break;
+            case STOPBITS_1: stopBitsByte = 0; break;
+            case STOPBITS_1_5: stopBitsByte = 1; break;
+            case STOPBITS_2: stopBitsByte = 2; break;
             default: throw new IllegalArgumentException("Bad value for stopBits: " + stopBits);
         }
 
