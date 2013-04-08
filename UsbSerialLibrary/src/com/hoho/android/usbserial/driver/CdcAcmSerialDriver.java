@@ -30,11 +30,6 @@ public class CdcAcmSerialDriver extends CommonUsbSerialDriver {
     private UsbEndpoint mReadEndpoint;
     private UsbEndpoint mWriteEndpoint;
 
-    private int mBaudRate;
-    private int mDataBits;
-    private int mStopBits;
-    private int mParity;
-
     private boolean mRts = false;
     private boolean mDtr = false;
 
@@ -77,13 +72,6 @@ public class CdcAcmSerialDriver extends CommonUsbSerialDriver {
         Log.d(TAG, "Read endpoint direction: " + mReadEndpoint.getDirection());
         mWriteEndpoint = mDataInterface.getEndpoint(0);
         Log.d(TAG, "Write endpoint direction: " + mWriteEndpoint.getDirection());
-
-        Log.d(TAG, "Setting line coding to 115200/8N1");
-        mBaudRate = 115200;
-        mDataBits = DATABITS_8;
-        mParity = PARITY_NONE;
-        mStopBits = STOPBITS_1;
-        setParameters(mBaudRate, mDataBits, mStopBits, mParity);
     }
 
     private int sendAcmControlMessage(int request, int value, byte[] buf) {
@@ -148,14 +136,6 @@ public class CdcAcmSerialDriver extends CommonUsbSerialDriver {
             offset += amtWritten;
         }
         return offset;
-    }
-
-    @Deprecated
-    @Override
-    public int setBaudRate(int baudRate) throws IOException {
-        mBaudRate = baudRate;
-        setParameters(mBaudRate, mDataBits, mStopBits, mParity);
-        return mBaudRate;
     }
 
     @Override

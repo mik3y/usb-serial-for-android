@@ -107,10 +107,6 @@ abstract class CommonUsbSerialDriver implements UsbSerialDriver {
     public abstract int write(final byte[] src, final int timeoutMillis) throws IOException;
 
     @Override
-    @Deprecated
-    public abstract int setBaudRate(final int baudRate) throws IOException;
-
-    @Override
     public abstract void setParameters(
             int baudRate, int dataBits, int stopBits, int parity) throws IOException;
 

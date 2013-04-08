@@ -116,17 +116,6 @@ public interface UsbSerialDriver {
     public int write(final byte[] src, final int timeoutMillis) throws IOException;
 
     /**
-     * Sets the baud rate of the serial device.
-     *
-     * @param baudRate the desired baud rate, in bits per second
-     * @return the actual rate set
-     * @throws IOException on error setting the baud rate
-     * @deprecated Use {@link #setParameters(int, int, int, int)} instead of this method.
-     */
-    @Deprecated
-    public int setBaudRate(final int baudRate) throws IOException;
-
-    /**
      * Sets various serial port parameters.
      *
      * @param baudRate baud rate as an integer, for example {@code 115200}.

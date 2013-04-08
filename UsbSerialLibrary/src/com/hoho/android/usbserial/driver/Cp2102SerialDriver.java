@@ -162,18 +162,18 @@ public class Cp2102SerialDriver extends CommonUsbSerialDriver {
         return offset;
     }
 
-    @Override
-    @Deprecated
-    public int setBaudRate(int baudRate) throws IOException {   
+    private void setBaudRate(int baudRate) throws IOException {   
         byte[] data = new byte[] {
                 (byte) ( baudRate & 0xff),
                 (byte) ((baudRate >> 8 ) & 0xff),
                 (byte) ((baudRate >> 16) & 0xff),
                 (byte) ((baudRate >> 24) & 0xff)
         };
-        mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_BAUDRATE, 
+        int ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_BAUDRATE, 
                 0, 0, data, 4, USB_WRITE_TIMEOUT_MILLIS);
-        return baudRate;
+        if (ret < 0) {
+            throw new IOException("Error setting baud rate.");
+        }
     }
 
     @Override
