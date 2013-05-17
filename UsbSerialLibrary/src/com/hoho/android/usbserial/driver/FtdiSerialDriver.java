@@ -167,6 +167,32 @@ public class FtdiSerialDriver extends CommonUsbSerialDriver {
     private static final boolean ENABLE_ASYNC_READS = false;
 
     /**
+     * Filter FTDI status bytes from buffer
+     * @param src The source buffer (which contains status bytes)
+     * @param dest The destination buffer to write the status bytes into (can be src)
+     * @param totalBytesRead Number of bytes read to src
+     * @param maxPacketSize The USB endpoint max packet size
+     * @return The number of payload bytes
+     */
+    private final int filterStatusBytes(byte[] src, byte[] dest, int totalBytesRead, int maxPacketSize) {
+        final int packetsCount = totalBytesRead / maxPacketSize + 1;
+        for (int packetIdx = 0; packetIdx < packetsCount; ++packetIdx) {
+            final int count = (packetIdx == (packetsCount - 1))
+                    ? (totalBytesRead % maxPacketSize) - MODEM_STATUS_HEADER_LENGTH
+                    : maxPacketSize - MODEM_STATUS_HEADER_LENGTH;
+            if (count > 0) {
+                System.arraycopy(src,
+                        packetIdx * maxPacketSize + MODEM_STATUS_HEADER_LENGTH,
+                        dest,
+                        packetIdx * (maxPacketSize - MODEM_STATUS_HEADER_LENGTH),
+                        count);
+            }
+        }
+
+      return totalBytesRead - (packetsCount * 2);
+    }
+
+    /**
      * Constructor.
      *
      * @param usbDevice the {@link UsbDevice} to use
@@ -253,17 +279,13 @@ public class FtdiSerialDriver extends CommonUsbSerialDriver {
                 final int readAmt = Math.min(dest.length, mReadBuffer.length);
                 totalBytesRead = mConnection.bulkTransfer(endpoint, mReadBuffer,
                         readAmt, timeoutMillis);
-            }
 
-            if (totalBytesRead < MODEM_STATUS_HEADER_LENGTH) {
-                throw new IOException("Expected at least " + MODEM_STATUS_HEADER_LENGTH + " bytes");
+                if (totalBytesRead < MODEM_STATUS_HEADER_LENGTH) {
+                    throw new IOException("Expected at least " + MODEM_STATUS_HEADER_LENGTH + " bytes");
+                }
+  
+                return filterStatusBytes(mReadBuffer, dest, totalBytesRead, endpoint.getMaxPacketSize());
             }
-
-            final int payloadBytesRead = totalBytesRead - MODEM_STATUS_HEADER_LENGTH;
-            if (payloadBytesRead > 0) {
-                System.arraycopy(mReadBuffer, MODEM_STATUS_HEADER_LENGTH, dest, 0, payloadBytesRead);
-            }
-            return payloadBytesRead;
         }
     }
 
