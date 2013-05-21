@@ -97,6 +97,21 @@ public enum UsbSerialProber {
             final UsbSerialDriver driver = new Cp2102SerialDriver(usbDevice, connection);
             return Collections.singletonList(driver);
         }
+    },
+
+    PROLIFIC_SERIAL {
+        @Override
+        public List<UsbSerialDriver> probe(final UsbManager manager, final UsbDevice usbDevice) {
+            if (!testIfSupported(usbDevice, ProlificSerialDriver.getSupportedDevices())) {
+                return Collections.emptyList();
+            }
+            final UsbDeviceConnection connection = manager.openDevice(usbDevice);
+            if (connection == null) {
+                return Collections.emptyList();
+            }
+            final UsbSerialDriver driver = new ProlificSerialDriver(usbDevice, connection);
+            return Collections.singletonList(driver);
+        }
     };
 
     /**
