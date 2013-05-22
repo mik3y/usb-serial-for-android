@@ -110,7 +110,7 @@ public class DemoActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        mSerialDevice = UsbSerialProber.acquire(mUsbManager);
+        mSerialDevice = UsbSerialProber.findFirstDevice(mUsbManager);
         Log.d(TAG, "Resumed, mSerialDevice=" + mSerialDevice);
         if (mSerialDevice == null) {
             mTitleTextView.setText("No serial device.");
