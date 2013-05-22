@@ -22,14 +22,13 @@ package com.hoho.android.usbserial.examples;
 
 import android.app.Activity;
 import android.content.Context;
-import android.hardware.usb.UsbManager;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
-import com.hoho.android.usbserial.driver.UsbSerialProber;
 import com.hoho.android.usbserial.util.HexDump;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
 
@@ -38,23 +37,26 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * A sample Activity demonstrating USB-Serial support.
+ * Monitors a single {@link UsbSerialDriver} instance, showing all data
+ * received.
  *
  * @author mike wakerly (opensource@hoho.com)
  */
-public class DemoActivity extends Activity {
+public class SerialConsoleActivity extends Activity {
 
-    private final String TAG = DemoActivity.class.getSimpleName();
-
-    /**
-     * The device currently in use, or {@code null}.
-     */
-    private UsbSerialDriver mSerialDevice;
+    private final String TAG = SerialConsoleActivity.class.getSimpleName();
 
     /**
-     * The system's USB service.
+     * Driver instance, passed in statically via
+     * {@link #show(Context, UsbSerialDriver)}.
+     *
+     * <p/>
+     * This is a devious hack; it'd be cleaner to re-create the driver using
+     * arguments passed in with the {@link #startActivity(Intent)} intent. We
+     * can get away with it because both activities will run in the same
+     * process, and this is a simple demo.
      */
-    private UsbManager mUsbManager;
+    private static UsbSerialDriver sDriver = null;
 
     private TextView mTitleTextView;
     private TextView mDumpTextView;
@@ -74,10 +76,10 @@ public class DemoActivity extends Activity {
 
         @Override
         public void onNewData(final byte[] data) {
-            DemoActivity.this.runOnUiThread(new Runnable() {
+            SerialConsoleActivity.this.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    DemoActivity.this.updateReceivedData(data);
+                    SerialConsoleActivity.this.updateReceivedData(data);
                 }
             });
         }
@@ -86,10 +88,9 @@ public class DemoActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.main);
-        mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        setContentView(R.layout.serial_console);
         mTitleTextView = (TextView) findViewById(R.id.demoTitle);
-        mDumpTextView = (TextView) findViewById(R.id.demoText);
+        mDumpTextView = (TextView) findViewById(R.id.consoleText);
         mScrollView = (ScrollView) findViewById(R.id.demoScroller);
     }
 
@@ -97,38 +98,39 @@ public class DemoActivity extends Activity {
     protected void onPause() {
         super.onPause();
         stopIoManager();
-        if (mSerialDevice != null) {
+        if (sDriver != null) {
             try {
-                mSerialDevice.close();
+                sDriver.close();
             } catch (IOException e) {
                 // Ignore.
             }
-            mSerialDevice = null;
+            sDriver = null;
         }
+        finish();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        mSerialDevice = UsbSerialProber.findFirstDevice(mUsbManager);
-        Log.d(TAG, "Resumed, mSerialDevice=" + mSerialDevice);
-        if (mSerialDevice == null) {
+        Log.d(TAG, "Resumed, sDriver=" + sDriver);
+        if (sDriver == null) {
             mTitleTextView.setText("No serial device.");
         } else {
             try {
-                mSerialDevice.open();
+                sDriver.open();
+                sDriver.setParameters(115200, 8, UsbSerialDriver.STOPBITS_1, UsbSerialDriver.PARITY_NONE);
             } catch (IOException e) {
                 Log.e(TAG, "Error setting up device: " + e.getMessage(), e);
                 mTitleTextView.setText("Error opening device: " + e.getMessage());
                 try {
-                    mSerialDevice.close();
+                    sDriver.close();
                 } catch (IOException e2) {
                     // Ignore.
                 }
-                mSerialDevice = null;
+                sDriver = null;
                 return;
             }
-            mTitleTextView.setText("Serial device: " + mSerialDevice);
+            mTitleTextView.setText("Serial device: " + sDriver.getClass().getSimpleName());
         }
         onDeviceStateChange();
     }
@@ -142,9 +144,9 @@ public class DemoActivity extends Activity {
     }
 
     private void startIoManager() {
-        if (mSerialDevice != null) {
+        if (sDriver != null) {
             Log.i(TAG, "Starting io manager ..");
-            mSerialIoManager = new SerialInputOutputManager(mSerialDevice, mListener);
+            mSerialIoManager = new SerialInputOutputManager(sDriver, mListener);
             mExecutor.submit(mSerialIoManager);
         }
     }
@@ -159,6 +161,19 @@ public class DemoActivity extends Activity {
                 + HexDump.dumpHexString(data) + "\n\n";
         mDumpTextView.append(message);
         mScrollView.smoothScrollTo(0, mDumpTextView.getBottom());
+    }
+
+    /**
+     * Starts the activity, using the supplied driver instance.
+     *
+     * @param context
+     * @param driver
+     */
+    static void show(Context context, UsbSerialDriver driver) {
+        sDriver = driver;
+        final Intent intent = new Intent(context, SerialConsoleActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NO_HISTORY);
+        context.startActivity(intent);
     }
 
 }

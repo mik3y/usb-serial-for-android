@@ -107,6 +107,10 @@ public class HexDump {
         return toHexString(toByteArray(i));
     }
 
+    public static String toHexString(short i) {
+        return toHexString(toByteArray(i));
+    }
+
     public static byte[] toByteArray(byte b) {
         byte[] array = new byte[1];
         array[0] = b;
@@ -120,6 +124,15 @@ public class HexDump {
         array[2] = (byte) ((i >> 8) & 0xFF);
         array[1] = (byte) ((i >> 16) & 0xFF);
         array[0] = (byte) ((i >> 24) & 0xFF);
+
+        return array;
+    }
+
+    public static byte[] toByteArray(short i) {
+        byte[] array = new byte[2];
+
+        array[1] = (byte) (i & 0xFF);
+        array[0] = (byte) ((i >> 8) & 0xFF);
 
         return array;
     }
