@@ -158,7 +158,7 @@ public class ProlificSerialDriver extends CommonUsbSerialDriver {
     }
 
     private void resetDevice() throws IOException {
-        flush(true, true);
+        purgeHwBuffers(true, true);
     }
 
     private void setControlLines(int newControlLinesValue) throws IOException {
@@ -494,14 +494,17 @@ public class ProlificSerialDriver extends CommonUsbSerialDriver {
         setControlLines(newControlLinesValue);
     }
 
-    public void flush(boolean flushRX, boolean flushTX) throws IOException {
-        if (flushRX) {
+    @Override
+    public boolean purgeHwBuffers(boolean purgeReadBuffers, boolean purgeWriteBuffers) throws IOException {
+        if (purgeReadBuffers) {
             vendorOut(FLUSH_RX_REQUEST, 0, null);
         }
 
-        if (flushTX) {
+        if (purgeWriteBuffers) {
             vendorOut(FLUSH_TX_REQUEST, 0, null);
         }
+
+        return true;
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {
