@@ -44,7 +44,7 @@ public class UsbSerialProber {
     public static UsbSerialProber getDefaultProber() {
         final ProbeTable probeTable = new ProbeTable();
         probeTable.addDriver(CdcAcmSerialDriver.class);
-        probeTable.addDriver(Cp2102SerialDriver.class);
+        probeTable.addDriver(Cp21xxSerialDriver.class);
         probeTable.addDriver(FtdiSerialDriver.class);
         probeTable.addDriver(ProlificSerialDriver.class);
         return new UsbSerialProber(probeTable);

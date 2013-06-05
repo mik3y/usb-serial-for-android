@@ -34,16 +34,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Cp2102SerialDriver implements UsbSerialDriver {
+public class Cp21xxSerialDriver implements UsbSerialDriver {
 
-    private static final String TAG = Cp2102SerialDriver.class.getSimpleName();
+    private static final String TAG = Cp21xxSerialDriver.class.getSimpleName();
 
     private final UsbDevice mDevice;
     private final UsbSerialPort mPort;
 
-    public Cp2102SerialDriver(UsbDevice device) {
+    public Cp21xxSerialDriver(UsbDevice device) {
         mDevice = device;
-        mPort = new Cp2102SerialPort(mDevice);
+        mPort = new Cp21xxSerialPort(mDevice);
     }
 
     @Override
@@ -56,7 +56,7 @@ public class Cp2102SerialDriver implements UsbSerialDriver {
         return Collections.singletonList(mPort);
     }
 
-    class Cp2102SerialPort extends CommonUsbSerialPort {
+    public class Cp21xxSerialPort extends CommonUsbSerialPort {
 
         private static final int DEFAULT_BAUD_RATE = 9600;
 
@@ -104,13 +104,13 @@ public class Cp2102SerialDriver implements UsbSerialDriver {
         private UsbEndpoint mReadEndpoint;
         private UsbEndpoint mWriteEndpoint;
 
-        public Cp2102SerialPort(UsbDevice device) {
+        public Cp21xxSerialPort(UsbDevice device) {
             super(device);
         }
 
         @Override
         public UsbSerialDriver getDriver() {
-            return Cp2102SerialDriver.this;
+            return Cp21xxSerialDriver.this;
         }
 
         private int setConfigSingle(int request, int value) {
@@ -330,27 +330,30 @@ public class Cp2102SerialDriver implements UsbSerialDriver {
         public void setRTS(boolean value) throws IOException {
         }
 
-      @Override
-      public boolean purgeHwBuffers(boolean purgeReadBuffers,
-              boolean purgeWriteBuffers) throws IOException {
-          int value = (purgeReadBuffers ? FLUSH_READ_CODE : 0)
-                  | (purgeWriteBuffers ? FLUSH_WRITE_CODE : 0);
+        @Override
+        public boolean purgeHwBuffers(boolean purgeReadBuffers,
+                boolean purgeWriteBuffers) throws IOException {
+            int value = (purgeReadBuffers ? FLUSH_READ_CODE : 0)
+                    | (purgeWriteBuffers ? FLUSH_WRITE_CODE : 0);
 
-          if (value != 0) {
-              setConfigSingle(SILABSER_FLUSH_REQUEST_CODE, value);
-          }
+            if (value != 0) {
+                setConfigSingle(SILABSER_FLUSH_REQUEST_CODE, value);
+            }
 
-          return true;
-      }
+            return true;
+        }
 
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {
         final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
-        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_SILAB),
+        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_SILABS),
                 new int[] {
-                        UsbId.SILAB_CP2102
-                });
+            UsbId.SILABS_CP2102,
+            UsbId.SILABS_CP2105,
+            UsbId.SILABS_CP2108,
+            UsbId.SILABS_CP2110
+        });
         return supportedDevices;
     }
 
