@@ -11,7 +11,7 @@ functions for use with your own protocols.
 
 * **Homepage**: https://github.com/mik3y/usb-serial-for-android
 * **Google group**: http://groups.google.com/group/usb-serial-for-android
-* **Latest release**: v0.1.0 (November 13, 2012, see [CHANGELOG](https://github.com/mik3y/usb-serial-for-android/blob/master/CHANGELOG.txt)mas)
+* **Latest release**: v0.1.0 (November 13, 2012, see [CHANGELOG](https://github.com/mik3y/usb-serial-for-android/blob/master/CHANGELOG.txt))
 
 ## Quick Start
 
