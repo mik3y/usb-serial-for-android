@@ -11,7 +11,7 @@ functions for use with your own protocols.
 
 * **Homepage**: https://github.com/mik3y/usb-serial-for-android
 * **Google group**: http://groups.google.com/group/usb-serial-for-android
-* **Latest release**: v0.1.0 (November 13, 2012, see [http://usb-serial-for-android.googlecode.com/git/CHANGELOG.txt CHANGELOG])
+* **Latest release**: v0.1.0 (November 13, 2012, see [CHANGELOG](https://github.com/mik3y/usb-serial-for-android/blob/master/CHANGELOG.txt)mas)
 
 ## Quick Start
 
@@ -62,10 +62,10 @@ if (driver != null) {
 ```
 
 For a more complete example, see the
-[UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/master/UsbSerialExamples)
+[UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/blob/master/UsbSerialExamples)
 in git, which is a simple application for reading and showing serial data.
 
-A [simple Arduino application](https://github.com/mik3y/usb-serial-for-android/master/arduino)
+A [simple Arduino application](https://github.com/mik3y/usb-serial-for-android/blob/master/arduino)
 is also available which can be used for testing.
 
 ## Compatible Devices
