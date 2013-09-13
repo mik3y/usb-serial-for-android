@@ -1,81 +1,96 @@
 # usb-serial-for-android
 
-Library for talking to Arduinos and other USB serial devices on Android, using
-USB Host mode and Android 3.1+
+This is a driver library for communication with Arduinos and other USB serial hardware on
+Android, using the
+[Android USB Host API](http://developer.android.com/guide/topics/connectivity/usb/host.html)
+available on Android 3.1+.
 
-Homepage: http://code.google.com/p/usb-serial-for-android
+No root access, ADK, or special kernel drivers are required; all drivers are implemented in
+Java.  You get a raw serial port with `read()`, `write()`, and other basic
+functions for use with your own protocols.
 
-## About
+* **Homepage**: https://github.com/mik3y/usb-serial-for-android
+* **Google group**: http://groups.google.com/group/usb-serial-for-android
+* **Latest release**: v0.1.0 (November 13, 2012, see [http://usb-serial-for-android.googlecode.com/git/CHANGELOG.txt CHANGELOG])
 
-This project provides an Android userspace driver for USB serial devices.  You
-can use it to talk to your Arduino, or any other supported serial devices.
+## Quick Start
 
-## Usage
+**1.** Download [usb-serial-for-android-v010.jar](http://usb-serial-for-android.googlecode.com/files/usb-serial-for-android-v010.jar)
 
-Download the sources.  Inside you will find two Eclipse projects:
+**2.** Copy the jar to your Android project's `libs/` directory. (See [Android's FAQ](http://developer.android.com/guide/faq/commontasks.html#addexternallibrary) for help).
 
-* UsbSerialLibrary - the main library code, an "Android Library" project.
-* UsbSerialExamples - a demo Android application
+**3.** Copy [device_filter.xml](http://usb-serial-for-android.googlecode.com/git/UsbSerialExamples/res/xml/device_filter.xml) to your project's `res/xml/` directory.
 
-In Eclipse, open "File", "Import", and then select "General, "Existing Projects
-into Workspace".
+**4.** Configure your `AndroidManifest.xml` to notify your app when a device is attached (see [Android USB Host documentation](http://developer.android.com/guide/topics/connectivity/usb/host.html#discovering-d) for help).  
 
-Navigate to the directory you just checked out and import both projects.  Then
-run the demo application.
+```xml
+<activity
+    android:name="..."
+    ...>
+  <intent-filter>
+    <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+  </intent-filter>
+  <meta-data
+      android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" 
+      android:resource="@xml/device_filter" />
+</activity>
+```
+
+**5.** Use it! Example code snippet:
+
+```java
+// Get UsbManager from Android.
+UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
+
+// Find the first available driver.
+UsbSerialDriver driver = UsbSerialProber.acquire(manager);
+
+if (driver != null) {
+  driver.open();
+  try {
+    driver.setBaudRate(115200);
+    
+    byte buffer[] = new byte[16];
+    int numBytesRead = driver.read(buffer, 1000);
+    Log.d(TAG, "Read " + numBytesRead + " bytes.");
+  } catch (IOException e) {
+    // Deal with error.
+  } finally {
+    driver.close();
+  } 
+}
+```
+
+For a more complete example, see the
+[UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/master/UsbSerialExamples)
+in git, which is a simple application for reading and showing serial data.
+
+A [simple Arduino application](https://github.com/mik3y/usb-serial-for-android/master/arduino)
+is also available which can be used for testing.
+
+## Compatible Devices
+
+* *Serial chips:* FT232R, CDC/ACM (eg Arduino Uno) and possibly others.  See CompatibleSerialDevices
+* *Android phones and tablets:* Nexus 7, Motorola Xoom, and many others. See CompatibleAndroidDevices.
 
 
-## Compatible Serial Devices
+## Author, License, and Copyright
 
-Supported and tested:
+usb-serial-for-android is written and maintained by *mike wakerly*.
 
-*   FT232R
-
-Possibly supported (untested):
-
-*   FT232H
-*   FT2232D
-*   FT2432H
-
-Unsupported (send patches!):
-
-*   Arduino Uno (CDC)
-
-
-## Compatible Android Devices
-
-Supported and tested:
-
-*   Motorola Xoom, Android 3.1/3.2
-
-Possibly supported (untested):
-
-*   Samsung Galaxy Tab 10.1
-
-
-## License and Copyright
-
-This library is licensed under LGPL Version 2.1.  Please see LICENSE.txt for the
+This library is licensed under *LGPL Version 2.1*.  Please see LICENSE.txt for the
 complete license.
 
-Copyright 2011, Google Inc. All Rights Reserved.
+Copyright 2011-2012, Google Inc. All Rights Reserved.
 
 Portions of this library are based on libftdi
 (http://www.intra2net.com/en/developer/libftdi).  Please see
 FtdiSerialDriver.java for more information.
 
+## Help & Discussion
 
-## Contributing
+Please join our Google Group,
+[usb-serial-for-android](https://groups.google.com/forum/?fromgroups#!forum/usb-serial-for-android).
 
-Patches are welcome.  We're especially interested in supporting more devices.
-Please open a bug report.
-
-
-## Credits
-
-Author/maintainer: mike wakerly <opensource@hoho.com>
-
-Contributors:
-
-*   Robert Tsai <rob@tsaiberspace.com> (code review)
-
+Are you using this library? Let us know and we'll add your project to ProjectsUsingUsbSerialForAndroid.
 
