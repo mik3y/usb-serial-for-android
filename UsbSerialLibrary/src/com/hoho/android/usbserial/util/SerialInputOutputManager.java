@@ -1,4 +1,5 @@
-/* Copyright 2011 Google Inc.
+/* Copyright 2011-2013 Google Inc.
+ * Copyright 2013 mike wakerly <opensource@hoho.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -15,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  *
- * Project home page: http://code.google.com/p/usb-serial-for-android/
+ * Project home page: https://github.com/mik3y/usb-serial-for-android
  */
 
 package com.hoho.android.usbserial.util;
@@ -23,13 +24,13 @@ package com.hoho.android.usbserial.util;
 import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
-import com.hoho.android.usbserial.driver.UsbSerialDriver;
+import com.hoho.android.usbserial.driver.UsbSerialPort;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * Utility class which services a {@link UsbSerialDriver} in its {@link #run()}
+ * Utility class which services a {@link UsbSerialPort} in its {@link #run()}
  * method.
  *
  * @author mike wakerly (opensource@hoho.com)
@@ -42,7 +43,7 @@ public class SerialInputOutputManager implements Runnable {
     private static final int READ_WAIT_MILLIS = 200;
     private static final int BUFSIZ = 4096;
 
-    private final UsbSerialDriver mDriver;
+    private final UsbSerialPort mDriver;
 
     private final ByteBuffer mReadBuffer = ByteBuffer.allocate(BUFSIZ);
 
@@ -77,14 +78,14 @@ public class SerialInputOutputManager implements Runnable {
     /**
      * Creates a new instance with no listener.
      */
-    public SerialInputOutputManager(UsbSerialDriver driver) {
+    public SerialInputOutputManager(UsbSerialPort driver) {
         this(driver, null);
     }
 
     /**
      * Creates a new instance with the provided listener.
      */
-    public SerialInputOutputManager(UsbSerialDriver driver, Listener listener) {
+    public SerialInputOutputManager(UsbSerialPort driver, Listener listener) {
         mDriver = driver;
         mListener = listener;
     }

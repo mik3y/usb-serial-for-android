@@ -1,4 +1,5 @@
-/* Copyright 2011 Google Inc.
+/* Copyright 2011-2013 Google Inc.
+ * Copyright 2013 mike wakerly <opensource@hoho.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -15,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  *
- * Project home page: http://code.google.com/p/usb-serial-for-android/
+ * Project home page: https://github.com/mik3y/usb-serial-for-android
  */
 
 package com.hoho.android.usbserial.examples;
@@ -41,6 +42,7 @@ import android.widget.TextView;
 import android.widget.TwoLineListItem;
 
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
+import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 import com.hoho.android.usbserial.util.HexDump;
 
@@ -80,19 +82,8 @@ public class DeviceListActivity extends Activity {
 
     };
 
-    /** Simple container for a UsbDevice and its driver. */
-    private static class DeviceEntry {
-        public UsbDevice device;
-        public UsbSerialDriver driver;
-
-        DeviceEntry(UsbDevice device, UsbSerialDriver driver) {
-            this.device = device;
-            this.driver = driver;
-        }
-    }
-
-    private List<DeviceEntry> mEntries = new ArrayList<DeviceEntry>();
-    private ArrayAdapter<DeviceEntry> mAdapter;
+    private List<UsbSerialPort> mEntries = new ArrayList<UsbSerialPort>();
+    private ArrayAdapter<UsbSerialPort> mAdapter;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -104,7 +95,8 @@ public class DeviceListActivity extends Activity {
         mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
         mProgressBarTitle = (TextView) findViewById(R.id.progressBarTitle);
 
-        mAdapter = new ArrayAdapter<DeviceEntry>(this, android.R.layout.simple_expandable_list_item_2, mEntries) {
+        mAdapter = new ArrayAdapter<UsbSerialPort>(this,
+                android.R.layout.simple_expandable_list_item_2, mEntries) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 final TwoLineListItem row;
@@ -116,14 +108,16 @@ public class DeviceListActivity extends Activity {
                     row = (TwoLineListItem) convertView;
                 }
 
-                final DeviceEntry entry = mEntries.get(position);
+                final UsbSerialPort port = mEntries.get(position);
+                final UsbSerialDriver driver = port.getDriver();
+                final UsbDevice device = driver.getDevice();
+
                 final String title = String.format("Vendor %s Product %s",
-                        HexDump.toHexString((short) entry.device.getVendorId()),
-                        HexDump.toHexString((short) entry.device.getProductId()));
+                        HexDump.toHexString((short) device.getVendorId()),
+                        HexDump.toHexString((short) device.getProductId()));
                 row.getText1().setText(title);
 
-                final String subtitle = entry.driver != null ?
-                        entry.driver.getClass().getSimpleName() : "No Driver";
+                final String subtitle = driver.getClass().getSimpleName();
                 row.getText2().setText(subtitle);
 
                 return row;
@@ -141,14 +135,8 @@ public class DeviceListActivity extends Activity {
                     return;
                 }
 
-                final DeviceEntry entry = mEntries.get(position);
-                final UsbSerialDriver driver = entry.driver;
-                if (driver == null) {
-                    Log.d(TAG, "No driver.");
-                    return;
-                }
-
-                showConsoleActivity(driver);
+                final UsbSerialPort port = mEntries.get(position);
+                showConsoleActivity(port);
             }
         });
     }
@@ -168,31 +156,28 @@ public class DeviceListActivity extends Activity {
     private void refreshDeviceList() {
         showProgressBar();
 
-        new AsyncTask<Void, Void, List<DeviceEntry>>() {
+        new AsyncTask<Void, Void, List<UsbSerialPort>>() {
             @Override
-            protected List<DeviceEntry> doInBackground(Void... params) {
+            protected List<UsbSerialPort> doInBackground(Void... params) {
                 Log.d(TAG, "Refreshing device list ...");
                 SystemClock.sleep(1000);
-                final List<DeviceEntry> result = new ArrayList<DeviceEntry>();
-                for (final UsbDevice device : mUsbManager.getDeviceList().values()) {
-                    final List<UsbSerialDriver> drivers =
-                            UsbSerialProber.probeSingleDevice(mUsbManager, device);
-                    Log.d(TAG, "Found usb device: " + device);
-                    if (drivers.isEmpty()) {
-                        Log.d(TAG, "  - No UsbSerialDriver available.");
-                        result.add(new DeviceEntry(device, null));
-                    } else {
-                        for (UsbSerialDriver driver : drivers) {
-                            Log.d(TAG, "  + " + driver);
-                            result.add(new DeviceEntry(device, driver));
-                        }
-                    }
+
+                final List<UsbSerialDriver> drivers =
+                        UsbSerialProber.getDefaultProber().findAllDrivers(mUsbManager);
+
+                final List<UsbSerialPort> result = new ArrayList<UsbSerialPort>();
+                for (final UsbSerialDriver driver : drivers) {
+                    final List<UsbSerialPort> ports = driver.getPorts();
+                    Log.d(TAG, String.format("+ %s: %s port%s",
+                            driver, Integer.valueOf(ports.size()), ports.size() == 1 ? "" : "s"));
+                    result.addAll(ports);
                 }
+
                 return result;
             }
 
             @Override
-            protected void onPostExecute(List<DeviceEntry> result) {
+            protected void onPostExecute(List<UsbSerialPort> result) {
                 mEntries.clear();
                 mEntries.addAll(result);
                 mAdapter.notifyDataSetChanged();
@@ -214,8 +199,8 @@ public class DeviceListActivity extends Activity {
         mProgressBar.setVisibility(View.INVISIBLE);
     }
 
-    private void showConsoleActivity(UsbSerialDriver driver) {
-        SerialConsoleActivity.show(this, driver);
+    private void showConsoleActivity(UsbSerialPort port) {
+        SerialConsoleActivity.show(this, port);
     }
 
 }

@@ -1,4 +1,5 @@
-/* Copyright 2012 Google Inc.
+/* Copyright 2011-2013 Google Inc.
+ * Copyright 2013 mike wakerly <opensource@hoho.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -15,8 +16,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  *
- * Project home page: http://code.google.com/p/usb-serial-for-android/
+ * Project home page: https://github.com/mik3y/usb-serial-for-android
  */
+
 package com.hoho.android.usbserial.driver;
 
 /**
@@ -52,7 +54,7 @@ public final class UsbId {
 
     public static final int VENDOR_LEAFLABS = 0x1eaf;
     public static final int LEAFLABS_MAPLE = 0x0004;
-    
+
     public static final int VENDOR_SILAB = 0x10c4;
     public static final int SILAB_CP2102 = 0xea60;
 
