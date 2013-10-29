@@ -70,8 +70,10 @@ is also available which can be used for testing.
 
 ## Compatible Devices
 
-* *Serial chips:* FT232R, CDC/ACM (eg Arduino Uno) and possibly others.  See CompatibleSerialDevices
-* *Android phones and tablets:* Nexus 7, Motorola Xoom, and many others. See CompatibleAndroidDevices.
+* *Serial chips:* FT232R, CDC/ACM (eg Arduino Uno) and possibly others.
+  See [CompatibleSerialDevices](https://github.com/mik3y/usb-serial-for-android/wiki/Compatible-Serial-Devices).
+* *Android phones and tablets:* Nexus 7, Motorola Xoom, and many others.
+  See [CompatibleAndroidDevices](https://github.com/mik3y/usb-serial-for-android/wiki/Compatible-Android-Devices).
 
 
 ## Author, License, and Copyright
@@ -89,8 +91,13 @@ FtdiSerialDriver.java for more information.
 
 ## Help & Discussion
 
-Please join our Google Group,
+For common problems, see the
+[Troubleshooting](https://github.com/mik3y/usb-serial-for-android/wiki/Troubleshooting)
+wiki page.
+
+For other help and discussion, please join our Google Group,
 [usb-serial-for-android](https://groups.google.com/forum/?fromgroups#!forum/usb-serial-for-android).
 
-Are you using this library? Let us know and we'll add your project to ProjectsUsingUsbSerialForAndroid.
+Are you using the library? Let us know on the group and we'll add your project to
+[ProjectsUsingUsbSerialForAndroid](https://github.com/mik3y/usb-serial-for-android/wiki/Projects-Using-usb-serial-for-android).
 
