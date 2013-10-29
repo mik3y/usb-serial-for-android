@@ -196,7 +196,7 @@ public interface UsbSerialDriver {
      * @throws IOException if an error occurred during writing
      */
     public void setRTS(boolean value) throws IOException;
-    
+
     /**
      * Flush non-transmitted output data and / or non-read input data
      * @param flushRX {@code true} to flush non-transmitted output data
@@ -205,6 +205,6 @@ public interface UsbSerialDriver {
      * {@code false} if the operation is not supported by the driver or device
      * @throws IOException if an error occurred during flush
      */
-    public boolean flush(boolean flushRX, boolean flushTX) throws IOException;
+    public boolean purgeHwBuffers(boolean flushRX, boolean flushTX) throws IOException;
 
 }
