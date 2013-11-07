@@ -406,6 +406,9 @@ public class ProlificSerialDriver extends CommonUsbSerialDriver {
         case STOPBITS_2:
             lineRequestData[4] = 2;
             break;
+
+        default:
+            throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
         }
 
         switch (parity) {
@@ -428,6 +431,9 @@ public class ProlificSerialDriver extends CommonUsbSerialDriver {
         case PARITY_SPACE:
             lineRequestData[5] = 4;
             break;
+
+        default:
+            throw new IllegalArgumentException("Unknown parity value: " + parity);
         }
 
         lineRequestData[6] = (byte) dataBits;
