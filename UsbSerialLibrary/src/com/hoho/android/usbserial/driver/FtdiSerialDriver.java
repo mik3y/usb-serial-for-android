@@ -316,7 +316,7 @@ public class FtdiSerialDriver extends CommonUsbSerialDriver {
                         timeoutMillis);
             }
 
-            if (amtWritten <= 0) {
+            if (amtWritten < 0) {
                 throw new IOException("Error writing " + writeLength
                         + " bytes at offset " + offset + " length=" + src.length);
             }
