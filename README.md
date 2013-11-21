@@ -15,13 +15,11 @@ functions for use with your own protocols.
 
 ## Quick Start
 
-**1.** Download [usb-serial-for-android-v010.jar](http://usb-serial-for-android.googlecode.com/files/usb-serial-for-android-v010.jar)
+**1.** [Link your project](https://github.com/mik3y/usb-serial-for-android/wiki/Building-From-Source) to the library.
 
-**2.** Copy the jar to your Android project's `libs/` directory. (See [Android's FAQ](http://developer.android.com/guide/faq/commontasks.html#addexternallibrary) for help).
+**2.** Copy [device_filter.xml](http://usb-serial-for-android.googlecode.com/git/UsbSerialExamples/res/xml/device_filter.xml) to your project's `res/xml/` directory.
 
-**3.** Copy [device_filter.xml](http://usb-serial-for-android.googlecode.com/git/UsbSerialExamples/res/xml/device_filter.xml) to your project's `res/xml/` directory.
-
-**4.** Configure your `AndroidManifest.xml` to notify your app when a device is attached (see [Android USB Host documentation](http://developer.android.com/guide/topics/connectivity/usb/host.html#discovering-d) for help).  
+**3.** Configure your `AndroidManifest.xml` to notify your app when a device is attached (see [Android USB Host documentation](http://developer.android.com/guide/topics/connectivity/usb/host.html#discovering-d) for help).  
 
 ```xml
 <activity
