@@ -51,7 +51,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
     public CdcAcmSerialDriver(UsbDevice device) {
         mDevice = device;
-        mPort = new CdcAdcmSerialPort(device);
+        mPort = new CdcAcmSerialPort(device, 0);
     }
 
     @Override
@@ -64,7 +64,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         return Collections.singletonList(mPort);
     }
 
-    class CdcAdcmSerialPort extends CommonUsbSerialPort {
+    class CdcAcmSerialPort extends CommonUsbSerialPort {
 
         private UsbInterface mControlInterface;
         private UsbInterface mDataInterface;
@@ -84,8 +84,8 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         private static final int SET_CONTROL_LINE_STATE = 0x22;
         private static final int SEND_BREAK = 0x23;
 
-        public CdcAdcmSerialPort(UsbDevice device) {
-            super(device);
+        public CdcAcmSerialPort(UsbDevice device, int portNumber) {
+            super(device, portNumber);
         }
 
         @Override

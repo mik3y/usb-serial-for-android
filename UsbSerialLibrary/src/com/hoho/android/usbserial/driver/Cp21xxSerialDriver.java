@@ -43,7 +43,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
     public Cp21xxSerialDriver(UsbDevice device) {
         mDevice = device;
-        mPort = new Cp21xxSerialPort(mDevice);
+        mPort = new Cp21xxSerialPort(mDevice, 0);
     }
 
     @Override
@@ -104,8 +104,8 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         private UsbEndpoint mReadEndpoint;
         private UsbEndpoint mWriteEndpoint;
 
-        public Cp21xxSerialPort(UsbDevice device) {
-            super(device);
+        public Cp21xxSerialPort(UsbDevice device, int portNumber) {
+            super(device, portNumber);
         }
 
         @Override

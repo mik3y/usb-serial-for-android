@@ -50,7 +50,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
     public ProlificSerialDriver(UsbDevice device) {
         mDevice = device;
-        mPort = new ProlificSerialPort(mDevice);
+        mPort = new ProlificSerialPort(mDevice, 0);
     }
 
     @Override
@@ -124,8 +124,8 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         private IOException mReadStatusException = null;
 
 
-        public ProlificSerialPort(UsbDevice device) {
-            super(device);
+        public ProlificSerialPort(UsbDevice device, int portNumber) {
+            super(device, portNumber);
         }
 
         @Override

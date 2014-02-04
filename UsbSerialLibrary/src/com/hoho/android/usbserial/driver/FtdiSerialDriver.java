@@ -106,7 +106,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
     public FtdiSerialDriver(UsbDevice device) {
         mDevice = device;
-        mPort = new FtdiSerialPort(mDevice);
+        mPort = new FtdiSerialPort(mDevice, 0);
     }
     @Override
     public UsbDevice getDevice() {
@@ -192,8 +192,8 @@ public class FtdiSerialDriver implements UsbSerialDriver {
          */
         private static final boolean ENABLE_ASYNC_READS = false;
 
-        public FtdiSerialPort(UsbDevice device) {
-            super(device);
+        public FtdiSerialPort(UsbDevice device, int portNumber) {
+            super(device, portNumber);
         }
 
         @Override
