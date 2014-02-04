@@ -37,6 +37,7 @@ abstract class CommonUsbSerialPort implements UsbSerialPort {
     public static final int DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024;
 
     protected final UsbDevice mDevice;
+    protected final int mPortNumber;
 
     // non-null when open()
     protected UsbDeviceConnection mConnection = null;
@@ -50,11 +51,19 @@ abstract class CommonUsbSerialPort implements UsbSerialPort {
     /** Internal write buffer.  Guarded by {@link #mWriteBufferLock}. */
     protected byte[] mWriteBuffer;
 
-    public CommonUsbSerialPort(UsbDevice device) {
+    public CommonUsbSerialPort(UsbDevice device, int portNumber) {
         mDevice = device;
+        mPortNumber = portNumber;
 
         mReadBuffer = new byte[DEFAULT_READ_BUFFER_SIZE];
         mWriteBuffer = new byte[DEFAULT_WRITE_BUFFER_SIZE];
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("<%s device_name=%s device_id=%s port_number=%s>",
+                getClass().getSimpleName(), mDevice.getDeviceName(),
+                mDevice.getDeviceId(), mPortNumber);
     }
 
     /**
@@ -64,6 +73,11 @@ abstract class CommonUsbSerialPort implements UsbSerialPort {
      */
     public final UsbDevice getDevice() {
         return mDevice;
+    }
+
+    @Override
+    public int getPortNumber() {
+        return mPortNumber;
     }
 
     /**

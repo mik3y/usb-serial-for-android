@@ -85,6 +85,11 @@ public interface UsbSerialPort {
     public static final int STOPBITS_2 = 2;
 
     public UsbSerialDriver getDriver();
+    
+    /**
+     * Port number within driver.
+     */
+    public int getPortNumber();
 
     /**
      * Opens and initializes the port. Upon success, caller must ensure that
