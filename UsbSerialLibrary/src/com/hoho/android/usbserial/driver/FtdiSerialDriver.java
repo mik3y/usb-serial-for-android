@@ -144,6 +144,18 @@ public class FtdiSerialDriver extends CommonUsbSerialDriver {
     /**
      * Length of the modem status header, transmitted with every read.
      */
+    public static final int FTDI_SIO_SET_DTR_MASK = 0x1;
+    public static final int FTDI_SIO_SET_DTR_HIGH = ( 1 | ( FTDI_SIO_SET_DTR_MASK  << 8));
+    public static final int FTDI_SIO_SET_DTR_LOW  = ( 0 | ( FTDI_SIO_SET_DTR_MASK  << 8));
+    public static final int FTDI_SIO_SET_RTS_MASK = 0x2;
+    public static final int FTDI_SIO_SET_RTS_HIGH = ( 2 | ( FTDI_SIO_SET_RTS_MASK << 8 ));
+    public static final int FTDI_SIO_SET_RTS_LOW  = ( 0 | ( FTDI_SIO_SET_RTS_MASK << 8 ));
+
+    public static final int FTDI_SIO_GET_MODEM_STATUS = 5; /* Retrieve current value of modem status register */
+    public static final int FTDI_SIO_CTS_MASK     = 0x10;
+    public static final int FTDI_SIO_DSR_MASK     = 0x20;
+    public static final int FTDI_SIO_RI_MASK      = 0x40;
+
     private static final int MODEM_STATUS_HEADER_LENGTH = 2;
 
     private final String TAG = FtdiSerialDriver.class.getSimpleName();
@@ -482,38 +494,83 @@ public class FtdiSerialDriver extends CommonUsbSerialDriver {
     }
 
     @Override
-    public boolean getCTS() throws IOException {
-        return false;
-    }
-
-    @Override
-    public boolean getDSR() throws IOException {
-        return false;
-    }
-
-    @Override
     public boolean getDTR() throws IOException {
         return false;
     }
 
-    @Override
-    public void setDTR(boolean value) throws IOException {
-    }
-
-    @Override
-    public boolean getRI() throws IOException {
-        return false;
-    }
+ 
 
     @Override
     public boolean getRTS() throws IOException {
         return false;
     }
 
-    @Override
-    public void setRTS(boolean value) throws IOException {
+    private int getStatus() throws IOException {
+        byte [] status = new byte[2];
+        
+        int result = mConnection.controlTransfer(FTDI_DEVICE_IN_REQTYPE,
+                FTDI_SIO_GET_MODEM_STATUS, 0, 0 ,
+                status, 1, USB_WRITE_TIMEOUT_MILLIS);
+        if (result != 0) {
+            throw new IOException("Setting baudrate failed: result=" + result);
+        }
+        return status[0];
     }
 
+    @Override
+    public boolean getCTS() throws IOException {
+        int status = getStatus();
+        return((status&FTDI_SIO_CTS_MASK) == FTDI_SIO_CTS_MASK);
+    }
+
+    @Override
+    public boolean getDSR() throws IOException {
+        int status = getStatus();
+        return((status&FTDI_SIO_DSR_MASK)==FTDI_SIO_DSR_MASK);
+    }
+
+    @Override
+    public boolean getRI() throws IOException {
+        int status = getStatus();
+        return((status&FTDI_SIO_RI_MASK)==FTDI_SIO_RI_MASK);
+    }
+
+    @Override
+    public void setDTR(boolean value) throws IOException {
+        int ftdi_high_or_low;
+        
+        if (value) {
+            ftdi_high_or_low = FTDI_SIO_SET_DTR_HIGH;
+        } else {
+            ftdi_high_or_low = FTDI_SIO_SET_DTR_LOW;
+        }
+    
+        int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE,
+                SIO_MODEM_CTRL_REQUEST, ftdi_high_or_low, 0 ,
+                null, 0, USB_WRITE_TIMEOUT_MILLIS);
+        if (result != 0) {
+            throw new IOException("Setting baudrate failed: result=" + result);
+        }
+    }
+
+    @Override
+    public void setRTS(boolean value) throws IOException {    
+        int ftdi_high_or_low;
+        
+        if (value) {
+            ftdi_high_or_low = FTDI_SIO_SET_RTS_HIGH;
+        } else {
+            ftdi_high_or_low = FTDI_SIO_SET_RTS_LOW;
+        }
+        
+        int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE,
+                SIO_MODEM_CTRL_REQUEST, ftdi_high_or_low, 0 ,
+                null, 0, USB_WRITE_TIMEOUT_MILLIS);
+        if (result != 0) {
+            throw new IOException("Setting baudrate failed: result=" + result);
+        }
+    }
+    
     @Override
     public boolean purgeHwBuffers(boolean purgeReadBuffers, boolean purgeWriteBuffers) throws IOException {
         if (purgeReadBuffers) {
@@ -537,12 +594,13 @@ public class FtdiSerialDriver extends CommonUsbSerialDriver {
 
     public static Map<Integer, int[]> getSupportedDevices() {
         final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
+        
         supportedDevices.put(Integer.valueOf(UsbId.VENDOR_FTDI),
                 new int[] {
                     UsbId.FTDI_FT232R,
                     UsbId.FTDI_FT231X,                    
                 });
+     
         return supportedDevices;
     }
-
 }
