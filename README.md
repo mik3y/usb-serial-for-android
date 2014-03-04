@@ -11,11 +11,11 @@ functions for use with your own protocols.
 
 * **Homepage**: https://github.com/mik3y/usb-serial-for-android
 * **Google group**: http://groups.google.com/group/usb-serial-for-android
-* **Latest release**: v0.1.0 (November 13, 2012, see [CHANGELOG](https://github.com/mik3y/usb-serial-for-android/blob/master/CHANGELOG.txt))
+* **Latest release**: [v0.1.0](https://github.com/mik3y/usb-serial-for-android/releases)
 
 ## Quick Start
 
-**1.** Download [usb-serial-for-android-v010.jar](http://usb-serial-for-android.googlecode.com/files/usb-serial-for-android-v010.jar)
+**1.** Download [usb-serial-for-android-v010.jar](https://github.com/mik3y/usb-serial-for-android/releases/download/v0.1.0/usb-serial-for-android-v010.jar)
 
 **2.** Copy the jar to your Android project's `libs/` directory. (See [Android's FAQ](http://developer.android.com/guide/faq/commontasks.html#addexternallibrary) for help).
 
