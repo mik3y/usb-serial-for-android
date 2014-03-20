@@ -243,6 +243,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             if (mConnection != null) {
                 throw new IOException("Already open");
             }
+            mConnection = connection;
 
             boolean opened = false;
             try {
@@ -258,8 +259,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             } finally {
                 if (!opened) {
                     close();
-                } else {
-                    mConnection = connection;
+                    mConnection = null;
                 }
             }
         }
