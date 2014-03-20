@@ -243,10 +243,11 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             if (mConnection != null) {
                 throw new IOException("Already open");
             }
+
             boolean opened = false;
             try {
                 for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
-                    if (mConnection.claimInterface(mDevice.getInterface(i), true)) {
+                    if (connection.claimInterface(mDevice.getInterface(i), true)) {
                         Log.d(TAG, "claimInterface " + i + " SUCCESS");
                     } else {
                         throw new IOException("Error claiming interface " + i);
