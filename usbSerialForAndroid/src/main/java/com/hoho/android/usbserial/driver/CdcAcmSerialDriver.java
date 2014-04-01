@@ -30,8 +30,6 @@ import android.hardware.usb.UsbRequest;
 import android.os.Build;
 import android.util.Log;
 
-import com.hoho.android.usbserial.util.HexDump;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -197,6 +195,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                     // We *should* use UsbRequest, except it has a bug/api oversight
                     // where there is no way to determine the number of bytes read
                     // in response :\ -- http://b.android.com/28023
+                    if (timeoutMillis == Integer.MAX_VALUE) {
+                        // Hack: Special case "~infinite timeout" as an error.
+                        return -1;
+                    }
                     return 0;
                 }
                 System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);
