@@ -26,9 +26,14 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
+import android.hardware.usb.UsbRequest;
+import android.os.Build;
 import android.util.Log;
 
+import com.hoho.android.usbserial.util.HexDump;
+
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,6 +71,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
     class CdcAcmSerialPort extends CommonUsbSerialPort {
 
+        private final boolean mEnableAsyncReads;
         private UsbInterface mControlInterface;
         private UsbInterface mDataInterface;
 
@@ -86,6 +92,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         public CdcAcmSerialPort(UsbDevice device, int portNumber) {
             super(device, portNumber);
+            mEnableAsyncReads = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1);
         }
 
         @Override
@@ -125,6 +132,11 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 Log.d(TAG, "Read endpoint direction: " + mReadEndpoint.getDirection());
                 mWriteEndpoint = mDataInterface.getEndpoint(0);
                 Log.d(TAG, "Write endpoint direction: " + mWriteEndpoint.getDirection());
+                if (mEnableAsyncReads) {
+                  Log.d(TAG, "Async reads enabled");
+                } else {
+                  Log.d(TAG, "Async reads disabled.");
+                }
                 opened = true;
             } finally {
                 if (!opened) {
@@ -149,6 +161,32 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         @Override
         public int read(byte[] dest, int timeoutMillis) throws IOException {
+            if (mEnableAsyncReads) {
+              final UsbRequest request = new UsbRequest();
+              try {
+                request.initialize(mConnection, mReadEndpoint);
+                final ByteBuffer buf = ByteBuffer.wrap(dest);
+                if (!request.queue(buf, dest.length)) {
+                  throw new IOException("Error queueing request.");
+                }
+
+                final UsbRequest response = mConnection.requestWait();
+                if (response == null) {
+                  throw new IOException("Null response");
+                }
+
+                final int nread = buf.position();
+                if (nread > 0) {
+                  //Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
+                  return nread;
+                } else {
+                  return 0;
+                }
+              } finally {
+                request.close();
+              }
+            }
+
             final int numBytesRead;
             synchronized (mReadBufferLock) {
                 int readAmt = Math.min(dest.length, mReadBuffer.length);
