@@ -16,3 +16,8 @@ android {
         }
     }
 }
+
+task jar(type: Jar) {
+    from android.sourceSets.main.allJava
+    // Creates a jar in build/libs/
+}
