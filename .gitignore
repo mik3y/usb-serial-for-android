@@ -1,9 +1,21 @@
-UsbSerialLibrary/bin
-UsbSerialLibrary/gen
+# Studio/Gradle
+*.iml
+.gradle/
+build/
 
-UsbSerialExamples/bin
-UsbSerialExamples/gen
-UsbSerialLibrary/dictionary.txt
-UsbSerialLibrary/local.properties
-UsbSerialLibrary/proguard-project.txt
-UsbSerialLibrary/build.xml
+# Intellij IDEA (see https://intellij-support.jetbrains.com/entries/23393067)
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/datasources.xml
+.idea/dataSources.ids
+
+# generated files
+bin/
+gen/
+
+# Eclipse/Android/Misc
+.metadata/
+local.properties
+*.DS_Store
+proguard/
+
