@@ -37,6 +37,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.hoho.android.usbserial.driver.UsbId;
+
 /**
  * USB CDC/ACM serial driver implementation.
  *
@@ -347,6 +349,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 new int[] {
                     UsbId.LEAFLABS_MAPLE,
                 });
+        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_TEXAS_INSTRUMENTS), 
+        		new int[] {
+        	UsbId.MSP_430,
+        });
         return supportedDevices;
     }
 
