@@ -209,23 +209,35 @@ public class FtdiSerialDriver implements UsbSerialDriver {
          * @param maxPacketSize The USB endpoint max packet size
          * @return The number of payload bytes
          */
-        private final int filterStatusBytes(byte[] src, byte[] dest, int totalBytesRead, int maxPacketSize) {
-            final int packetsCount = totalBytesRead / maxPacketSize + 1;
-            for (int packetIdx = 0; packetIdx < packetsCount; ++packetIdx) {
-                final int count = (packetIdx == (packetsCount - 1))
-                        ? (totalBytesRead % maxPacketSize) - MODEM_STATUS_HEADER_LENGTH
-                        : maxPacketSize - MODEM_STATUS_HEADER_LENGTH;
-                if (count > 0) {
-                    System.arraycopy(src,
-                            packetIdx * maxPacketSize + MODEM_STATUS_HEADER_LENGTH,
-                            dest,
-                            packetIdx * (maxPacketSize - MODEM_STATUS_HEADER_LENGTH),
-                            count);
-                }
+    private final int filterStatusBytes(byte[] src, byte[] dest, int totalBytesRead,
+            int maxPacketSize) {
+        final int packetsCount = totalBytesRead / maxPacketSize + 1;
+        for (int packetIdx = 0; packetIdx < packetsCount; ++packetIdx) {
+            final int count = (packetIdx == (packetsCount - 1))
+                    ? (totalBytesRead % maxPacketSize) - MODEM_STATUS_HEADER_LENGTH
+                    : maxPacketSize - MODEM_STATUS_HEADER_LENGTH;
+            if (count > 0) {
+                System.arraycopy(src,
+                        packetIdx * maxPacketSize + MODEM_STATUS_HEADER_LENGTH,
+                        dest,
+                        packetIdx * (maxPacketSize - MODEM_STATUS_HEADER_LENGTH),
+                        count);
             }
-
-          return totalBytesRead - (packetsCount * 2);
         }
+
+        if (totalBytesRead % maxPacketSize == 0) {
+            System.arraycopy(src,
+                    totalBytesRead - 2,
+                    dest,
+                    totalBytesRead - (packetsCount * 2),
+                    2);
+            return totalBytesRead - (packetsCount * 2) + 2;
+        }
+        else {
+            return totalBytesRead - (packetsCount * 2);
+        }
+        
+    }
 
         public void reset() throws IOException {
             int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_RESET_REQUEST,
