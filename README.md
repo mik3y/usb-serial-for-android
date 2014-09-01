@@ -94,8 +94,8 @@ To use your own set of rules, create and use a custom prober:
 // Probe for our custom CDC devices, which use VID 0x1234
 // and PIDS 0x0001 and 0x0002.
 ProbeTable customTable = new ProbeTable();
-probeTable.addProduct(0x1234, 0x0001, CdcAcmSerialDriver.class);
-probeTable.addProduct(0x1234, 0x0002, CdcAcmSerialDriver.class);
+customTable.addProduct(0x1234, 0x0001, CdcAcmSerialDriver.class);
+customTable.addProduct(0x1234, 0x0002, CdcAcmSerialDriver.class);
 
 UsbSerialProber prober = new UsbSerialProber(customTable);
 List<UsbSerialDriver> drivers = prober.findAllDrivers(usbManager);
