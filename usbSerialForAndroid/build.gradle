@@ -19,7 +19,7 @@ android {
     }
 }
 
-group = "com.hoho"
+group = "com.hoho.android"
 version = "0.2.0-SNAPSHOT"
 
 configurations {
@@ -66,6 +66,7 @@ uploadArchives {
                     password: getRepositoryPassword())
         }
 
+        pom.artifactId = 'usb-serial-for-android'
         pom.project {
             name 'usb-serial-for-android'
             packaging 'aar'
