@@ -81,8 +81,8 @@ abstract class CommonUsbSerialPort implements UsbSerialPort {
     }
     
     /**
-     * Returns the device serial number
-     *  @return serial number
+     * Returns the device serial number or {@code null}  if unavailable.
+     *  @return serial number 
      */
     @Override
     public String getSerial() {
