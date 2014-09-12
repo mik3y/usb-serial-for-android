@@ -86,7 +86,6 @@ abstract class CommonUsbSerialPort implements UsbSerialPort {
      */
     @Override
     public String getSerial() {
-    	 if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.HONEYCOMB_MR1) return null;
          return mConnection.getSerial();
     }
 
