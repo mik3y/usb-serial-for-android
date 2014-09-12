@@ -79,6 +79,15 @@ abstract class CommonUsbSerialPort implements UsbSerialPort {
     public int getPortNumber() {
         return mPortNumber;
     }
+    
+    /**
+     * Returns the device serial number or {@code null}  if unavailable.
+     *  @return serial number 
+     */
+    @Override
+    public String getSerial() {
+         return mConnection.getSerial();
+    }
 
     /**
      * Sets the size of the internal buffer used to exchange data with the USB
