@@ -249,47 +249,43 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
                 throws IOException {
             setBaudRate(baudRate);
 
-            int configDataBits = 0;
-            switch (dataBits) {
-                case DATABITS_5:
-                    configDataBits |= 0x0500;
-                    break;
-                case DATABITS_6:
-                    configDataBits |= 0x0600;
-                    break;
-                case DATABITS_7:
-                    configDataBits |= 0x0700;
-                    break;
-                case DATABITS_8:
-                    configDataBits |= 0x0800;
-                    break;
-                default:
-                    configDataBits |= 0x0800;
-                    break;
-            }
-            setConfigSingle(SILABSER_SET_LINE_CTL_REQUEST_CODE, configDataBits);
-
-            int configParityBits = 0; // PARITY_NONE
-            switch (parity) {
-                case PARITY_ODD:
-                    configParityBits |= 0x0010;
-                    break;
-                case PARITY_EVEN:
-                    configParityBits |= 0x0020;
-                    break;
-            }
-            setConfigSingle(SILABSER_SET_LINE_CTL_REQUEST_CODE, configParityBits);
-
-            int configStopBits = 0;
-            switch (stopBits) {
-                case STOPBITS_1:
-                    configStopBits |= 0;
-                    break;
-                case STOPBITS_2:
-                    configStopBits |= 2;
-                    break;
-            }
-            setConfigSingle(SILABSER_SET_LINE_CTL_REQUEST_CODE, configStopBits);
+			int configDataBits = 0;
+			switch (dataBits) {
+				case DATABITS_5:
+					configDataBits |= 0x0500;
+					break;
+				case DATABITS_6:
+					configDataBits |= 0x0600;
+					break;
+				case DATABITS_7:
+					configDataBits |= 0x0700;
+					break;
+				case DATABITS_8:
+					configDataBits |= 0x0800;
+					break;
+				default:
+					configDataBits |= 0x0800;
+					break;
+			}
+			
+			switch (parity) {
+				case PARITY_ODD:
+					configDataBits |= 0x0010;
+					break;
+				case PARITY_EVEN:
+					configDataBits |= 0x0020;
+					break;
+			}
+			
+			switch (stopBits) {
+				case STOPBITS_1:
+					configDataBits |= 0;
+					break;
+				case STOPBITS_2:
+					configDataBits |= 2;
+					break;
+			}
+			setConfigSingle(SILABSER_SET_LINE_CTL_REQUEST_CODE, configDataBits);
         }
 
         @Override
