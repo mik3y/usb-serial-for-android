@@ -68,7 +68,7 @@ try {
 ```
 
 For a more complete example, see the
-[UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/blob/master/UsbSerialExamples)
+[UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples)
 in git, which is a simple application for reading and showing serial data.
 
 A [simple Arduino application](https://github.com/mik3y/usb-serial-for-android/blob/master/arduino)
