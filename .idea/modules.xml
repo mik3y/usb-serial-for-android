@@ -3,7 +3,10 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/usb-serial-for-android.iml" filepath="$PROJECT_DIR$/usb-serial-for-android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/usb-serial-for-android.iml" filepath="$PROJECT_DIR$/usb-serial-for-android.iml" />
       <module fileurl="file://$PROJECT_DIR$/usbSerialExamples/usbSerialExamples.iml" filepath="$PROJECT_DIR$/usbSerialExamples/usbSerialExamples.iml" />
+      <module fileurl="file://$PROJECT_DIR$/usbSerialExamples/usbSerialExamples.iml" filepath="$PROJECT_DIR$/usbSerialExamples/usbSerialExamples.iml" />
+      <module fileurl="file://$PROJECT_DIR$/usbSerialForAndroid/usbSerialForAndroid.iml" filepath="$PROJECT_DIR$/usbSerialForAndroid/usbSerialForAndroid.iml" />
       <module fileurl="file://$PROJECT_DIR$/usbSerialForAndroid/usbSerialForAndroid.iml" filepath="$PROJECT_DIR$/usbSerialForAndroid/usbSerialForAndroid.iml" />
     </modules>
   </component>
