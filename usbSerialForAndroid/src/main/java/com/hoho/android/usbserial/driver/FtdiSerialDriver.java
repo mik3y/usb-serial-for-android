@@ -286,7 +286,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
         public int getModemStatus() throws IOException {
             byte[] data = new byte[2];
-            int result = mConnection.controlTransfer(FTDI_DEVICE_IN_REQTYPE, SIO_GET_LATENCY_TIMER_REQUEST,
+            int result = mConnection.controlTransfer(FTDI_DEVICE_IN_REQTYPE, SIO_GET_MODEM_STATUS_REQUEST,
                     0, 0 /* index */, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
             if (result != 2) {
                 throw new IOException("Get modem statusfailed: result=" + result);
