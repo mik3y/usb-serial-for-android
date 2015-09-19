@@ -151,6 +151,11 @@ public class FtdiSerialDriver implements UsbSerialDriver {
          */
         private static final int SIO_SET_FLOW_CTRL_REQUEST = 2;
 
+        private static final int SIO_SET_DTR_HIGH = 0x0101;
+        private static final int SIO_SET_DTR_LOW = 0x0100;
+        private static final int SIO_SET_RTS_HIGH = 0x0202;
+        private static final int SIO_SET_RTS_LOW = 0x0200;
+
         /**
          * Set baud rate.
          */
@@ -164,6 +169,26 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         private static final int SIO_RESET_SIO = 0;
         private static final int SIO_RESET_PURGE_RX = 1; // RX @ FTDI device = write @ usb-serial-for-android library
         private static final int SIO_RESET_PURGE_TX = 2;
+
+        /**
+         * Get modem status.
+         */
+        private static final int SIO_GET_MODEM_STATUS_REQUEST = 5;
+
+        public static final int SIO_MODEM_STATUS_CTS = 0x10;
+        public static final int SIO_MODEM_STATUS_DSR = 0x20;
+        public static final int SIO_MODEM_STATUS_RI = 0x40;
+        public static final int SIO_MODEM_STATUS_RLSD = 0x80;
+
+        /**
+         * Set the latency timer.
+         */
+        private static final int SIO_SET_LATENCY_TIMER_REQUEST = 9;
+
+        /**
+         * Get the latency timer.
+         */
+        private static final int SIO_GET_LATENCY_TIMER_REQUEST = 10;
 
         public static final int FTDI_DEVICE_OUT_REQTYPE =
                 UsbConstants.USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_OUT;
@@ -181,6 +206,9 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         private DeviceType mType;
 
         private int mIndex = 0;
+
+        private boolean mDtrState = false;
+        private boolean mRtsState = false;
 
         public FtdiSerialPort(UsbDevice device, int portNumber) {
             super(device, portNumber);
@@ -234,6 +262,36 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             if (result != 0) {
                 throw new IOException("Reset failed: result=" + result);
             }
+            mDtrState = false;
+            mRtsState = false;
+        }
+
+        public void setLatencyTimer(int latencyTime) throws IOException {
+            int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_SET_LATENCY_TIMER_REQUEST,
+                    latencyTime, 0 /* index */, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 0) {
+                throw new IOException("Set latency timer failed: result=" + result);
+            }
+        }
+
+        public int getLatencyTimer() throws IOException {
+            byte[] data = new byte[1];
+            int result = mConnection.controlTransfer(FTDI_DEVICE_IN_REQTYPE, SIO_GET_LATENCY_TIMER_REQUEST,
+                    0, 0 /* index */, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 1) {
+                throw new IOException("Get latency timer failed: result=" + result);
+            }
+            return data[0];
+        }
+
+        public int getModemStatus() throws IOException {
+            byte[] data = new byte[2];
+            int result = mConnection.controlTransfer(FTDI_DEVICE_IN_REQTYPE, SIO_GET_LATENCY_TIMER_REQUEST,
+                    0, 0 /* index */, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 2) {
+                throw new IOException("Get modem statusfailed: result=" + result);
+            }
+            return data[0];
         }
 
         @Override
@@ -434,40 +492,52 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
         @Override
         public boolean getCD() throws IOException {
-            return false;
+            return (getModemStatus() & SIO_MODEM_STATUS_RLSD) != 0;
         }
 
         @Override
         public boolean getCTS() throws IOException {
-            return false;
+            return (getModemStatus() & SIO_MODEM_STATUS_CTS) != 0;
         }
 
         @Override
         public boolean getDSR() throws IOException {
-            return false;
+            return (getModemStatus() & SIO_MODEM_STATUS_DSR) != 0;
         }
 
         @Override
         public boolean getDTR() throws IOException {
-            return false;
+            return mDtrState;
         }
 
         @Override
         public void setDTR(boolean value) throws IOException {
+            int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_MODEM_CTRL_REQUEST,
+                    value ? SIO_SET_DTR_HIGH : SIO_SET_DTR_LOW, 0 /* index */, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 0) {
+                throw new IOException("Set DTR failed: result=" + result);
+            }
+            mDtrState = value;
         }
 
         @Override
         public boolean getRI() throws IOException {
-            return false;
+            return (getModemStatus() & SIO_MODEM_STATUS_RI) != 0;
         }
 
         @Override
         public boolean getRTS() throws IOException {
-            return false;
+            return mRtsState;
         }
 
         @Override
         public void setRTS(boolean value) throws IOException {
+            int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_MODEM_CTRL_REQUEST,
+                    value ? SIO_SET_RTS_HIGH : SIO_SET_RTS_LOW, 0 /* index */, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 0) {
+                throw new IOException("Set DTR failed: result=" + result);
+            }
+            mRtsState = value;
         }
 
         @Override
