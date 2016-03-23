@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent" >
-
     <TextView
         android:id="@+id/demoTitle"
         android:layout_width="match_parent"
@@ -15,15 +15,34 @@
     <View
         android:id="@+id/separator"
         android:layout_width="match_parent"
+        android:layout_height="1dip"
+        android:background="#eeeeee" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/textBtnDTR"
+        android:id="@+id/checkBoxDTR" />
+
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/textBtnRTS"
+        android:id="@+id/checkBoxRTS" />
+
+    <View
+        android:id="@+id/separator2"
+        android:layout_width="match_parent"
         android:layout_below="@+id/demoTitle"
         android:layout_height="1dip"
         android:background="#eeeeee" />
-    
+
     <ScrollView
         android:id="@+id/demoScroller"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/separator" >
+         >
 
         <TextView
             android:id="@+id/consoleText"
@@ -32,5 +51,4 @@
             android:layout_height="wrap_content"
             android:typeface="monospace" />
     </ScrollView>
-
-</RelativeLayout>
+</LinearLayout>
