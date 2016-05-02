@@ -34,7 +34,7 @@ functions for use with your own protocols.
 </activity>
 ```
 
-**5.** Use it! Example code snippet:
+**4.** Use it! Example code snippet:
 
 ```java
 // Find all available drivers from attached devices.
@@ -53,10 +53,11 @@ if (connection == null) {
 }
 
 // Read some data! Most have just one port (port 0).
-UsbSerialPort port = driver.getPort(0);
-port.open(connection);
+UsbSerialPort port = driver.getPorts().get(0);
 try {
-  port.setBaudRate(115200);
+  port.open(connection);
+  port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+
   byte buffer[] = new byte[16];
   int numBytesRead = port.read(buffer, 1000);
   Log.d(TAG, "Read " + numBytesRead + " bytes.");
