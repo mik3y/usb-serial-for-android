@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.hoho.android.usbserial.examples"
+    package="src.com.hoho.android.usbserial.examples"
     android:versionCode="1"
     android:versionName="1.0" >
 
@@ -12,7 +12,7 @@
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name" >
         <activity
-            android:name="com.hoho.android.usbserial.examples.DeviceListActivity"
+            android:name="src.com.hoho.android.usbserial.examples.DeviceListActivity"
             android:label="@string/app_name"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" >
             <intent-filter>
@@ -30,7 +30,7 @@
                 android:resource="@xml/device_filter" />
         </activity>
         <activity
-            android:name="com.hoho.android.usbserial.examples.SerialConsoleActivity"
+            android:name="src.com.hoho.android.usbserial.examples.SerialConsoleActivity"
             android:label="@string/app_name"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" >
         </activity>
