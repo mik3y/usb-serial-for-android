@@ -210,7 +210,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
          * @return The number of payload bytes
          */
         private final int filterStatusBytes(byte[] src, byte[] dest, int totalBytesRead, int maxPacketSize) {
-            final int packetsCount = totalBytesRead / maxPacketSize + 1;
+            final int packetsCount = totalBytesRead / maxPacketSize + (totalBytesRead % maxPacketSize == 0 ? 0 : 1);
             for (int packetIdx = 0; packetIdx < packetsCount; ++packetIdx) {
                 final int count = (packetIdx == (packetsCount - 1))
                         ? (totalBytesRead % maxPacketSize) - MODEM_STATUS_HEADER_LENGTH

@@ -17,9 +17,9 @@ functions for use with your own protocols.
 
 **1.** [Link your project](https://github.com/mik3y/usb-serial-for-android/wiki/Building-From-Source) to the library.
 
-**2.** Copy [device_filter.xml](http://usb-serial-for-android.googlecode.com/git/UsbSerialExamples/res/xml/device_filter.xml) to your project's `res/xml/` directory.
+**2.** Copy [device_filter.xml](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples/src/main/res/xml/device_filter.xml) to your project's `res/xml/` directory.
 
-**3.** Configure your `AndroidManifest.xml` to notify your app when a device is attached (see [Android USB Host documentation](http://developer.android.com/guide/topics/connectivity/usb/host.html#discovering-d) for help).  
+**3.** Configure your `AndroidManifest.xml` to notify your app when a device is attached (see [Android USB Host documentation](http://developer.android.com/guide/topics/connectivity/usb/host.html#discovering-d) for help).
 
 ```xml
 <activity
@@ -29,12 +29,12 @@ functions for use with your own protocols.
     <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
   </intent-filter>
   <meta-data
-      android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" 
+      android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
       android:resource="@xml/device_filter" />
 </activity>
 ```
 
-**5.** Use it! Example code snippet:
+**4.** Use it! Example code snippet:
 
 ```java
 // Find all available drivers from attached devices.
@@ -53,10 +53,11 @@ if (connection == null) {
 }
 
 // Read some data! Most have just one port (port 0).
-UsbSerialPort port = driver.getPort(0);
-port.open(connection);
+UsbSerialPort port = driver.getPorts().get(0);
 try {
-  port.setBaudRate(115200);
+  port.open(connection);
+  port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+
   byte buffer[] = new byte[16];
   int numBytesRead = port.read(buffer, 1000);
   Log.d(TAG, "Read " + numBytesRead + " bytes.");
@@ -68,7 +69,7 @@ try {
 ```
 
 For a more complete example, see the
-[UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/blob/master/UsbSerialExamples)
+[UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples)
 in git, which is a simple application for reading and showing serial data.
 
 A [simple Arduino application](https://github.com/mik3y/usb-serial-for-android/blob/master/arduino)
@@ -94,8 +95,8 @@ To use your own set of rules, create and use a custom prober:
 // Probe for our custom CDC devices, which use VID 0x1234
 // and PIDS 0x0001 and 0x0002.
 ProbeTable customTable = new ProbeTable();
-probeTable.addProduct(0x1234, 0x0001, CdcAcmSerialDriver.class);
-probeTable.addProduct(0x1234, 0x0002, CdcAcmSerialDriver.class);
+customTable.addProduct(0x1234, 0x0001, CdcAcmSerialDriver.class);
+customTable.addProduct(0x1234, 0x0002, CdcAcmSerialDriver.class);
 
 UsbSerialProber prober = new UsbSerialProber(customTable);
 List<UsbSerialDriver> drivers = prober.findAllDrivers(usbManager);

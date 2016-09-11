@@ -456,6 +456,10 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             case PARITY_ODD:
                 lineRequestData[5] = 1;
                 break;
+            
+            case PARITY_EVEN:
+                lineRequestData[5] = 2;
+                break;
 
             case PARITY_MARK:
                 lineRequestData[5] = 3;

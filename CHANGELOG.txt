@@ -1,4 +1,5 @@
 Current Version (in development)
+  * Gradle, Android Studio support.
   * New driver: CP2102 (thanks Ducky).
   * New prober support: LUFA Virtual Serial, Leaflabs Maple, Teensyduino.
   * New driver methods: getCD, getCTS, getDSR, getDTR, setDTR, getRI, getRTS,

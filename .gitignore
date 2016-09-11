@@ -1,17 +1,37 @@
+# Built application files
+*.apk
+*.ap_
+
+# Files for the Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+
 # Studio/Gradle
 *.iml
 .gradle/
 build/
 
-# Intellij IDEA (see https://intellij-support.jetbrains.com/entries/23393067)
+# User-specific stuff:
 .idea/workspace.xml
 .idea/tasks.xml
-.idea/datasources.xml
-.idea/dataSources.ids
+.idea/dictionaries
 
-# generated files
-bin/
-gen/
+# Sensitive or high-churn files:
+.idea/dataSources.ids
+.idea/dataSources.xml
+.idea/sqlDataSources.xml
+.idea/dynamic.xml
+.idea/uiDesigner.xml
+
+# Gradle:
+.idea/gradle.xml
+.idea/libraries
 
 # Eclipse/Android/Misc
 .metadata/

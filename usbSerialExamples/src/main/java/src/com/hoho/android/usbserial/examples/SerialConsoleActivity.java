@@ -28,6 +28,8 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -64,6 +66,8 @@ public class SerialConsoleActivity extends Activity {
     private TextView mTitleTextView;
     private TextView mDumpTextView;
     private ScrollView mScrollView;
+    private CheckBox chkDTR;
+    private CheckBox chkRTS;
 
     private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
 
@@ -95,7 +99,29 @@ public class SerialConsoleActivity extends Activity {
         mTitleTextView = (TextView) findViewById(R.id.demoTitle);
         mDumpTextView = (TextView) findViewById(R.id.consoleText);
         mScrollView = (ScrollView) findViewById(R.id.demoScroller);
+        chkDTR = (CheckBox) findViewById(R.id.checkBoxDTR);
+        chkRTS = (CheckBox) findViewById(R.id.checkBoxRTS);
+
+        chkDTR.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                try {
+                    sPort.setDTR(isChecked);
+                }catch (IOException x){}
+            }
+        });
+
+        chkRTS.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                try {
+                    sPort.setRTS(isChecked);
+                }catch (IOException x){}
+            }
+        });
+
     }
+
 
     @Override
     protected void onPause() {
@@ -110,6 +136,11 @@ public class SerialConsoleActivity extends Activity {
             sPort = null;
         }
         finish();
+    }
+
+    void showStatus(TextView theTextView, String theLabel, boolean theValue){
+        String msg = theLabel + ": " + (theValue ? "enabled" : "disabled") + "\n";
+        theTextView.append(msg);
     }
 
     @Override
@@ -130,6 +161,15 @@ public class SerialConsoleActivity extends Activity {
             try {
                 sPort.open(connection);
                 sPort.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+
+                showStatus(mDumpTextView, "CD  - Carrier Detect", sPort.getCD());
+                showStatus(mDumpTextView, "CTS - Clear To Send", sPort.getCTS());
+                showStatus(mDumpTextView, "DSR - Data Set Ready", sPort.getDSR());
+                showStatus(mDumpTextView, "DTR - Data Terminal Ready", sPort.getDTR());
+                showStatus(mDumpTextView, "DSR - Data Set Ready", sPort.getDSR());
+                showStatus(mDumpTextView, "RI  - Ring Indicator", sPort.getRI());
+                showStatus(mDumpTextView, "RTS - Request To Send", sPort.getRTS());
+
             } catch (IOException e) {
                 Log.e(TAG, "Error setting up device: " + e.getMessage(), e);
                 mTitleTextView.setText("Error opening device: " + e.getMessage());

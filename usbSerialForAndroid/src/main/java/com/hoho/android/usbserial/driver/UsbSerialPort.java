@@ -90,6 +90,11 @@ public interface UsbSerialPort {
      * Port number within driver.
      */
     public int getPortNumber();
+    
+    /**
+     * The serial number of the underlying UsbDeviceConnection, or {@code null}.
+     */
+    public String getSerial();
 
     /**
      * Opens and initializes the port. Upon success, caller must ensure that
