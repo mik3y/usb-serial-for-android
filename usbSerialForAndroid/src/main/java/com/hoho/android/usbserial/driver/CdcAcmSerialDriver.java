@@ -107,40 +107,118 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             mConnection = connection;
             boolean opened = false;
             try {
-                Log.d(TAG, "claiming interfaces, count=" + mDevice.getInterfaceCount());
-                mControlInterface = mDevice.getInterface(0);
-                Log.d(TAG, "Control iface=" + mControlInterface);
-                // class should be USB_CLASS_COMM
 
-                if (!mConnection.claimInterface(mControlInterface, true)) {
-                    throw new IOException("Could not claim control interface.");
-                }
-                mControlEndpoint = mControlInterface.getEndpoint(0);
-                Log.d(TAG, "Control endpoint direction: " + mControlEndpoint.getDirection());
-
-                Log.d(TAG, "Claiming data interface.");
-                mDataInterface = mDevice.getInterface(1);
-                Log.d(TAG, "data iface=" + mDataInterface);
-                // class should be USB_CLASS_CDC_DATA
-
-                if (!mConnection.claimInterface(mDataInterface, true)) {
-                    throw new IOException("Could not claim data interface.");
-                }
-                mReadEndpoint = mDataInterface.getEndpoint(1);
-                Log.d(TAG, "Read endpoint direction: " + mReadEndpoint.getDirection());
-                mWriteEndpoint = mDataInterface.getEndpoint(0);
-                Log.d(TAG, "Write endpoint direction: " + mWriteEndpoint.getDirection());
-                if (mEnableAsyncReads) {
-                  Log.d(TAG, "Async reads enabled");
+                if (1 == mDevice.getInterfaceCount()) {
+                    Log.d(TAG,"device might be castrated ACM device, trying single interface logic");
+                    openSingleInterface();
                 } else {
-                  Log.d(TAG, "Async reads disabled.");
+                    Log.d(TAG,"trying default interface logic");
+                    openInterface();
                 }
+
+                if (mEnableAsyncReads) {
+                    Log.d(TAG, "Async reads enabled");
+                } else {
+                    Log.d(TAG, "Async reads disabled.");
+                }
+
+
                 opened = true;
             } finally {
                 if (!opened) {
                     mConnection = null;
+                    // just to be on the save side
+                    mControlEndpoint = null;
+                    mReadEndpoint = null;
+                    mWriteEndpoint = null;
                 }
             }
+        }
+
+        private void openSingleInterface() throws IOException {
+            // the following code is inspired by the cdc-acm driver
+            // in the linux kernel
+
+            mControlInterface = mDevice.getInterface(0);
+            Log.d(TAG, "Control iface=" + mControlInterface);
+
+            mDataInterface = mDevice.getInterface(0);
+            Log.d(TAG, "data iface=" + mDataInterface);
+
+            if (!mConnection.claimInterface(mControlInterface, true)) {
+                throw new IOException("Could not claim shared control/data interface.");
+            }
+
+            int endCount = mControlInterface.getEndpointCount();
+
+            if (endCount < 3) {
+                Log.d(TAG,"not enough endpoints - need 3. count=" + mControlInterface.getEndpointCount());
+                throw new IOException("Insufficient number of endpoints(" + mControlInterface.getEndpointCount() + ")");
+            }
+
+            // Analyse endpoints for their properties
+            mControlEndpoint = null;
+            mReadEndpoint = null;
+            mWriteEndpoint = null;
+            for (int i = 0; i < endCount; ++i) {
+                UsbEndpoint ep = mControlInterface.getEndpoint(i);
+                if ((ep.getDirection() == UsbConstants.USB_DIR_IN) &&
+                    (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_INT)) {
+                    Log.d(TAG,"Found controlling endpoint");
+                    mControlEndpoint = ep;
+                } else if ((ep.getDirection() == UsbConstants.USB_DIR_IN) &&
+                           (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)) {
+                    Log.d(TAG,"Found reading endpoint");
+                    mReadEndpoint = ep;
+                } else if ((ep.getDirection() == UsbConstants.USB_DIR_OUT) &&
+                        (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)) {
+                    Log.d(TAG,"Found writing endpoint");
+                    mWriteEndpoint = ep;
+                }
+
+
+                if ((mControlEndpoint != null) &&
+                    (mReadEndpoint != null) &&
+                    (mWriteEndpoint != null)) {
+                    Log.d(TAG,"Found all required endpoints");
+                    break;
+                }
+            }
+
+            if ((mControlEndpoint == null) ||
+                    (mReadEndpoint == null) ||
+                    (mWriteEndpoint == null)) {
+                Log.d(TAG,"Could not establish all endpoints");
+                throw new IOException("Could not establish all endpoints");
+            }
+        }
+
+        private void openInterface() throws IOException {
+            Log.d(TAG, "claiming interfaces, count=" + mDevice.getInterfaceCount());
+
+            mControlInterface = mDevice.getInterface(0);
+            Log.d(TAG, "Control iface=" + mControlInterface);
+            // class should be USB_CLASS_COMM
+
+            if (!mConnection.claimInterface(mControlInterface, true)) {
+                throw new IOException("Could not claim control interface.");
+            }
+
+            mControlEndpoint = mControlInterface.getEndpoint(0);
+            Log.d(TAG, "Control endpoint direction: " + mControlEndpoint.getDirection());
+
+            Log.d(TAG, "Claiming data interface.");
+            mDataInterface = mDevice.getInterface(1);
+            Log.d(TAG, "data iface=" + mDataInterface);
+            // class should be USB_CLASS_CDC_DATA
+
+            if (!mConnection.claimInterface(mDataInterface, true)) {
+                throw new IOException("Could not claim data interface.");
+            }
+            mReadEndpoint = mDataInterface.getEndpoint(1);
+            Log.d(TAG, "Read endpoint direction: " + mReadEndpoint.getDirection());
+            mWriteEndpoint = mDataInterface.getEndpoint(0);
+            Log.d(TAG, "Write endpoint direction: " + mWriteEndpoint.getDirection());
         }
 
         private int sendAcmControlMessage(int request, int value, byte[] buf) {
