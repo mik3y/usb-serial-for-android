@@ -426,6 +426,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 new int[] {
                     UsbId.LEAFLABS_MAPLE,
                 });
+        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_PROXMARK3),
+                new int[] {
+                    UsbId.PROXMARK3,
+                });
         return supportedDevices;
     }
 
