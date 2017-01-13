@@ -39,6 +39,7 @@ public final class UsbId {
     public static final int ATMEL_LUFA_CDC_DEMO_APP = 0x2044;
 
     public static final int VENDOR_ARDUINO = 0x2341;
+    public static final int VENDOR_ARDUINO_UNO_R3 = 0x2a03;
     public static final int ARDUINO_UNO = 0x0001;
     public static final int ARDUINO_MEGA_2560 = 0x0010;
     public static final int ARDUINO_SERIAL_ADAPTER = 0x003b;
