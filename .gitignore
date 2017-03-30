@@ -16,6 +16,11 @@ gen/
 *.iml
 .gradle/
 build/
+/local.properties
+.idea/
+.DS_Store
+/captures
+.externalNativeBuild
 
 # User-specific stuff:
 .idea/workspace.xml
@@ -38,4 +43,3 @@ build/
 local.properties
 *.DS_Store
 proguard/
-
