@@ -22,7 +22,11 @@
 package com.hoho.android.usbserial.examples;
 
 import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.AsyncTask;
@@ -56,17 +60,25 @@ import java.util.List;
  */
 public class DeviceListActivity extends Activity {
 
-    private final String TAG = DeviceListActivity.class.getSimpleName();
+    private static String TAG = DeviceListActivity.class.getSimpleName();
+    private static final String ACTION_USB_PERMISSION =
+            "com.android.example.USB_PERMISSION";
 
-    private UsbManager mUsbManager;
+    private static UsbManager mUsbManager;
     private ListView mListView;
-    private TextView mProgressBarTitle;
-    private ProgressBar mProgressBar;
+    private static TextView mProgressBarTitle;
+    private static ProgressBar mProgressBar;
+    private PendingIntent mPermissionIntent;
+    private Boolean mAuthorized = false;
+    private Boolean mDeviceIsSelected = false;
+    private UsbDevice mUsbDevice;
+    private static UsbSerialPort sPort = null;
 
     private static final int MESSAGE_REFRESH = 101;
+
     private static final long REFRESH_TIMEOUT_MILLIS = 5000;
 
-    private final Handler mHandler = new Handler() {
+    private static Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
@@ -82,13 +94,34 @@ public class DeviceListActivity extends Activity {
 
     };
 
-    private List<UsbSerialPort> mEntries = new ArrayList<UsbSerialPort>();
-    private ArrayAdapter<UsbSerialPort> mAdapter;
+    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (ACTION_USB_PERMISSION.equals(action)) {
+                synchronized (this) {
+                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                        mAuthorized = true;
+                        Log.d(TAG, "BroadcastReceiver ACTION_USB_PERMISSION GRANTED");
+                        showConsoleActivity(sPort);
+                    }
+                    else {
+                        mAuthorized = false;
+                        Log.d(TAG, "BroadcastReceiver ACTION_USB_PERMISSION DENIED");
+                    }
+                }
+            }
+        }
+    };
+
+    private static List<UsbSerialPort> mEntries = new ArrayList<UsbSerialPort>();
+    private static ArrayAdapter<UsbSerialPort> mAdapter;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG, "onCreate ");
         setContentView(R.layout.main);
+        mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
 
         mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         mListView = (ListView) findViewById(R.id.deviceList);
@@ -134,9 +167,18 @@ public class DeviceListActivity extends Activity {
                     Log.w(TAG, "Illegal position.");
                     return;
                 }
+                sPort = mEntries.get(position);
+                mUsbDevice =  sPort.getDriver().getDevice();
+                mAuthorized = mUsbManager.hasPermission(mUsbDevice);
+                if (!mAuthorized) {
+                    Log.d(TAG, "onItemClick, need to request USB permission thanks to an intent...");
+                    mDeviceIsSelected = true;
+                    mUsbManager.requestPermission(mUsbDevice, mPermissionIntent);
+                    mHandler.removeMessages(MESSAGE_REFRESH);
+                } else {
+                    showConsoleActivity(sPort);
+                }
 
-                final UsbSerialPort port = mEntries.get(position);
-                showConsoleActivity(port);
             }
         });
     }
@@ -144,16 +186,26 @@ public class DeviceListActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        mHandler.sendEmptyMessage(MESSAGE_REFRESH);
+        Log.d(TAG, "onResume mDeviceIsSelected="+mDeviceIsSelected);
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ACTION_USB_PERMISSION);
+        registerReceiver(mUsbReceiver, filter);
+        if (mDeviceIsSelected) {
+            mDeviceIsSelected = false;
+        } else {
+            mHandler.sendEmptyMessage(MESSAGE_REFRESH);
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        Log.d(TAG, "onPause ");
+        unregisterReceiver(mUsbReceiver);
         mHandler.removeMessages(MESSAGE_REFRESH);
     }
 
-    private void refreshDeviceList() {
+    private static void refreshDeviceList() {
         showProgressBar();
 
         new AsyncTask<Void, Void, List<UsbSerialPort>>() {
@@ -190,12 +242,12 @@ public class DeviceListActivity extends Activity {
         }.execute((Void) null);
     }
 
-    private void showProgressBar() {
+    private static void showProgressBar() {
         mProgressBar.setVisibility(View.VISIBLE);
         mProgressBarTitle.setText(R.string.refreshing);
     }
 
-    private void hideProgressBar() {
+    private static void hideProgressBar() {
         mProgressBar.setVisibility(View.INVISIBLE);
     }
 
