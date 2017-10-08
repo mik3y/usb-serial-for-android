@@ -26,6 +26,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbRequest;
+import android.os.Build;
 import android.util.Log;
 
 import com.hoho.android.usbserial.util.HexDump;
@@ -190,10 +191,11 @@ public class FtdiSerialDriver implements UsbSerialDriver {
          * since it gives no indication of number of bytes read. Set this to
          * {@code true} on platforms where it is fixed.
          */
-        private static final boolean ENABLE_ASYNC_READS = false;
+        private final boolean mEnableAsyncReads;
 
         public FtdiSerialPort(UsbDevice device, int portNumber) {
             super(device, portNumber);
+            mEnableAsyncReads = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1);
         }
 
         @Override
@@ -210,10 +212,10 @@ public class FtdiSerialDriver implements UsbSerialDriver {
          * @return The number of payload bytes
          */
         private final int filterStatusBytes(byte[] src, byte[] dest, int totalBytesRead, int maxPacketSize) {
-            final int packetsCount = totalBytesRead / maxPacketSize + (totalBytesRead % maxPacketSize == 0 ? 0 : 1);
+            final int packetsCount = (totalBytesRead + maxPacketSize -1 )/ maxPacketSize;
             for (int packetIdx = 0; packetIdx < packetsCount; ++packetIdx) {
                 final int count = (packetIdx == (packetsCount - 1))
-                        ? (totalBytesRead % maxPacketSize) - MODEM_STATUS_HEADER_LENGTH
+                        ? totalBytesRead - packetIdx * maxPacketSize - MODEM_STATUS_HEADER_LENGTH
                         : maxPacketSize - MODEM_STATUS_HEADER_LENGTH;
                 if (count > 0) {
                     System.arraycopy(src,
@@ -280,33 +282,30 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         public int read(byte[] dest, int timeoutMillis) throws IOException {
             final UsbEndpoint endpoint = mDevice.getInterface(0).getEndpoint(0);
 
-            if (ENABLE_ASYNC_READS) {
-                final int readAmt;
-                synchronized (mReadBufferLock) {
-                    // mReadBuffer is only used for maximum read size.
-                    readAmt = Math.min(dest.length, mReadBuffer.length);
-                }
-
+            if (mEnableAsyncReads) {
                 final UsbRequest request = new UsbRequest();
-                request.initialize(mConnection, endpoint);
-
                 final ByteBuffer buf = ByteBuffer.wrap(dest);
-                if (!request.queue(buf, readAmt)) {
-                    throw new IOException("Error queueing request.");
+                try {
+                    request.initialize(mConnection, endpoint);
+                    if (!request.queue(buf, dest.length)) {
+                        throw new IOException("Error queueing request.");
+                    }
+
+                    final UsbRequest response = mConnection.requestWait();
+                    if (response == null) {
+                        throw new IOException("Null response");
+                    }
+                } finally {
+                    request.close();
                 }
 
-                final UsbRequest response = mConnection.requestWait();
-                if (response == null) {
-                    throw new IOException("Null response");
+                final int totalBytesRead = buf.position();
+                if (totalBytesRead < MODEM_STATUS_HEADER_LENGTH) {
+                    throw new IOException("Expected at least " + MODEM_STATUS_HEADER_LENGTH + " bytes");
                 }
 
-                final int payloadBytesRead = buf.position() - MODEM_STATUS_HEADER_LENGTH;
-                if (payloadBytesRead > 0) {
-                    Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
-                    return payloadBytesRead;
-                } else {
-                    return 0;
-                }
+                return filterStatusBytes(dest, dest, totalBytesRead, endpoint.getMaxPacketSize());
+
             } else {
                 final int totalBytesRead;
 
