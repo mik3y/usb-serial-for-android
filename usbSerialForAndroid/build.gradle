@@ -4,7 +4,7 @@ apply plugin: 'signing'
 
 android {
     compileSdkVersion 19
-    buildToolsVersion "19.1"
+    buildToolsVersion '26.0.2'
 
     defaultConfig {
         minSdkVersion 12
