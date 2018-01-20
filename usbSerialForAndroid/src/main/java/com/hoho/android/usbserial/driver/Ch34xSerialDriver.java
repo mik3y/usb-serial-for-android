@@ -46,6 +46,17 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 	private final UsbDevice mDevice;
 	private final UsbSerialPort mPort;
 
+	private static final int LCR_ENABLE_RX   = 0x80;
+	private static final int LCR_ENABLE_TX   = 0x40;
+	private static final int LCR_MARK_SPACE  = 0x20;
+	private static final int LCR_PAR_EVEN    = 0x10;
+	private static final int LCR_ENABLE_PAR  = 0x08;
+	private static final int LCR_STOP_BITS_2 = 0x04;
+	private static final int LCR_CS8         = 0x03;
+	private static final int LCR_CS7         = 0x02;
+	private static final int LCR_CS6         = 0x01;
+	private static final int LCR_CS5         = 0x00;
+
 	public Ch34xSerialDriver(UsbDevice device) {
 		mDevice = device;
 		mPort = new Ch340SerialPort(mDevice, 0);
@@ -252,7 +263,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 			checkState("init #4", 0x95, 0x2518, new int[]{-1 /* 0x56, c3*/, 0x00});
 
-			if (controlOut(0x9a, 0x2518, 0x0050) < 0) {
+			if (controlOut(0x9a, 0x2518, LCR_ENABLE_RX | LCR_ENABLE_TX | LCR_CS8) < 0) {
 				throw new IOException("init failed! #5");
 			}
 
@@ -300,7 +311,60 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 				throws IOException {
 			setBaudRate(baudRate);
 
-			// TODO databit, stopbit and paraty set not implemented
+			int lcr = LCR_ENABLE_RX | LCR_ENABLE_TX;
+
+			switch (dataBits) {
+				case DATABITS_5:
+					lcr |= LCR_CS5;
+					break;
+				case DATABITS_6:
+					lcr |= LCR_CS6;
+					break;
+				case DATABITS_7:
+					lcr |= LCR_CS7;
+					break;
+				case DATABITS_8:
+					lcr |= LCR_CS8;
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown dataBits value: " + dataBits);
+			}
+
+			switch (parity) {
+				case PARITY_NONE:
+					break;
+				case PARITY_ODD:
+					lcr |= LCR_ENABLE_PAR;
+					break;
+				case PARITY_EVEN:
+					lcr |= LCR_ENABLE_PAR | LCR_PAR_EVEN;
+					break;
+				case PARITY_MARK:
+					lcr |= LCR_ENABLE_PAR | LCR_MARK_SPACE;
+					break;
+				case PARITY_SPACE:
+					lcr |= LCR_ENABLE_PAR | LCR_MARK_SPACE | LCR_PAR_EVEN;
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown parity value: " + parity);
+			}
+
+			switch (stopBits) {
+				case STOPBITS_1:
+					break;
+				case STOPBITS_1_5:
+					throw new IllegalArgumentException("Unsupported stopBits value: 1.5");
+				case STOPBITS_2:
+					lcr |= LCR_STOP_BITS_2;
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
+			}
+
+			int ret = controlOut(0x9a, 0x2518, lcr);
+			if (ret < 0) {
+				throw new IOException("Error setting control byte");
+			}
 		}
 
 		@Override

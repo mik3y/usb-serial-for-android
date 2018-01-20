@@ -379,7 +379,18 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                 throws IOException {
             setBaudRate(baudRate);
 
-            int config = dataBits;
+            int config = 0;
+            switch (dataBits) {
+                case DATABITS_5:
+                case DATABITS_6:
+                    throw new IllegalArgumentException("Unsupported dataBits value: " + dataBits);
+                case DATABITS_7:
+                case DATABITS_8:
+                    config |= dataBits;
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown dataBits value: " + dataBits);
+            }
 
             switch (parity) {
                 case PARITY_NONE:
@@ -406,8 +417,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                     config |= (0x00 << 11);
                     break;
                 case STOPBITS_1_5:
-                    config |= (0x01 << 11);
-                    break;
+                    throw new IllegalArgumentException("Unsupported stopBits value: 1.5");
                 case STOPBITS_2:
                     config |= (0x02 << 11);
                     break;
