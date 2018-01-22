@@ -70,7 +70,6 @@ public final class UsbId {
 
     public static final int VENDOR_STM = 0x0483;
     public static final int STM_Fxxx = 0x5740;
-    public static final int STM_F2xx = 0x5742;
 
     private UsbId() {
         throw new IllegalAccessError("Non-instantiable class.");
