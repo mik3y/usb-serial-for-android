@@ -1,14 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 22
-    buildToolsVersion "22.0.1"
+    compileSdkVersion 26
+    buildToolsVersion "26.0.2"
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 22
+        targetSdkVersion 26
 
-        testApplicationId "com.hoho.android.usbserial.examples"
         testInstrumentationRunner "android.test.InstrumentationTestRunner"
     }
 
@@ -20,5 +19,5 @@ android {
 }
 
 dependencies {
-    compile project(':usbSerialForAndroid')
+    implementation project(':usbSerialForAndroid')
 }

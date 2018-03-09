@@ -1,0 +1,42 @@
+*** /n/archiv/python/rfc2217_server.py	2018-03-10 09:02:07.613771600 +0100
+--- rfc2217_server.py	2018-03-09 20:57:44.933717100 +0100
+***************
+*** 26,31 ****
+--- 26,32 ----
+              self,
+              logger=logging.getLogger('rfc2217.server') if debug else None)
+          self.log = logging.getLogger('redirector')
++         self.dlog = logging.getLogger('data')
+  
+      def statusline_poller(self):
+          self.log.debug('status line poll thread started')
+***************
+*** 55,60 ****
+--- 56,62 ----
+              try:
+                  data = self.serial.read(self.serial.in_waiting or 1)
+                  if data:
++                     self.dlog.debug("serial read: "+data.encode('hex'))
+                      # escape outgoing data when needed (Telnet IAC (0xff) character)
+                      self.write(b''.join(self.rfc2217.escape(data)))
+              except socket.error as msg:
+***************
+*** 76,81 ****
+--- 78,84 ----
+                  data = self.socket.recv(1024)
+                  if not data:
+                      break
++                 self.dlog.debug("socket read: "+data.encode('hex'))
+                  self.serial.write(b''.join(self.rfc2217.filter(data)))
+              except socket.error as msg:
+                  self.log.error('{}'.format(msg))
+***************
+*** 132,137 ****
+--- 135,141 ----
+      logging.basicConfig(level=logging.INFO)
+      #~ logging.getLogger('root').setLevel(logging.INFO)
+      logging.getLogger('rfc2217').setLevel(level)
++     logging.getLogger('data').setLevel(level)
+  
+      # connect to serial port
+      ser = serial.serial_for_url(args.SERIALPORT, do_not_open=True)
