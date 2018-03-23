@@ -36,6 +36,7 @@ import android.hardware.usb.UsbManager;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
 import android.util.Log;
+import android.os.Process;
 
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
 import com.hoho.android.usbserial.driver.Ch34xSerialDriver;
@@ -48,7 +49,6 @@ import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.net.telnet.InvalidTelnetOptionException;
 import org.apache.commons.net.telnet.TelnetClient;
 import org.apache.commons.net.telnet.TelnetCommand;
@@ -79,13 +79,15 @@ import static org.junit.Assert.fail;
 @RunWith(AndroidJUnit4.class)
 public class DeviceTest implements SerialInputOutputManager.Listener {
 
-    private final static String  rfc2217_server_host = "192.168.0.171";
+    private final static String  rfc2217_server_host = "192.168.0.100";
     private final static int     rfc2217_server_port = 2217;
-    private final static boolean rfc2217_server_nonstandard_baudrates = false; // false on Windows
+    private final static boolean rfc2217_server_nonstandard_baudrates = false; // false on Windows, Raspi
+    private final static boolean rfc2217_server_parity_mark_space = false; // false on Raspi
 
     private final static int     TELNET_READ_WAIT = 500;
     private final static int     USB_READ_WAIT    = 500;
     private final static int     USB_WRITE_WAIT   = 500;
+    private final static Integer SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY = Process.THREAD_PRIORITY_URGENT_AUDIO;
 
     private final static String  TAG = "DeviceTest";
     private final static byte    RFC2217_COM_PORT_OPTION = 0x2c;
@@ -101,6 +103,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
     private SerialInputOutputManager usbIoManager;
     private final Deque<byte[]> usbReadBuffer = new LinkedList<>();
     private boolean usbReadBlock = false;
+    private long usbReadTime = 0;
 
     private static TelnetClient telnetClient;
     private static InputStream telnetReadStream;
@@ -137,7 +140,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
     @Before
     public void setUp() throws Exception {
         setUpFixtureInt();
-        telnetClient.sendAYT(1000); // not corrctly handled by rfc2217_server.py, but WARNING output "ignoring Telnet command: '\xf6'" is a nice separator between tests
+        telnetClient.sendAYT(1000); // not correctly handled by rfc2217_server.py, but WARNING output "ignoring Telnet command: '\xf6'" is a nice separator between tests
         telnetComPortOptionCounter[0] = 0;
         telnetWriteDelay = 0;
 
@@ -175,7 +178,15 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         usbSerialPort.open(usbDeviceConnection);
         usbSerialPort.setDTR(true);
         usbSerialPort.setRTS(true);
-        usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
+        usbIoManager = new SerialInputOutputManager(usbSerialPort, this) {
+            @Override
+            public void run() {
+                if(SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY != null)
+                    Process.setThreadPriority(SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY);
+                super.run();
+            }
+        };
+
         Executors.newSingleThreadExecutor().submit(usbIoManager);
 
         synchronized (usbReadBuffer) {
@@ -263,7 +274,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
     private byte[] usbRead(int expectedLength) throws Exception {
         long end = System.currentTimeMillis() + USB_READ_WAIT;
-        ByteBuffer buf = ByteBuffer.allocate(4096);
+        ByteBuffer buf = ByteBuffer.allocate(8192);
         if(usbIoManager != null) {
             while (System.currentTimeMillis() < end) {
                 synchronized (usbReadBuffer) {
@@ -335,6 +346,16 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
     @Override
     public void onNewData(byte[] data) {
+        long now = System.currentTimeMillis();
+        if(usbReadTime == 0)
+            usbReadTime = now;
+        if(data.length > 64) {
+            Log.d(TAG, "usb read: time+=" + String.format("%-3d",now-usbReadTime) + " len=" + String.format("%-4d",data.length) + " data=" + new String(data, 0, 32) + "..." + new String(data, data.length-32, 32));
+        } else {
+            Log.d(TAG, "usb read: time+=" + String.format("%-3d",now-usbReadTime) + " len=" + String.format("%-4d",data.length) + " data=" + new String(data));
+        }
+        usbReadTime = now;
+
         while(usbReadBlock)
             try {
                 Thread.sleep(1);
@@ -349,6 +370,32 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
     @Override
     public void onRunError(Exception e) {
         assertTrue("usb connection lost", false);
+    }
+
+    // clone of org.apache.commons.lang3.StringUtils.indexOfDifference + optional startpos
+    private static int indexOfDifference(final CharSequence cs1, final CharSequence cs2) {
+        return indexOfDifference(cs1, cs2, 0, 0);
+    }
+
+    private static int indexOfDifference(final CharSequence cs1, final CharSequence cs2, int cs1startpos, int cs2startpos) {
+        if (cs1 == cs2) {
+            return -1;
+        }
+        if (cs1 == null || cs2 == null) {
+            return 0;
+        }
+        if(cs1startpos < 0 || cs2startpos < 0)
+            return -1;
+        int i, j;
+        for (i = cs1startpos, j = cs2startpos; i < cs1.length() && j < cs2.length(); ++i, ++j) {
+            if (cs1.charAt(i) != cs2.charAt(j)) {
+                break;
+            }
+        }
+        if (j < cs2.length() || i < cs1.length()) {
+            return i;
+        }
+        return -1;
     }
 
 
@@ -565,7 +612,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
         if (usbSerialDriver instanceof CdcAcmSerialDriver) {
             // not supported by arduino_leonardo_bridge.ino, other devices might support it
-        } else {
+        } else if (rfc2217_server_parity_mark_space) {
             usbParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
             usbWrite(_8n1);
             data = telnetRead(4);
@@ -597,16 +644,17 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         if (usbSerialDriver instanceof CdcAcmSerialDriver) {
             // not supported by arduino_leonardo_bridge.ino, other devices might support it
         } else {
-            telnetParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
-            telnetWrite(_8n1);
-            data = usbRead(4);
-            assertThat("19200/7M1", data, equalTo(_7m1));
+            if (rfc2217_server_parity_mark_space) {
+                telnetParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
+                telnetWrite(_8n1);
+                data = usbRead(4);
+                assertThat("19200/7M1", data, equalTo(_7m1));
 
-            telnetParameters(19200, 7, 1, UsbSerialPort.PARITY_SPACE);
-            telnetWrite(_8n1);
-            data = usbRead(4);
-            assertThat("19200/7S1", data, equalTo(_7s1));
-
+                telnetParameters(19200, 7, 1, UsbSerialPort.PARITY_SPACE);
+                telnetWrite(_8n1);
+                data = usbRead(4);
+                assertThat("19200/7S1", data, equalTo(_7s1));
+            }
             usbParameters(19200, 7, 1, UsbSerialPort.PARITY_ODD);
             telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
             telnetWrite(_8n1);
@@ -635,23 +683,23 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             // o - stop bit  (1)
             // d - data bit
 
-            // out 8N2:   addddddd doadddddddoo
-            //             1000001 0  1
-            // in 6N1:    addddddo adddddo
-            //             100000   101
+            // out 8N2:   addddddd doaddddddddo
+            //             1000001 0  10001111
+            // in 6N1:    addddddo addddddo
+            //             100000   101000
             usbParameters(19200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
             telnetParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
-            usbWrite(new byte[]{65, 1});
+            usbWrite(new byte[]{(byte)0x41, (byte)0xf1});
             data = telnetRead(2);
             assertThat("19200/8N1", data, equalTo(new byte[]{1, 5}));
 
-            // out 8N2:   addddddd dooadddddddoo
-            //             1000001 0   1
+            // out 8N2:   addddddd dooaddddddddoo
+            //             1000001 0   10011111
             // in 6N1:    addddddo addddddo
-            //             100000   1101
+            //             100000   110100
             usbParameters(19200, 8, UsbSerialPort.STOPBITS_2, UsbSerialPort.PARITY_NONE);
             telnetParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
-            usbWrite(new byte[]{65, 1});
+            usbWrite(new byte[]{(byte)0x41, (byte)0xf9});
             data = telnetRead(2);
             assertThat("19200/8N1", data, equalTo(new byte[]{1, 11}));
             // todo: could create similar test for 1.5 stopbits, by reading at double speed
@@ -705,7 +753,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             Log.i(TAG, "bufferSize " + bufferSize);
             usbReadBlock = true;
             for (linenr = 0; linenr < bufferSize/8; linenr++) {
-                line = String.format("%06d\r\n", linenr);
+                line = String.format("%07d,", linenr);
                 telnetWrite(line.getBytes());
                 expected.append(line);
             }
@@ -714,7 +762,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             // slowly write new data, until old data is comletely read from buffer and new data is received again
             boolean found = false;
             for (; linenr < bufferSize/8 + maxWait/10 && !found; linenr++) {
-                line = String.format("%06d\r\n", linenr);
+                line = String.format("%07d,", linenr);
                 telnetWrite(line.getBytes());
                 Thread.sleep(10);
                 expected.append(line);
@@ -731,7 +779,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             if (data.length() != expected.length())
                 break;
         }
-        int pos = StringUtils.indexOfDifference(data, expected);
+        int pos = indexOfDifference(data, expected);
         Log.i(TAG, "bufferSize " + bufferSize + ", first difference at " + pos);
         // actual values have large variance for same device, e.g.
         //  bufferSize 4096, first difference at 164
@@ -740,21 +788,30 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         assertTrue(data.length() != expected.length());
     }
 
+
+    //
+    // this test can fail sporadically!
+    //
+    // Android is not a real time OS, so there is no guarantee that the usb thread is scheduled, or it might be blocked by Java garbage collection.
+    // The SerialInputOutputManager uses a buffer size of 4Kb. Reading of these blocks happen behind UsbRequest.queue / UsbDeviceConnection.requestWait
+    // The dump of data and error positions in logcat show, that data is lost somewhere in the UsbRequest handling,
+    // very likely when the individual 64 byte USB packets are not read fast enough, and the serial converter chip has to discard bytes.
+    //
+    // On some days SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY=THREAD_PRIORITY_URGENT_AUDIO reduced errors by factor 10, on other days it had no effect at all!
+    //
     @Test
-    // see logcat for performance results
     public void readSpeed() throws Exception {
+        // see logcat for performance results
+        //
         // CDC arduino_leonardo_bridge.ini has transfer speed ~ 100 byte/sec
         // all other devices are near physical limit with ~ 10-12k/sec
+        int baudrate = 115200;
+        usbParameters(baudrate, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnetParameters(baudrate, 8, 1, UsbSerialPort.PARITY_NONE);
 
-        // CH340 w/o asyncReads (bulkTransfer) is much slower and fails reproducibly here
-        // FTDI w/o asyncReads (bulkTransfer) does not continue to read after ~2k
-        // CP2102 and PL2303 do not have data loss issues with bulkTransfer
-        usbParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
-        telnetParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
-
-        // limited write ahead to avoid buffer overrun
-        // with unlimited write ahead all devices fail sporadically. is it windows/device/usb-buffer overrun?
-        int writeAhead = 2000;
+        // fails more likely with larger or unlimited (-1) write ahead
+        int writeSeconds = 5;
+        int writeAhead = 5*baudrate/10; // write ahead for another 5 second read
         if(usbSerialDriver instanceof CdcAcmSerialDriver)
             writeAhead = 50;
 
@@ -763,14 +820,14 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         StringBuilder data = new StringBuilder();
         StringBuilder expected = new StringBuilder();
         int dlen = 0, elen = 0;
-        Log.i(TAG, "readSpeed: 'in' should be near "+115200/10);
+        Log.i(TAG, "readSpeed: 'read' should be near "+baudrate/10);
         long begin = System.currentTimeMillis();
         long next = System.currentTimeMillis();
-        for(int seconds=1; seconds<=5; seconds++) {
+        for(int seconds=1; seconds <= writeSeconds; seconds++) {
             next += 1000;
             while (System.currentTimeMillis() < next) {
-                if(expected.length() < data.length() + writeAhead) {
-                    line = String.format("%06d\r\n", linenr++);
+                if((writeAhead < 0) || (expected.length() < data.length() + writeAhead)) {
+                    line = String.format("%07d,", linenr++);
                     telnetWrite(line.getBytes());
                     expected.append(line);
                 } else {
@@ -778,31 +835,55 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 }
                 data.append(new String(usbRead(0)));
             }
-            Log.i(TAG, "readSpeed: t="+(next-begin)+", in="+(data.length()-dlen)+", out="+(expected.length()-elen));
+            Log.i(TAG, "readSpeed: t="+(next-begin)+", read="+(data.length()-dlen)+", write="+(expected.length()-elen));
             dlen = data.length();
             elen = expected.length();
         }
         boolean found = false;
-        for (linenr=0; linenr < 2000 && !found; linenr++) {
+        long maxwait = Math.max(1000, (expected.length() - data.length()) * 20000L / baudrate );
+        next = System.currentTimeMillis() + maxwait;
+        Log.d(TAG, "readSpeed: rest wait time " + maxwait + " for " + (expected.length() - data.length()) + " byte");
+        while(!found && System.currentTimeMillis() < next) {
             data.append(new String(usbRead(0)));
-            Thread.sleep(1);
             found = data.toString().endsWith(line);
+            Thread.sleep(1);
         }
-        next = System.currentTimeMillis();
-        //Log.i(TAG, "readSpeed: t="+(next-begin)+", in="+(data.length()-dlen));
-        assertTrue(found);
-        int pos = StringUtils.indexOfDifference(data, expected);
-        if(pos!=-1) {
-            Log.i(TAG, "readSpeed: first difference at " + pos);
-            String datasub     =     data.substring(Math.max(pos - 20, 0), Math.min(pos + 20, data.length()));
-            String expectedsub = expected.substring(Math.max(pos - 20, 0), Math.min(pos + 20, expected.length()));
-            assertThat(datasub, equalTo(expectedsub));
+        //next = System.currentTimeMillis();
+        //Log.i(TAG, "readSpeed: t="+(next-begin)+", read="+(data.length()-dlen));
+
+        int errcnt = 0;
+        int errlen = 0;
+        int datapos = indexOfDifference(data, expected);
+        int expectedpos = datapos;
+        while(datapos != -1) {
+            errcnt += 1;
+            int nextexpectedpos = -1;
+            int nextdatapos = datapos + 2;
+            int len = -1;
+            if(nextdatapos + 10 < data.length()) { // try to sync data+expected, assuming that data is lost, but not corrupted
+                String nextsub = data.substring(nextdatapos, nextdatapos + 10);
+                nextexpectedpos = expected.indexOf(nextsub, expectedpos);
+                if(nextexpectedpos >= 0) {
+                    len = nextexpectedpos - expectedpos - 2;
+                    errlen += len;
+                }
+            }
+            Log.i(TAG, "readSpeed: difference at " + datapos + " len " + len );
+            Log.d(TAG, "readSpeed:        got " +     data.substring(Math.max(datapos - 20, 0), Math.min(datapos + 20, data.length())));
+            Log.d(TAG, "readSpeed:   expected " + expected.substring(Math.max(expectedpos - 20, 0), Math.min(expectedpos + 20, expected.length())));
+            datapos = indexOfDifference(data, expected, nextdatapos, nextexpectedpos);
+            expectedpos = nextexpectedpos + (datapos  - nextdatapos);
         }
+        if(errcnt != 0)
+            Log.i(TAG, "readSpeed: got " + errcnt + " errors, total len " + errlen+ ", avg. len " + errlen/errcnt);
+        assertTrue("end not found", found);
+        assertEquals("no errors", 0, errcnt);
     }
 
     @Test
-    // see logcat for performance results
     public void writeSpeed() throws Exception {
+        // see logcat for performance results
+        //
         // CDC arduino_leonardo_bridge.ini has transfer speed ~ 100 byte/sec
         // all other devices can get near physical limit:
         // longlines=true:, speed is near physical limit at 11.5k
@@ -816,21 +897,21 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         StringBuilder data = new StringBuilder();
         StringBuilder expected = new StringBuilder();
         int dlen = 0, elen = 0;
-        Log.i(TAG, "writeSpeed: 'out' should be near "+115200/10);
+        Log.i(TAG, "writeSpeed: 'write' should be near "+115200/10);
         long begin = System.currentTimeMillis();
         long next = System.currentTimeMillis();
         for(int seconds=1; seconds<=5; seconds++) {
             next += 1000;
             while (System.currentTimeMillis() < next) {
                 if(longlines)
-                    line = String.format("%060d\r\n", linenr++);
+                    line = String.format("%060d,", linenr++);
                 else
-                    line = String.format("%06d\r\n", linenr++);
+                    line = String.format("%07d,", linenr++);
                 usbWrite(line.getBytes());
                 expected.append(line);
                 data.append(new String(telnetRead(0)));
             }
-            Log.i(TAG, "writeSpeed: t="+(next-begin)+", out="+(expected.length()-elen)+", in="+(data.length()-dlen));
+            Log.i(TAG, "writeSpeed: t="+(next-begin)+", write="+(expected.length()-elen)+", read="+(data.length()-dlen));
             dlen = data.length();
             elen = expected.length();
         }
@@ -841,10 +922,11 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             found = data.toString().endsWith(line);
         }
         next = System.currentTimeMillis();
-        Log.i(TAG, "writeSpeed: t="+(next-begin)+", in="+(data.length()-dlen));
+        Log.i(TAG, "writeSpeed: t="+(next-begin)+", read="+(data.length()-dlen));
         assertTrue(found);
-        int pos = StringUtils.indexOfDifference(data, expected);
+        int pos = indexOfDifference(data, expected);
         if(pos!=-1) {
+
             Log.i(TAG, "writeSpeed: first difference at " + pos);
             String datasub     =     data.substring(Math.max(pos - 20, 0), Math.min(pos + 20, data.length()));
             String expectedsub = expected.substring(Math.max(pos - 20, 0), Math.min(pos + 20, expected.length()));

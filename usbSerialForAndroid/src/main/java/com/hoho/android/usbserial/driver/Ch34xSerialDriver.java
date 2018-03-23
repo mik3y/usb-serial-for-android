@@ -191,23 +191,23 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 				} finally {
 					request.close();
 				}
-			}
-
-			final int numBytesRead;
-			synchronized (mReadBufferLock) {
-				int readAmt = Math.min(dest.length, mReadBuffer.length);
-				numBytesRead = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer, readAmt,
-						timeoutMillis);
-				if (numBytesRead < 0) {
-					// This sucks: we get -1 on timeout, not 0 as preferred.
-					// We *should* use UsbRequest, except it has a bug/api oversight
-					// where there is no way to determine the number of bytes read
-					// in response :\ -- http://b.android.com/28023
-					return 0;
+			} else {
+				final int numBytesRead;
+				synchronized (mReadBufferLock) {
+					int readAmt = Math.min(dest.length, mReadBuffer.length);
+					numBytesRead = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer, readAmt,
+							timeoutMillis);
+					if (numBytesRead < 0) {
+						// This sucks: we get -1 on timeout, not 0 as preferred.
+						// We *should* use UsbRequest, except it has a bug/api oversight
+						// where there is no way to determine the number of bytes read
+						// in response :\ -- http://b.android.com/28023
+						return 0;
+					}
+					System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);
 				}
-				System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);
+				return numBytesRead;
 			}
-			return numBytesRead;
 		}
 
 		@Override
