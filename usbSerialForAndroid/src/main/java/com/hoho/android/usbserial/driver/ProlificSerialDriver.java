@@ -32,10 +32,13 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
+import android.hardware.usb.UsbRequest;
+import android.os.Build;
 import android.util.Log;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -109,6 +112,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         private int mDeviceType = DEVICE_TYPE_HX;
 
+        private final boolean mEnableAsyncReads;
         private UsbEndpoint mReadEndpoint;
         private UsbEndpoint mWriteEndpoint;
         private UsbEndpoint mInterruptEndpoint;
@@ -126,6 +130,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         public ProlificSerialPort(UsbDevice device, int portNumber) {
             super(device, portNumber);
+            mEnableAsyncReads = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1);
         }
 
         @Override
@@ -368,15 +373,41 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         @Override
         public int read(byte[] dest, int timeoutMillis) throws IOException {
-            synchronized (mReadBufferLock) {
-                int readAmt = Math.min(dest.length, mReadBuffer.length);
-                int numBytesRead = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer,
-                        readAmt, timeoutMillis);
-                if (numBytesRead < 0) {
-                    return 0;
+            if (mEnableAsyncReads) {
+                final UsbRequest request = new UsbRequest();
+                try {
+                    request.initialize(mConnection, mReadEndpoint);
+                    final ByteBuffer buf = ByteBuffer.wrap(dest);
+                    if (!request.queue(buf, dest.length)) {
+                        throw new IOException("Error queueing request.");
+                    }
+
+                    final UsbRequest response = mConnection.requestWait();
+                    if (response == null) {
+                        throw new IOException("Null response");
+                    }
+
+                    final int nread = buf.position();
+                    if (nread > 0) {
+                        //Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
+                        return nread;
+                    } else {
+                        return 0;
+                    }
+                } finally {
+                    request.close();
                 }
-                System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);
-                return numBytesRead;
+            } else {
+                synchronized (mReadBufferLock) {
+                    int readAmt = Math.min(dest.length, mReadBuffer.length);
+                    int numBytesRead = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer,
+                            readAmt, timeoutMillis);
+                    if (numBytesRead < 0) {
+                        return 0;
+                    }
+                    System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);
+                    return numBytesRead;
+                }
             }
         }
 
