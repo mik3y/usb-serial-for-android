@@ -79,10 +79,12 @@ import static org.junit.Assert.fail;
 @RunWith(AndroidJUnit4.class)
 public class DeviceTest implements SerialInputOutputManager.Listener {
 
+    // configuration:
     private final static String  rfc2217_server_host = "192.168.0.100";
     private final static int     rfc2217_server_port = 2217;
     private final static boolean rfc2217_server_nonstandard_baudrates = false; // false on Windows, Raspi
     private final static boolean rfc2217_server_parity_mark_space = false; // false on Raspi
+    private final static int     test_device_port = 0;
 
     private final static int     TELNET_READ_WAIT = 500;
     private final static int     USB_READ_WAIT    = 500;
@@ -110,6 +112,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
     private static OutputStream telnetWriteStream;
     private static Integer[] telnetComPortOptionCounter = {0};
     private int telnetWriteDelay = 0;
+    private boolean isCp21xxRestrictedPort = false; // second port of Cp2105 has limited dataBits, stopBits, parity
 
     @BeforeClass
     public static void setUpFixture() throws Exception {
@@ -149,10 +152,10 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
         assertEquals("no usb device found", 1, availableDrivers.size());
         usbSerialDriver = availableDrivers.get(0);
-        assertEquals(1, usbSerialDriver.getPorts().size());
-        usbSerialPort = usbSerialDriver.getPorts().get(0);
+        assertTrue( usbSerialDriver.getPorts().size() > test_device_port);
+        usbSerialPort = usbSerialDriver.getPorts().get(test_device_port);
         Log.i(TAG, "Using USB device "+ usbSerialDriver.getClass().getSimpleName());
-
+        isCp21xxRestrictedPort = usbSerialDriver instanceof Cp21xxSerialDriver && usbSerialDriver.getPorts().size()==2 && test_device_port == 1;
 
         if (!usbManager.hasPermission(usbSerialPort.getDriver().getDevice())) {
             final Boolean[] granted = {Boolean.FALSE};
@@ -432,6 +435,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 ; // todo: add range check in driver
             else
                 fail("invalid baudrate 0");
+        } catch (java.io.IOException e) { // cp2105 second port
         } catch (java.lang.IllegalArgumentException e) {
         }
         try {
@@ -445,6 +449,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             else
                 fail("invalid baudrate 0");
         } catch (java.lang.ArithmeticException e) { // ch340
+        } catch (java.io.IOException e) { // cp2105 second port
         } catch (java.lang.IllegalArgumentException e) {
         }
         try {
@@ -473,12 +478,21 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             else
                 fail("invalid baudrate 2^31");
         } catch (java.lang.ArithmeticException e) { // ch340
+        } catch (java.io.IOException e) { // cp2105 second port
         } catch (java.lang.IllegalArgumentException e) {
         }
 
-        for(int baudRate : new int[] {2400, 19200, 42000, 115200} ) {
+        for(int baudRate : new int[] {300, 2400, 19200, 42000, 115200} ) {
             if(baudRate == 42000 && !rfc2217_server_nonstandard_baudrates)
                 continue; // rfc2217_server.py would terminate
+            if(baudRate == 300 && isCp21xxRestrictedPort) {
+                try {
+                    usbParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
+                    assertTrue(false);
+                } catch (java.io.IOException e) {
+                }
+                continue;
+            }
             telnetParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
             usbParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
 
@@ -543,14 +557,18 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         assertThat("19000/5N1", data, equalTo(new byte[] {(byte)0xe0, (byte)0xff}));
 
         // usb -> telnet
-        telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
-        usbParameters(19200, 7, 1, UsbSerialPort.PARITY_NONE);
-        usbWrite(new byte[] {0x00});
-        Thread.sleep(1);
-        usbWrite(new byte[] {(byte)0xff});
-        data = telnetRead(2);
-        assertThat("19000/7N1", data, equalTo(new byte[] {(byte)0x80, (byte)0xff}));
-
+        try {
+            telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(19200, 7, 1, UsbSerialPort.PARITY_NONE);
+            usbWrite(new byte[]{0x00});
+            Thread.sleep(1);
+            usbWrite(new byte[]{(byte) 0xff});
+            data = telnetRead(2);
+            assertThat("19000/7N1", data, equalTo(new byte[]{(byte) 0x80, (byte) 0xff}));
+        } catch (java.lang.IllegalArgumentException e) {
+                if(!isCp21xxRestrictedPort)
+                    throw e;
+        }
         try {
             usbParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
             usbWrite(new byte[]{0x00});
@@ -559,7 +577,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             data = telnetRead(2);
             assertThat("19000/6N1", data, equalTo(new byte[]{(byte) 0xc0, (byte) 0xff}));
         } catch (java.lang.IllegalArgumentException e) {
-            if (!(usbSerialDriver instanceof FtdiSerialDriver))
+            if (!(isCp21xxRestrictedPort || usbSerialDriver instanceof FtdiSerialDriver))
                 throw e;
         }
         try {
@@ -570,7 +588,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             data = telnetRead(2);
             assertThat("19000/5N1", data, equalTo(new byte[] {(byte)0xe0, (byte)0xff}));
         } catch (java.lang.IllegalArgumentException e) {
-            if (!(usbSerialDriver instanceof FtdiSerialDriver))
+            if (!(isCp21xxRestrictedPort || usbSerialDriver instanceof FtdiSerialDriver))
                 throw e;
         }
     }
@@ -591,6 +609,18 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 fail("invalid parity "+i);
             } catch (java.lang.IllegalArgumentException e) {
             }
+        }
+        if(isCp21xxRestrictedPort) {
+            usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(19200, 8, 1, UsbSerialPort.PARITY_EVEN);
+            usbParameters(19200, 8, 1, UsbSerialPort.PARITY_ODD);
+            try {
+                usbParameters(19200, 8, 1, UsbSerialPort.PARITY_MARK);
+                usbParameters(19200, 8, 1, UsbSerialPort.PARITY_SPACE);
+            } catch (java.lang.IllegalArgumentException e) {
+            }
+            return;
+            // test below not possible as it requires unsupported 7 dataBits
         }
 
         // usb -> telnet
@@ -697,11 +727,16 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             //             1000001 0   10011111
             // in 6N1:    addddddo addddddo
             //             100000   110100
-            usbParameters(19200, 8, UsbSerialPort.STOPBITS_2, UsbSerialPort.PARITY_NONE);
-            telnetParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
-            usbWrite(new byte[]{(byte)0x41, (byte)0xf9});
-            data = telnetRead(2);
-            assertThat("19200/8N1", data, equalTo(new byte[]{1, 11}));
+            try {
+                usbParameters(19200, 8, UsbSerialPort.STOPBITS_2, UsbSerialPort.PARITY_NONE);
+                telnetParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
+                usbWrite(new byte[]{(byte) 0x41, (byte) 0xf9});
+                data = telnetRead(2);
+                assertThat("19200/8N1", data, equalTo(new byte[]{1, 11}));
+            } catch(java.lang.IllegalArgumentException e) {
+                if(!isCp21xxRestrictedPort)
+                    throw e;
+            }
             // todo: could create similar test for 1.5 stopbits, by reading at double speed
             //       but only some devices support 1.5 stopbits and it is basically not used any more
         }
