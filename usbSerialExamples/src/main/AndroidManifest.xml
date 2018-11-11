@@ -4,8 +4,6 @@
     android:versionCode="1"
     android:versionName="1.0" >
 
-    <uses-sdk android:minSdkVersion="12" />
-
     <uses-feature android:name="android.hardware.usb.host" />
 
     <application
