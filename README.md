@@ -3,7 +3,7 @@
 This is a driver library for communication with Arduinos and other USB serial hardware on
 Android, using the
 [Android USB Host API](http://developer.android.com/guide/topics/connectivity/usb/host.html)
-available on Android 3.1+.
+available since Android 3.1 and asynchronous interrupt transfer working reliably since Android 4.2
 
 No root access, ADK, or special kernel drivers are required; all drivers are implemented in
 Java.  You get a raw serial port with `read()`, `write()`, and other basic
