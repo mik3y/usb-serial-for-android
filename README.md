@@ -1,4 +1,4 @@
-# usb-serial-for-android
+# usb-serial-for-android [![](https://jitpack.io/v/kai-morich/usb-serial-for-android.svg)](https://jitpack.io/#kai-morich/usb-serial-for-android)
 
 This is a driver library for communication with Arduinos and other USB serial hardware on
 Android, using the
@@ -10,12 +10,26 @@ Java.  You get a raw serial port with `read()`, `write()`, and other basic
 functions for use with your own protocols.
 
 * **Homepage**: https://github.com/mik3y/usb-serial-for-android
-* **Google group**: http://groups.google.com/group/usb-serial-for-android
-* **Latest release**: [v0.1.0](https://github.com/mik3y/usb-serial-for-android/releases)
 
 ## Quick Start
 
-**1.** [Link your project](https://github.com/mik3y/usb-serial-for-android/wiki/Building-From-Source) to the library.
+**1.** Add library to your project:
+
+Add jitpack.io repository to your root build.gradle:
+```
+allprojects {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
+}
+````
+Add library to dependencies
+```
+dependencies {
+    implementation 'com.github.kai-morich:usb-serial-for-android:Tag'
+}
+```
 
 **2.** Copy [device_filter.xml](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples/src/main/res/xml/device_filter.xml) to your project's `res/xml/` directory.
 
@@ -68,9 +82,12 @@ try {
 }
 ```
 
-For a more complete example, see the
+For a simple example, see the
 [UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples)
 in git, which is a simple application for reading and showing serial data.
+
+For a more complete example, see separate github project 
+[SimpleUsbTerminal](https://github.com/kai-morich/SimpleUsbTerminal)
 
 A [simple Arduino application](https://github.com/mik3y/usb-serial-for-android/blob/master/arduino)
 is also available which can be used for testing.
