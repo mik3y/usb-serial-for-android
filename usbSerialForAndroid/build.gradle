@@ -31,14 +31,22 @@ dependencies {
 //   dependencies {
 //     implementation 'com.github.kai-morich:usb-serial-for-android:1.x.0'
 //   }
-// for testing and local usage the library can be published to local maven
-// repository with 'gradlew publishToMavenLocal' and the following section:
+// for testing and local usage the library can be published to local maven repository
+// with 'gradlew usbSerialForAndroid:publishToMavenLocal' using the following sections:
 publishing {
     publications {
         maven(MavenPublication) {
-            groupId = 'com.github.kai-morich'
-            artifactId = 'usb-serial-for-android'
-            version = '1.x.0'
+            artifact bundleReleaseAar
+            artifact androidSourcesJar
+            groupId 'com.github.kai-morich'
+            artifactId 'usb-serial-for-android'
+            version '1.x.0'
         }
     }
 }
+
+task androidSourcesJar(type: Jar) {
+    classifier 'sources'
+    from android.sourceSets.main.java.srcDirs
+}
+
