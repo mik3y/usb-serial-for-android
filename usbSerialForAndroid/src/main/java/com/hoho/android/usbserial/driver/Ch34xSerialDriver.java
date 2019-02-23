@@ -141,7 +141,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			int ret = controlIn(request, value, 0, buffer);
 
 			if (ret < 0) {
-				throw new IOException("Faild send cmd [" + msg + "]");
+				throw new IOException("Failed send cmd [" + msg + "]");
 			}
 
 			if (ret != expected.length) {
@@ -155,14 +155,14 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 				int current = buffer[i] & 0xff;
 				if (expected[i] != current) {
-					throw new IOException("Expected 0x" + Integer.toHexString(expected[i]) + " bytes, but get 0x" + Integer.toHexString(current) + " [" + msg + "]");
+					throw new IOException("Expected 0x" + Integer.toHexString(expected[i]) + " byte, but get 0x" + Integer.toHexString(current) + " [" + msg + "]");
 				}
 			}
 		}
 
 		private void writeHandshakeByte() throws IOException {
 			if (controlOut(0xa4, ~((dtr ? 1 << 5 : 0) | (rts ? 1 << 6 : 0)), 0) < 0) {
-				throw new IOException("Faild to set handshake byte");
+				throw new IOException("Failed to set handshake byte");
 			}
 		}
 
@@ -181,7 +181,8 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 				throw new IOException("Init failed: #5");
 			}
 
-			checkState("init #6", 0x95, 0x0706, new int[]{0xff, 0xee});
+			checkState("init #6", 0x95, 0x0706, new int[]{-1/*0xf?*/, 0xee});
+
 
 			if (controlOut(0xa1, 0x501f, 0xd90a) < 0) {
 				throw new IOException("Init failed: #7");
