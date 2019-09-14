@@ -1,5 +1,4 @@
 apply plugin: 'com.android.library'
-apply plugin: 'maven-publish'
 
 android {
     compileSdkVersion 28
@@ -27,26 +26,4 @@ dependencies {
     androidTestImplementation 'org.apache.commons:commons-lang3:3.8.1'
 }
 
-// the library is typically taken from jitpack.io with:
-//   dependencies {
-//     implementation 'com.github.kai-morich:usb-serial-for-android:1.x.0'
-//   }
-// for testing and local usage the library can be published to local maven repository
-// with 'gradlew usbSerialForAndroid:publishToMavenLocal' using the following sections:
-publishing {
-    publications {
-        maven(MavenPublication) {
-            artifact bundleReleaseAar
-            artifact androidSourcesJar
-            groupId 'com.github.kai-morich'
-            artifactId 'usb-serial-for-android'
-            version '1.x.0'
-        }
-    }
-}
-
-task androidSourcesJar(type: Jar) {
-    classifier 'sources'
-    from android.sourceSets.main.java.srcDirs
-}
-
+//apply from: 'publishToMavenLocal.gradle'

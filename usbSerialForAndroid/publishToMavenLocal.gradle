@@ -1,0 +1,20 @@
+apply plugin: 'maven-publish'
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId 'com.github.kai-morich'
+            artifactId 'usb-serial-for-android'
+            version '1.x.0'
+            afterEvaluate {
+                artifact androidSourcesJar
+                artifact bundleReleaseAar
+            }
+        }
+    }
+}
+
+task androidSourcesJar(type: Jar) {
+    classifier 'sources'
+    from android.sourceSets.main.java.srcDirs
+}
