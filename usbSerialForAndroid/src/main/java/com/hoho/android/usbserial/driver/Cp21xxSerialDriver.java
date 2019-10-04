@@ -264,26 +264,38 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
                     configDataBits |= 0x0800;
                     break;
                 default:
-                    configDataBits |= 0x0800;
-                    break;
+                    throw new IllegalArgumentException("Unknown dataBits value: " + dataBits);
             }
             
             switch (parity) {
+                case PARITY_NONE:
+                    break;
                 case PARITY_ODD:
                     configDataBits |= 0x0010;
                     break;
                 case PARITY_EVEN:
                     configDataBits |= 0x0020;
                     break;
+                case PARITY_MARK:
+                    configDataBits |= 0x0030;
+                    break;
+                case PARITY_SPACE:
+                    configDataBits |= 0x0040;
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown parity value: " + parity);
             }
             
             switch (stopBits) {
                 case STOPBITS_1:
-                    configDataBits |= 0;
                     break;
+                case STOPBITS_1_5:
+                    throw new IllegalArgumentException("Unsupported stopBits value: 1.5");
                 case STOPBITS_2:
                     configDataBits |= 2;
                     break;
+                default:
+                    throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
             }
             setConfigSingle(SILABSER_SET_LINE_CTL_REQUEST_CODE, configDataBits);
         }
