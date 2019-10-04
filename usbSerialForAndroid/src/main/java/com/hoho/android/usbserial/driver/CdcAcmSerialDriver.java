@@ -77,6 +77,8 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         private UsbEndpoint mReadEndpoint;
         private UsbEndpoint mWriteEndpoint;
 
+        private int mControlIndex;
+
         private boolean mRts = false;
         private boolean mDtr = false;
 
@@ -139,6 +141,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             // the following code is inspired by the cdc-acm driver
             // in the linux kernel
 
+            mControlIndex = 0;
             mControlInterface = mDevice.getInterface(0);
             Log.d(TAG, "Control iface=" + mControlInterface);
 
@@ -196,34 +199,63 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         private void openInterface() throws IOException {
             Log.d(TAG, "claiming interfaces, count=" + mDevice.getInterfaceCount());
 
-            mControlInterface = mDevice.getInterface(0);
+            mControlInterface = null;
+            mDataInterface = null;
+            for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
+                UsbInterface usbInterface = mDevice.getInterface(i);
+                if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_COMM) {
+                    mControlIndex = i;
+                    mControlInterface = usbInterface;
+                }
+                if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA) {
+                    mDataInterface = usbInterface;
+                }
+            }
+
+            if(mControlInterface == null) {
+                throw new IOException("no control interface.");
+            }
             Log.d(TAG, "Control iface=" + mControlInterface);
-            // class should be USB_CLASS_COMM
 
             if (!mConnection.claimInterface(mControlInterface, true)) {
                 throw new IOException("Could not claim control interface.");
             }
 
             mControlEndpoint = mControlInterface.getEndpoint(0);
-            Log.d(TAG, "Control endpoint direction: " + mControlEndpoint.getDirection());
+            if (mControlEndpoint.getDirection() != UsbConstants.USB_DIR_IN || mControlEndpoint.getType() != UsbConstants.USB_ENDPOINT_XFER_INT) {
+                throw new IOException("invalid control endpoint");
+            }
 
-            Log.d(TAG, "Claiming data interface.");
-            mDataInterface = mDevice.getInterface(1);
+            if(mDataInterface == null) {
+                throw new IOException("no data interface.");
+            }
             Log.d(TAG, "data iface=" + mDataInterface);
-            // class should be USB_CLASS_CDC_DATA
 
             if (!mConnection.claimInterface(mDataInterface, true)) {
                 throw new IOException("Could not claim data interface.");
             }
-            mReadEndpoint = mDataInterface.getEndpoint(1);
-            Log.d(TAG, "Read endpoint direction: " + mReadEndpoint.getDirection());
-            mWriteEndpoint = mDataInterface.getEndpoint(0);
-            Log.d(TAG, "Write endpoint direction: " + mWriteEndpoint.getDirection());
+
+            mReadEndpoint = null;
+            mWriteEndpoint = null;
+            for (int i = 0; i < mDataInterface.getEndpointCount(); i++) {
+                UsbEndpoint ep = mDataInterface.getEndpoint(i);
+                if (ep.getDirection() == UsbConstants.USB_DIR_IN && ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)
+                    mReadEndpoint = ep;
+                if (ep.getDirection() == UsbConstants.USB_DIR_OUT && ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)
+                    mWriteEndpoint = ep;
+            }
+            if (mReadEndpoint == null || mWriteEndpoint == null) {
+                throw new IOException("Could not get read&write endpoints.");
+            }
         }
 
-        private int sendAcmControlMessage(int request, int value, byte[] buf) {
-            return mConnection.controlTransfer(
-                    USB_RT_ACM, request, value, 0, buf, buf != null ? buf.length : 0, 5000);
+        private int sendAcmControlMessage(int request, int value, byte[] buf) throws IOException {
+            int len = mConnection.controlTransfer(
+                    USB_RT_ACM, request, value, mControlIndex, buf, buf != null ? buf.length : 0, 5000);
+            if(len < 0) {
+                throw new IOException("controlTransfer failed.");
+            }
+            return len;
         }
 
         @Override
@@ -320,7 +352,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void setParameters(int baudRate, int dataBits, int stopBits, int parity) {
+        public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
             byte stopBitsByte;
             switch (stopBits) {
                 case STOPBITS_1: stopBitsByte = 0; break;
@@ -392,7 +424,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             setDtrRts();
         }
 
-        private void setDtrRts() {
+        private void setDtrRts() throws IOException {
             int value = (mRts ? 0x2 : 0) | (mDtr ? 0x1 : 0);
             sendAcmControlMessage(SET_CONTROL_LINE_STATE, value, null);
         }
@@ -425,6 +457,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         supportedDevices.put(Integer.valueOf(UsbId.VENDOR_LEAFLABS),
                 new int[] {
                     UsbId.LEAFLABS_MAPLE,
+                });
+        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_ARM),
+                new int[] {
+                    UsbId.ARM_MBED,
                 });
         return supportedDevices;
     }
