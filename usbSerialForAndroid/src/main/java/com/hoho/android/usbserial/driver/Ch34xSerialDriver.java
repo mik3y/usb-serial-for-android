@@ -25,9 +25,12 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
+import android.hardware.usb.UsbRequest;
+import android.os.Build;
 import android.util.Log;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -70,11 +73,13 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		private boolean dtr = false;
 		private boolean rts = false;
 
+		private final boolean mEnableAsyncReads;
 		private UsbEndpoint mReadEndpoint;
 		private UsbEndpoint mWriteEndpoint;
 
 		public Ch340SerialPort(UsbDevice device, int portNumber) {
 			super(device, portNumber);
+			mEnableAsyncReads = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1);
 		}
 
 		@Override
@@ -112,6 +117,11 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 					}
 				}
 
+				if (mEnableAsyncReads) {
+					Log.d(TAG, "Async reads enabled");
+				} else {
+					Log.d(TAG, "Async reads disabled.");
+				}
 
 				initialize();
 				setBaudRate(DEFAULT_BAUD_RATE);
@@ -146,6 +156,32 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 		@Override
 		public int read(byte[] dest, int timeoutMillis) throws IOException {
+			if (mEnableAsyncReads) {
+				final UsbRequest request = new UsbRequest();
+				try {
+					request.initialize(mConnection, mReadEndpoint);
+					final ByteBuffer buf = ByteBuffer.wrap(dest);
+					if (!request.queue(buf, dest.length)) {
+						throw new IOException("Error queueing request.");
+					}
+
+					final UsbRequest response = mConnection.requestWait();
+					if (response == null) {
+						throw new IOException("Null response");
+					}
+
+					final int nread = buf.position();
+					if (nread > 0) {
+						//Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
+						return nread;
+					} else {
+						return 0;
+					}
+				} finally {
+					request.close();
+				}
+			}
+
 			final int numBytesRead;
 			synchronized (mReadBufferLock) {
 				int readAmt = Math.min(dest.length, mReadBuffer.length);
