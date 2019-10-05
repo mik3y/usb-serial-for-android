@@ -84,9 +84,10 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		private boolean dtr = false;
 		private boolean rts = false;
 
-		private final boolean mEnableAsyncReads;
+		private final Boolean mEnableAsyncReads;
 		private UsbEndpoint mReadEndpoint;
 		private UsbEndpoint mWriteEndpoint;
+		private UsbRequest mUsbRequest;
 
 		public Ch340SerialPort(UsbDevice device, int portNumber) {
 			super(device, portNumber);
@@ -109,10 +110,8 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			try {
 				for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
 					UsbInterface usbIface = mDevice.getInterface(i);
-					if (mConnection.claimInterface(usbIface, true)) {
-						Log.d(TAG, "claimInterface " + i + " SUCCESS");
-					} else {
-						Log.d(TAG, "claimInterface " + i + " FAIL");
+					if (!mConnection.claimInterface(usbIface, true)) {
+						throw new IOException("Could not claim data interface.");
 					}
 				}
 
@@ -154,7 +153,10 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			if (mConnection == null) {
 				throw new IOException("Already closed");
 			}
-
+			synchronized (mEnableAsyncReads) {
+				if (mUsbRequest != null)
+					mUsbRequest.cancel();
+			}
 			// TODO: nothing sended on close, maybe needed?
 
 			try {
@@ -175,8 +177,11 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 					if (!request.queue(buf, dest.length)) {
 						throw new IOException("Error queueing request.");
 					}
-
+					mUsbRequest = request;
 					final UsbRequest response = mConnection.requestWait();
+					synchronized (mEnableAsyncReads) {
+						mUsbRequest = null;
+					}
 					if (response == null) {
 						throw new IOException("Null response");
 					}
@@ -189,25 +194,26 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 						return 0;
 					}
 				} finally {
+					mUsbRequest = null;
 					request.close();
 				}
-			}
-
-			final int numBytesRead;
-			synchronized (mReadBufferLock) {
-				int readAmt = Math.min(dest.length, mReadBuffer.length);
-				numBytesRead = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer, readAmt,
-						timeoutMillis);
-				if (numBytesRead < 0) {
-					// This sucks: we get -1 on timeout, not 0 as preferred.
-					// We *should* use UsbRequest, except it has a bug/api oversight
-					// where there is no way to determine the number of bytes read
-					// in response :\ -- http://b.android.com/28023
-					return 0;
+			} else {
+				final int numBytesRead;
+				synchronized (mReadBufferLock) {
+					int readAmt = Math.min(dest.length, mReadBuffer.length);
+					numBytesRead = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer, readAmt,
+							timeoutMillis);
+					if (numBytesRead < 0) {
+						// This sucks: we get -1 on timeout, not 0 as preferred.
+						// We *should* use UsbRequest, except it has a bug/api oversight
+						// where there is no way to determine the number of bytes read
+						// in response :\ -- http://b.android.com/28023
+						return 0;
+					}
+					System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);
 				}
-				System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);
+				return numBytesRead;
 			}
-			return numBytesRead;
 		}
 
 		@Override
