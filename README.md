@@ -2,16 +2,12 @@
 
 This is a driver library for communication with Arduinos and other USB serial hardware on
 Android, using the
-[Android USB Host API](http://developer.android.com/guide/topics/connectivity/usb/host.html)
-available since Android 3.1 and asynchronous interrupt transfer working reliably since Android 4.2
+[Android USB Host Mode (OTG)](http://developer.android.com/guide/topics/connectivity/usb/host.html)
+available since Android 3.1 and working reliably since Android 4.2.
 
 No root access, ADK, or special kernel drivers are required; all drivers are implemented in
 Java.  You get a raw serial port with `read()`, `write()`, and other basic
 functions for use with your own protocols.
-
-* **Homepage**: https://github.com/mik3y/usb-serial-for-android
-* **Google group**: http://groups.google.com/group/usb-serial-for-android
-* **Latest release**: [v0.1.0](https://github.com/mik3y/usb-serial-for-android/releases)
 
 ## Quick Start
 
@@ -68,18 +64,20 @@ try {
 }
 ```
 
-For a more complete example, see the
+For a simple example, see the
 [UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples)
 in git, which is a simple application for reading and showing serial data.
+
+For a more complete example, see separate github project 
+[SimpleUsbTerminal](https://github.com/kai-morich/SimpleUsbTerminal)
 
 A [simple Arduino application](https://github.com/mik3y/usb-serial-for-android/blob/master/arduino)
 is also available which can be used for testing.
 
-
 ## Probing for Unrecognized Devices
 
 Sometimes you may need to do a little extra work to support devices which
-usb-serial-for-android doesn't [yet] know about -- but which you know to be
+usb-serial-for-android doesn't (yet) know about -- but which you know to be
 compatible with one of the built-in drivers.  This may be the case for a brand
 new device or for one using a custom VID/PID pair.
 
@@ -107,27 +105,31 @@ Of course, nothing requires you to use UsbSerialProber at all: you can
 instantiate driver classes directly if you know what you're doing; just supply
 a compatible UsbDevice.
 
-
 ## Compatible Devices
 
-* *Serial chips:* FT232R, CDC/ACM (eg Arduino Uno) and possibly others.
-  See [CompatibleSerialDevices](https://github.com/mik3y/usb-serial-for-android/wiki/Compatible-Serial-Devices).
-* *Android phones and tablets:* Nexus 7, Motorola Xoom, and many others.
-  See [CompatibleAndroidDevices](https://github.com/mik3y/usb-serial-for-android/wiki/Compatible-Android-Devices).
+This library supports USB to serial converter chips:
+* FTDI FT232, FT2232, ...
+* Prolific PL2303
+* Silabs CP2102, CP2105, ...
+* Qinheng CH340
 
+and devices implementing the CDC/ACM protocol like
+* Arduino using ATmega32U4
+* Digispark using V-USB software USB
+* BBC micro:bit using ARM mbed DAPLink firmware
+* ...
 
 ## Author, License, and Copyright
 
-usb-serial-for-android is written and maintained by *mike wakerly*.
+usb-serial-for-android is written and maintained by *mike wakerly* and *kai morich*
 
 This library is licensed under *LGPL Version 2.1*.  Please see LICENSE.txt for the
 complete license.
 
 Copyright 2011-2012, Google Inc. All Rights Reserved.
 
-Portions of this library are based on libftdi
-(http://www.intra2net.com/en/developer/libftdi).  Please see
-FtdiSerialDriver.java for more information.
+Portions of this library are based on [libftdi](http://www.intra2net.com/en/developer/libftdi).
+Please see FtdiSerialDriver.java for more information.
 
 ## Help & Discussion
 
@@ -135,9 +137,5 @@ For common problems, see the
 [Troubleshooting](https://github.com/mik3y/usb-serial-for-android/wiki/Troubleshooting)
 wiki page.
 
-For other help and discussion, please join our Google Group,
-[usb-serial-for-android](https://groups.google.com/forum/?fromgroups#!forum/usb-serial-for-android).
-
 Are you using the library? Let us know on the group and we'll add your project to
 [ProjectsUsingUsbSerialForAndroid](https://github.com/mik3y/usb-serial-for-android/wiki/Projects-Using-usb-serial-for-android).
-
