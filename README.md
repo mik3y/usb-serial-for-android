@@ -11,7 +11,23 @@ functions for use with your own protocols.
 
 ## Quick Start
 
-**1.** [Link your project](https://github.com/mik3y/usb-serial-for-android/wiki/Building-From-Source) to the library.
+**1.** Add library to your project:
+
+Add jitpack.io repository to your root build.gradle:
+```
+allprojects {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+Add library to dependencies
+```
+dependencies {
+    implementation 'com.github.mik3y:usb-serial-for-android:Tag'
+}
+```
 
 **2.** Copy [device_filter.xml](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples/src/main/res/xml/device_filter.xml) to your project's `res/xml/` directory.
 

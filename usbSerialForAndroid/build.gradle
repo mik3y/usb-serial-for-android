@@ -1,6 +1,4 @@
 apply plugin: 'com.android.library'
-apply plugin: 'maven'
-apply plugin: 'signing'
 
 android {
     compileSdkVersion 28
@@ -28,81 +26,7 @@ dependencies {
     androidTestImplementation 'org.apache.commons:commons-lang3:3.8.1'
 }
 
-group = "com.hoho.android"
-version = "0.2.0-SNAPSHOT"
+// to build a .jar file use gradle task 'createFullJarRelease'
 
-configurations {
-    archives {
-        extendsFrom configurations.default
-    }
-}
-
-signing {
-    required { has("release") && gradle.taskGraph.hasTask("uploadArchives") }
-    sign configurations.archives
-}
-
-def getRepositoryUsername() {
-    return hasProperty('sonatypeUsername') ? sonatypeUsername : ""
-}
-
-def getRepositoryPassword() {
-    return hasProperty('sonatypePassword') ? sonatypePassword : ""
-}
-
-def isReleaseBuild() {
-    return version.contains("SNAPSHOT") == false
-}
-
-uploadArchives {
-    def sonatypeRepositoryUrl
-    if (isReleaseBuild()) {
-        println 'RELEASE BUILD'
-        sonatypeRepositoryUrl = hasProperty('RELEASE_REPOSITORY_URL') ? RELEASE_REPOSITORY_URL
-                : "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-    } else {
-        println 'SNAPSHOT BUILD'
-        sonatypeRepositoryUrl = hasProperty('SNAPSHOT_REPOSITORY_URL') ? SNAPSHOT_REPOSITORY_URL
-                : "https://oss.sonatype.org/content/repositories/snapshots/"
-    }
-
-    configuration = configurations.archives
-    repositories.mavenDeployer {
-        beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-
-        repository(url: sonatypeRepositoryUrl) {
-            authentication(userName: getRepositoryUsername(),
-                    password: getRepositoryPassword())
-        }
-
-        pom.artifactId = 'usb-serial-for-android'
-        pom.project {
-            name 'usb-serial-for-android'
-            packaging 'aar'
-            description 'USB Serial Driver Library for Android'
-            url 'https://github.com/mik3y/usb-serial-for-android'
-
-            scm {
-                url 'scm:git@github.com:mik3y/usb-serial-for-android.git'
-                connection 'scm:git@github.com:mik3y/usb-serial-for-android.git'
-                developerConnection 'scm:git@github.com:mik3y/usb-serial-for-android.git'
-            }
-
-            licenses {
-                license {
-                    name 'GNU LGPL v2.1'
-                    url 'http://www.gnu.org/licenses/lgpl-2.1.txt'
-                    distribution 'repo'
-                }
-            }
-
-            developers {
-                developer {
-                    id 'mik3y'
-                    name 'mik3y'
-                    email 'opensource@hoho.com'
-                }
-            }
-        }
-    }
-}
+// to deploy into local maven repository use gradle task 'publishToMavenLocal' and enable:
+//apply from: 'publishToMavenLocal.gradle'
