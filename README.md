@@ -1,3 +1,6 @@
+[![Jitpack](https://jitpack.io/v/mik3y/usb-serial-for-android.svg)](https://jitpack.io/#mik3y/usb-serial-for-android)
+[![Codacy](https://api.codacy.com/project/badge/Grade/4d528e82e35d42d49f659e9b93a9c77d)](https://www.codacy.com/manual/kai-morich/usb-serial-for-android-mik3y?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=mik3y/usb-serial-for-android&amp;utm_campaign=Badge_Grade)
+
 # usb-serial-for-android
 
 This is a driver library for communication with Arduinos and other USB serial hardware on
@@ -14,7 +17,7 @@ functions for use with your own protocols.
 **1.** Add library to your project:
 
 Add jitpack.io repository to your root build.gradle:
-```
+```gradle
 allprojects {
     repositories {
         ...
@@ -23,7 +26,7 @@ allprojects {
 }
 ```
 Add library to dependencies
-```
+```gradle
 dependencies {
     implementation 'com.github.mik3y:usb-serial-for-android:Tag'
 }
@@ -153,5 +156,5 @@ For common problems, see the
 [Troubleshooting](https://github.com/mik3y/usb-serial-for-android/wiki/Troubleshooting)
 wiki page.
 
-Are you using the library? Let us know on the group and we'll add your project to
+Are you using the library? Add your project to 
 [ProjectsUsingUsbSerialForAndroid](https://github.com/mik3y/usb-serial-for-android/wiki/Projects-Using-usb-serial-for-android).
