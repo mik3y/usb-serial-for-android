@@ -1,23 +1,8 @@
 /*
- * test setup
- * - android device with ADB over Wi-Fi
- *      - to set up ADB over Wi-Fi with custom roms you typically can do it from: Android settings -> Developer options
- *      - for other devices you first have to manually connect over USB and enable Wi-Fi as shown here:
- *         https://developer.android.com/studio/command-line/adb.html
- * - windows/linux machine running rfc2217_server.py
- *      python + pyserial + https://github.com/pyserial/pyserial/blob/master/examples/rfc2217_server.py
- *      for developing this test it was essential to see all data (see test/rfc2217_server.diff, run python script with '-v -v' option)
- * - all suppported usb <-> serial converter
- *      as CDC test device use an arduino leonardo / pro mini programmed with arduino_leonardo_bridge.ino
- *
  * restrictions
  *  - as real hardware is used, timing might need tuning. see:
  *      - Thread.sleep(...)
  *      - obj.wait(...)
- *  - some tests fail sporadically. typical workarounds are:
- *      - reconnect device
- *      - run test individually
- *      - increase sleep?
  *  - missing functionality on certain devices, see:
  *      - if(rfc2217_server_nonstandard_baudrates)
  *      - if(usbSerialDriver instanceof ...)
@@ -33,10 +18,10 @@ import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.os.Process;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
 import android.util.Log;
-import android.os.Process;
 
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
 import com.hoho.android.usbserial.driver.Ch34xSerialDriver;
@@ -79,12 +64,13 @@ import static org.junit.Assert.fail;
 @RunWith(AndroidJUnit4.class)
 public class DeviceTest implements SerialInputOutputManager.Listener {
 
-    // configuration:
-    private final static String  rfc2217_server_host = "192.168.0.100";
-    private final static int     rfc2217_server_port = 2217;
-    private final static boolean rfc2217_server_nonstandard_baudrates = false; // false on Windows, Raspi
-    private final static boolean rfc2217_server_parity_mark_space = false; // false on Raspi
-    private final static int     test_device_port = 0;
+    // testInstrumentationRunnerArguments configuration
+    private static String  rfc2217_server_host;
+    private static int     rfc2217_server_port = 2217;
+    private static boolean rfc2217_server_nonstandard_baudrates;
+    private static boolean rfc2217_server_parity_mark_space;
+    private static String  test_device_driver;
+    private static int     test_device_port;
 
     private final static int     TELNET_READ_WAIT = 500;
     private final static int     USB_READ_WAIT    = 500;
@@ -116,9 +102,15 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
     @BeforeClass
     public static void setUpFixture() throws Exception {
+        rfc2217_server_host                  =                 InstrumentationRegistry.getArguments().getString("rfc2217_server_host");
+        rfc2217_server_nonstandard_baudrates = Boolean.valueOf(InstrumentationRegistry.getArguments().getString("rfc2217_server_nonstandard_baudrates"));
+        rfc2217_server_parity_mark_space     = Boolean.valueOf(InstrumentationRegistry.getArguments().getString("rfc2217_server_parity_mark_space"));
+        test_device_driver                   =                 InstrumentationRegistry.getArguments().getString("test_device_driver");
+        test_device_port                     = Integer.valueOf(InstrumentationRegistry.getArguments().getString("test_device_port","0"));
+
+        // postpone parts of fixture setup to first test, because exceptions are not reported for @BeforeClass
+        // and test terminates with misleading 'Empty test suite'
         telnetClient = null;
-        // postpone fixture setup to first test, because exceptions are not reported for @BeforeClass
-        // and test terminates with missleading 'Empty test suite'
     }
 
     public static void setUpFixtureInt() throws Exception {
@@ -150,11 +142,15 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         context = InstrumentationRegistry.getContext();
         final UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
-        assertEquals("no usb device found", 1, availableDrivers.size());
+        assertEquals("no USB device found", 1, availableDrivers.size());
         usbSerialDriver = availableDrivers.get(0);
+        if(test_device_driver != null) {
+            String driverName = usbSerialDriver.getClass().getSimpleName();
+            assertEquals(test_device_driver+"SerialDriver", driverName);
+        }
         assertTrue( usbSerialDriver.getPorts().size() > test_device_port);
         usbSerialPort = usbSerialDriver.getPorts().get(test_device_port);
-        Log.i(TAG, "Using USB device "+ usbSerialDriver.getClass().getSimpleName());
+        Log.i(TAG, "Using USB device "+ usbSerialPort.toString()+" driver="+usbSerialDriver.getClass().getSimpleName());
         isCp21xxRestrictedPort = usbSerialDriver instanceof Cp21xxSerialDriver && usbSerialDriver.getPorts().size()==2 && test_device_port == 1;
 
         if (!usbManager.hasPermission(usbSerialPort.getDriver().getDevice())) {
@@ -372,7 +368,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
     @Override
     public void onRunError(Exception e) {
-        assertTrue("usb connection lost", false);
+        fail("usb connection lost");
     }
 
     // clone of org.apache.commons.lang3.StringUtils.indexOfDifference + optional startpos
@@ -401,6 +397,27 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         return -1;
     }
 
+    private void logDifference(final StringBuilder data, final StringBuilder expected) {
+        int datapos = indexOfDifference(data, expected);
+        int expectedpos = datapos;
+        while(datapos != -1) {
+            int nextexpectedpos = -1;
+            int nextdatapos = datapos + 2;
+            int len = -1;
+            if(nextdatapos + 10 < data.length()) { // try to sync data+expected, assuming that data is lost, but not corrupted
+                String nextsub = data.substring(nextdatapos, nextdatapos + 10);
+                nextexpectedpos = expected.indexOf(nextsub, expectedpos);
+                if(nextexpectedpos >= 0) {
+                    len = nextexpectedpos - expectedpos - 2;
+                }
+            }
+            Log.i(TAG, "difference at " + datapos + " len " + len );
+            Log.d(TAG, "       got " +     data.substring(Math.max(datapos - 20, 0), Math.min(datapos + 20, data.length())));
+            Log.d(TAG, "  expected " + expected.substring(Math.max(expectedpos - 20, 0), Math.min(expectedpos + 20, expected.length())));
+            datapos = indexOfDifference(data, expected, nextdatapos, nextexpectedpos);
+            expectedpos = nextexpectedpos + (datapos  - nextdatapos);
+        }
+    }
 
     @Test
     public void baudRate() throws Exception {
@@ -435,8 +452,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 ; // todo: add range check in driver
             else
                 fail("invalid baudrate 0");
-        } catch (java.io.IOException e) { // cp2105 second port
-        } catch (java.lang.IllegalArgumentException e) {
+        } catch (java.io.IOException ignored) { // cp2105 second port
+        } catch (java.lang.IllegalArgumentException ignored) {
         }
         try {
             usbParameters(0, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -448,9 +465,9 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 ; // todo: add range check in driver
             else
                 fail("invalid baudrate 0");
-        } catch (java.lang.ArithmeticException e) { // ch340
-        } catch (java.io.IOException e) { // cp2105 second port
-        } catch (java.lang.IllegalArgumentException e) {
+        } catch (java.lang.ArithmeticException ignored) { // ch340
+        } catch (java.io.IOException ignored) { // cp2105 second port
+        } catch (java.lang.IllegalArgumentException ignored) {
         }
         try {
             usbParameters(1, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -464,8 +481,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 ;
             else
                 fail("invalid baudrate 0");
-        } catch (java.io.IOException e) { // ch340
-        } catch (java.lang.IllegalArgumentException e) {
+        } catch (java.io.IOException ignored) { // ch340
+        } catch (java.lang.IllegalArgumentException ignored) {
         }
         try {
             usbParameters(2<<31, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -477,9 +494,9 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 ;
             else
                 fail("invalid baudrate 2^31");
-        } catch (java.lang.ArithmeticException e) { // ch340
-        } catch (java.io.IOException e) { // cp2105 second port
-        } catch (java.lang.IllegalArgumentException e) {
+        } catch (java.lang.ArithmeticException ignored) { // ch340
+        } catch (java.io.IOException ignored) { // cp2105 second port
+        } catch (java.lang.IllegalArgumentException ignored) {
         }
 
         for(int baudRate : new int[] {300, 2400, 19200, 42000, 115200} ) {
@@ -488,8 +505,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             if(baudRate == 300 && isCp21xxRestrictedPort) {
                 try {
                     usbParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
-                    assertTrue(false);
-                } catch (java.io.IOException e) {
+                    fail("baudrate 300 on cp21xx restricted port");
+                } catch (java.io.IOException ignored) {
                 }
                 continue;
             }
@@ -498,10 +515,10 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
             telnetWrite("net2usb".getBytes());
             data = usbRead(7);
-            assertThat(String.valueOf(baudRate)+"/8N1", data, equalTo("net2usb".getBytes()));
+            assertThat(baudRate+"/8N1", data, equalTo("net2usb".getBytes()));
             usbWrite("usb2net".getBytes());
             data = telnetRead(7);
-            assertThat(String.valueOf(baudRate)+"/8N1", data, equalTo("usb2net".getBytes()));
+            assertThat(baudRate+"/8N1", data, equalTo("usb2net".getBytes()));
         }
         { // non matching baud rate
             telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -529,7 +546,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                     ; // todo: add range check in driver
                 else
                     fail("invalid databits "+i);
-            } catch (java.lang.IllegalArgumentException e) {
+            } catch (java.lang.IllegalArgumentException ignored) {
             }
         }
 
@@ -607,7 +624,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             try {
                 usbParameters(19200, 8, 1, i);
                 fail("invalid parity "+i);
-            } catch (java.lang.IllegalArgumentException e) {
+            } catch (java.lang.IllegalArgumentException ignored) {
             }
         }
         if(isCp21xxRestrictedPort) {
@@ -616,9 +633,12 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             usbParameters(19200, 8, 1, UsbSerialPort.PARITY_ODD);
             try {
                 usbParameters(19200, 8, 1, UsbSerialPort.PARITY_MARK);
+                fail("parity mark");
+            } catch (java.lang.IllegalArgumentException ignored) {}
+            try {
                 usbParameters(19200, 8, 1, UsbSerialPort.PARITY_SPACE);
-            } catch (java.lang.IllegalArgumentException e) {
-            }
+                fail("parity space");
+            } catch (java.lang.IllegalArgumentException ignored) {}
             return;
             // test below not possible as it requires unsupported 7 dataBits
         }
@@ -701,12 +721,13 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             try {
                 usbParameters(19200, 8, i, UsbSerialPort.PARITY_NONE);
                 fail("invalid stopbits " + i);
-            } catch (java.lang.IllegalArgumentException e) {
+            } catch (java.lang.IllegalArgumentException ignored) {
             }
         }
 
         if (usbSerialDriver instanceof CdcAcmSerialDriver) {
-            // software based bridge in arduino_leonardo_bridge.ino is to slow, other devices might support it
+            usbParameters(19200, 8, UsbSerialPort.STOPBITS_2, UsbSerialPort.PARITY_NONE);
+            // software based bridge in arduino_leonardo_bridge.ino is to slow for real test, other devices might support it
         } else {
             // shift stopbits into next byte, by using different databits
             // a - start bit (0)
@@ -764,12 +785,12 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         probeTable.addProduct(usbSerialDriver.getDevice().getVendorId(), usbSerialDriver.getDevice().getProductId(), usbSerialDriver.getClass());
         availableDrivers = new UsbSerialProber(probeTable).findAllDrivers(usbManager);
         assertEquals(1, availableDrivers.size());
-        assertEquals(true, availableDrivers.get(0).getClass() == usbSerialDriver.getClass());
+        assertEquals(availableDrivers.get(0).getClass(), usbSerialDriver.getClass());
     }
 
     @Test
-    // data loss es expected, if data is not consumed fast enough
-    public void readBuffer() throws Exception {
+    // provoke data loss, when data is not read fast enough
+    public void readBufferOverflow() throws Exception {
         if(usbSerialDriver instanceof CdcAcmSerialDriver)
             telnetWriteDelay = 10; // arduino_leonardo_bridge.ino sends each byte in own USB packet, which is horribly slow
         usbParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -778,10 +799,10 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         StringBuilder expected = new StringBuilder();
         StringBuilder data = new StringBuilder();
         final int maxWait = 2000;
-        int bufferSize = 0;
+        int bufferSize;
         for(bufferSize = 8; bufferSize < (2<<15); bufferSize *= 2) {
-            int linenr = 0;
-            String line;
+            int linenr;
+            String line="-";
             expected.setLength(0);
             data.setLength(0);
 
@@ -794,7 +815,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             }
             usbReadBlock = false;
 
-            // slowly write new data, until old data is comletely read from buffer and new data is received again
+            // slowly write new data, until old data is completely read from buffer and new data is received
             boolean found = false;
             for (; linenr < bufferSize/8 + maxWait/10 && !found; linenr++) {
                 line = String.format("%07d,", linenr);
@@ -804,47 +825,38 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 data.append(new String(usbRead(0)));
                 found = data.toString().endsWith(line);
             }
-            if(!found) {
+            while(!found) {
                 // use waiting read to clear input queue, else next test would see unexpected data
-                byte[] rest = null;
-                while(rest==null || rest.length>0)
-                    rest = usbRead(-1);
-                fail("end not found");
+                byte[] rest = usbRead(-1);
+                if(rest.length == 0)
+                    fail("last line "+line+" not found");
+                data.append(new String(rest));
+                found = data.toString().endsWith(line);
             }
             if (data.length() != expected.length())
                 break;
         }
-        int pos = indexOfDifference(data, expected);
-        Log.i(TAG, "bufferSize " + bufferSize + ", first difference at " + pos);
-        // actual values have large variance for same device, e.g.
-        //  bufferSize 4096, first difference at 164
-        //  bufferSize 64, first difference at 57
+
+        logDifference(data, expected);
         assertTrue(bufferSize > 16);
         assertTrue(data.length() != expected.length());
     }
 
-
-    //
-    // this test can fail sporadically!
-    //
-    // Android is not a real time OS, so there is no guarantee that the usb thread is scheduled, or it might be blocked by Java garbage collection.
-    // The SerialInputOutputManager uses a buffer size of 4Kb. Reading of these blocks happen behind UsbRequest.queue / UsbDeviceConnection.requestWait
-    // The dump of data and error positions in logcat show, that data is lost somewhere in the UsbRequest handling,
-    // very likely when the individual 64 byte USB packets are not read fast enough, and the serial converter chip has to discard bytes.
-    //
-    // On some days SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY=THREAD_PRIORITY_URGENT_AUDIO reduced errors by factor 10, on other days it had no effect at all!
-    //
     @Test
     public void readSpeed() throws Exception {
         // see logcat for performance results
         //
         // CDC arduino_leonardo_bridge.ini has transfer speed ~ 100 byte/sec
         // all other devices are near physical limit with ~ 10-12k/sec
+        //
+        // readBufferOverflow provokes read errors, but they can also happen here where the data is actually read fast enough.
+        // Android is not a real time OS, so there is no guarantee that the USB thread is scheduled, or it might be blocked by Java garbage collection.
+        // Using SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY=THREAD_PRIORITY_URGENT_AUDIO sometimes reduced errors by factor 10, sometimes not at all!
+        //
         int baudrate = 115200;
         usbParameters(baudrate, 8, 1, UsbSerialPort.PARITY_NONE);
         telnetParameters(baudrate, 8, 1, UsbSerialPort.PARITY_NONE);
 
-        // fails more likely with larger or unlimited (-1) write ahead
         int writeSeconds = 5;
         int writeAhead = 5*baudrate/10; // write ahead for another 5 second read
         if(usbSerialDriver instanceof CdcAcmSerialDriver)
@@ -874,45 +886,17 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             dlen = data.length();
             elen = expected.length();
         }
-        boolean found = false;
-        long maxwait = Math.max(1000, (expected.length() - data.length()) * 20000L / baudrate );
-        next = System.currentTimeMillis() + maxwait;
-        Log.d(TAG, "readSpeed: rest wait time " + maxwait + " for " + (expected.length() - data.length()) + " byte");
-        while(!found && System.currentTimeMillis() < next) {
-            data.append(new String(usbRead(0)));
-            found = data.toString().endsWith(line);
-            Thread.sleep(1);
-        }
-        //next = System.currentTimeMillis();
-        //Log.i(TAG, "readSpeed: t="+(next-begin)+", read="+(data.length()-dlen));
 
-        int errcnt = 0;
-        int errlen = 0;
-        int datapos = indexOfDifference(data, expected);
-        int expectedpos = datapos;
-        while(datapos != -1) {
-            errcnt += 1;
-            int nextexpectedpos = -1;
-            int nextdatapos = datapos + 2;
-            int len = -1;
-            if(nextdatapos + 10 < data.length()) { // try to sync data+expected, assuming that data is lost, but not corrupted
-                String nextsub = data.substring(nextdatapos, nextdatapos + 10);
-                nextexpectedpos = expected.indexOf(nextsub, expectedpos);
-                if(nextexpectedpos >= 0) {
-                    len = nextexpectedpos - expectedpos - 2;
-                    errlen += len;
-                }
-            }
-            Log.i(TAG, "readSpeed: difference at " + datapos + " len " + len );
-            Log.d(TAG, "readSpeed:        got " +     data.substring(Math.max(datapos - 20, 0), Math.min(datapos + 20, data.length())));
-            Log.d(TAG, "readSpeed:   expected " + expected.substring(Math.max(expectedpos - 20, 0), Math.min(expectedpos + 20, expected.length())));
-            datapos = indexOfDifference(data, expected, nextdatapos, nextexpectedpos);
-            expectedpos = nextexpectedpos + (datapos  - nextdatapos);
+        boolean found = false;
+        while(!found) {
+            // use waiting read to clear input queue, else next test would see unexpected data
+            byte[] rest = usbRead(-1);
+            if(rest.length == 0)
+                break;
+            data.append(new String(rest));
+            found = data.toString().endsWith(line);
         }
-        if(errcnt != 0)
-            Log.i(TAG, "readSpeed: got " + errcnt + " errors, total len " + errlen+ ", avg. len " + errlen/errcnt);
-        assertTrue("end not found", found);
-        assertEquals("no errors", 0, errcnt);
+        logDifference(data, expected);
     }
 
     @Test

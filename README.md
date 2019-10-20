@@ -1,5 +1,6 @@
 [![Jitpack](https://jitpack.io/v/mik3y/usb-serial-for-android.svg)](https://jitpack.io/#mik3y/usb-serial-for-android)
 [![Codacy](https://api.codacy.com/project/badge/Grade/4d528e82e35d42d49f659e9b93a9c77d)](https://www.codacy.com/manual/kai-morich/usb-serial-for-android-mik3y?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=mik3y/usb-serial-for-android&amp;utm_campaign=Badge_Grade)
+[![codecov](https://codecov.io/gh/mik3y/usb-serial-for-android/branch/master/graph/badge.svg)](https://codecov.io/gh/mik3y/usb-serial-for-android)
 
 # usb-serial-for-android
 
