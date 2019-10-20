@@ -1,0 +1,45 @@
+apply plugin: 'jacoco'
+
+android {
+    flavorDimensions 'device'
+    productFlavors {
+        anyDevice {
+            // Used as fallback in usbSerialExample/build.gradle -> missingDimensionStrategy, but not for coverage report
+            dimension 'device'
+        }
+        arduino {
+            dimension 'device'
+            testInstrumentationRunnerArguments = ['test_device_driver': 'CdcAcm']
+        }
+        ch340 {
+            dimension 'device'
+            testInstrumentationRunnerArguments = ['test_device_driver': 'Ch34x']
+        }
+        cp2102 { // and cp2105 first port
+            dimension 'device'
+            testInstrumentationRunnerArguments = ['test_device_driver': 'Cp21xx']
+        }
+        cp2105 { // second port
+            dimension 'device'
+            testInstrumentationRunnerArguments = ['test_device_driver': 'Cp21xx', 'test_device_port': '1']
+        }
+        ft232 { // and ft2232 first port
+            dimension 'device'
+            testInstrumentationRunnerArguments = ['test_device_driver': 'Ftdi']
+        }
+        ft2232 { // second port
+            dimension 'device'
+            testInstrumentationRunnerArguments = ['test_device_driver': 'Ftdi', 'test_device_port': '1']
+        }
+        pl2302 {
+            dimension 'device'
+            testInstrumentationRunnerArguments = ['test_device_driver': 'Prolific']
+        }
+    }
+
+    buildTypes {
+        debug {
+            testCoverageEnabled true
+        }
+    }
+}

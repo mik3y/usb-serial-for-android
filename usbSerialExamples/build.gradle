@@ -9,6 +9,7 @@ android {
         targetSdkVersion 28
 
         testInstrumentationRunner "android.test.InstrumentationTestRunner"
+        missingDimensionStrategy 'device', 'anyDevice'
     }
 
     buildTypes {
