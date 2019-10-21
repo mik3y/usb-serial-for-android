@@ -22,7 +22,11 @@
 package com.hoho.android.usbserial.examples;
 
 import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.AsyncTask;
@@ -39,6 +43,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.TwoLineListItem;
 
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -59,12 +64,14 @@ public class DeviceListActivity extends Activity {
     private final String TAG = DeviceListActivity.class.getSimpleName();
 
     private UsbManager mUsbManager;
+    private UsbSerialPort mSerialPort;
     private ListView mListView;
     private TextView mProgressBarTitle;
     private ProgressBar mProgressBar;
 
     private static final int MESSAGE_REFRESH = 101;
     private static final long REFRESH_TIMEOUT_MILLIS = 5000;
+    public static final String INTENT_ACTION_GRANT_USB = BuildConfig.APPLICATION_ID + ".GRANT_USB";
 
     private final Handler mHandler = new Handler() {
         @Override
@@ -81,6 +88,7 @@ public class DeviceListActivity extends Activity {
         }
 
     };
+    private BroadcastReceiver mUsbReceiver;
 
     private List<UsbSerialPort> mEntries = new ArrayList<UsbSerialPort>();
     private ArrayAdapter<UsbSerialPort> mAdapter;
@@ -89,11 +97,25 @@ public class DeviceListActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
+        final Context context = this;
 
         mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        mListView = (ListView) findViewById(R.id.deviceList);
-        mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
-        mProgressBarTitle = (TextView) findViewById(R.id.progressBarTitle);
+        mListView = findViewById(R.id.deviceList);
+        mProgressBar = findViewById(R.id.progressBar);
+        mProgressBarTitle = findViewById(R.id.progressBarTitle);
+
+        mUsbReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if(intent.getAction().equals(INTENT_ACTION_GRANT_USB)) {
+                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                        showConsoleActivity(mSerialPort);
+                    } else {
+                        Toast.makeText(context, "USB permission denied", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        };
 
         mAdapter = new ArrayAdapter<UsbSerialPort>(this,
                 android.R.layout.simple_expandable_list_item_2, mEntries) {
@@ -135,8 +157,14 @@ public class DeviceListActivity extends Activity {
                     return;
                 }
 
-                final UsbSerialPort port = mEntries.get(position);
-                showConsoleActivity(port);
+                mSerialPort = mEntries.get(position);
+                UsbDevice device = mSerialPort.getDriver().getDevice();
+                if (!mUsbManager.hasPermission(device)) {
+                    PendingIntent usbPermissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(INTENT_ACTION_GRANT_USB), 0);
+                    mUsbManager.requestPermission(device, usbPermissionIntent);
+                } else {
+                    showConsoleActivity(mSerialPort);
+                }
             }
         });
     }
@@ -145,12 +173,14 @@ public class DeviceListActivity extends Activity {
     protected void onResume() {
         super.onResume();
         mHandler.sendEmptyMessage(MESSAGE_REFRESH);
+        registerReceiver(mUsbReceiver, new IntentFilter(INTENT_ACTION_GRANT_USB));
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         mHandler.removeMessages(MESSAGE_REFRESH);
+        unregisterReceiver(mUsbReceiver);
     }
 
     private void refreshDeviceList() {
