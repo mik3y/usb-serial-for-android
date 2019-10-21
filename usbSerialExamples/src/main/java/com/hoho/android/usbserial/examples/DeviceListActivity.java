@@ -49,7 +49,6 @@ import android.widget.TwoLineListItem;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
-import com.hoho.android.usbserial.util.HexDump;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -134,9 +133,7 @@ public class DeviceListActivity extends Activity {
                 final UsbSerialDriver driver = port.getDriver();
                 final UsbDevice device = driver.getDevice();
 
-                final String title = String.format("Vendor %s Product %s",
-                        HexDump.toHexString((short) device.getVendorId()),
-                        HexDump.toHexString((short) device.getProductId()));
+                final String title = String.format("Vendor %4X Product %4X", device.getVendorId(), device.getProductId());
                 row.getText1().setText(title);
 
                 final String subtitle = driver.getClass().getSimpleName();
