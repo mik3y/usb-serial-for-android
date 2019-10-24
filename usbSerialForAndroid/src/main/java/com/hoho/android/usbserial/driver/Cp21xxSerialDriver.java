@@ -379,8 +379,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public boolean purgeHwBuffers(boolean purgeReadBuffers,
-                boolean purgeWriteBuffers) throws IOException {
+        public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
             int value = (purgeReadBuffers ? FLUSH_READ_CODE : 0)
                     | (purgeWriteBuffers ? FLUSH_WRITE_CODE : 0);
 
@@ -395,7 +394,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
     public static Map<Integer, int[]> getSupportedDevices() {
         final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
-        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_SILABS),
+        supportedDevices.put(UsbId.VENDOR_SILABS,
                 new int[] {
             UsbId.SILABS_CP2102,
             UsbId.SILABS_CP2105,

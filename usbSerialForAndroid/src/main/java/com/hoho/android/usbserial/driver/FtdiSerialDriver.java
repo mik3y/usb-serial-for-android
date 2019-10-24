@@ -165,7 +165,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         private static final int SIO_SET_DATA_REQUEST = 4;
 
         private static final int SIO_RESET_SIO = 0;
-        private static final int SIO_RESET_PURGE_RX = 1;
+        private static final int SIO_RESET_PURGE_RX = 1; // RX @ FTDI device = write @ usb-serial-for-android library
         private static final int SIO_RESET_PURGE_TX = 2;
 
         public static final int FTDI_DEVICE_OUT_REQTYPE =
@@ -534,20 +534,20 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public boolean purgeHwBuffers(boolean purgeReadBuffers, boolean purgeWriteBuffers) throws IOException {
-            if (purgeReadBuffers) {
+        public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
+            if (purgeWriteBuffers) {
                 int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_RESET_REQUEST,
                         SIO_RESET_PURGE_RX, mIndex, null, 0, USB_WRITE_TIMEOUT_MILLIS);
                 if (result != 0) {
-                    throw new IOException("Flushing RX failed: result=" + result);
+                    throw new IOException("purge write buffer failed: result=" + result);
                 }
             }
 
-            if (purgeWriteBuffers) {
+            if (purgeReadBuffers) {
                 int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_RESET_REQUEST,
                         SIO_RESET_PURGE_TX, mIndex, null, 0, USB_WRITE_TIMEOUT_MILLIS);
                 if (result != 0) {
-                    throw new IOException("Flushing RX failed: result=" + result);
+                    throw new IOException("purge read buffer failed: result=" + result);
                 }
             }
             return true;
@@ -556,7 +556,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
     public static Map<Integer, int[]> getSupportedDevices() {
         final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
-        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_FTDI),
+        supportedDevices.put(UsbId.VENDOR_FTDI,
                 new int[] {
                     UsbId.FTDI_FT232R,
                     UsbId.FTDI_FT232H,

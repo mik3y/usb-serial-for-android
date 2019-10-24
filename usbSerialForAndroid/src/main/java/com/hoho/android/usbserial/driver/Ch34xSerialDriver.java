@@ -426,11 +426,6 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			writeHandshakeByte();
 		}
 
-		@Override
-		public boolean purgeHwBuffers(boolean purgeReadBuffers, boolean purgeWriteBuffers) throws IOException {
-			return true;
-		}
-
 	}
 
 	public static Map<Integer, int[]> getSupportedDevices() {

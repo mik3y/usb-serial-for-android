@@ -73,8 +73,9 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
     private static int     test_device_port;
 
     private final static int     TELNET_READ_WAIT = 500;
-    private final static int     USB_READ_WAIT    = 500;
-    private final static int     USB_WRITE_WAIT   = 500;
+    private final static int     TELNET_COMMAND_WAIT = 2000;
+    private final static int     USB_READ_WAIT = 500;
+    private final static int     USB_WRITE_WAIT = 500;
     private final static Integer SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY = Process.THREAD_PRIORITY_URGENT_AUDIO;
 
     private final static String  TAG = "DeviceTest";
@@ -83,13 +84,16 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
     private final static byte    RFC2217_SET_DATASIZE = 2;
     private final static byte    RFC2217_SET_PARITY   = 3;
     private final static byte    RFC2217_SET_STOPSIZE = 4;
+    private final static byte    RFC2217_PURGE_DATA = 12;
 
     private Context context;
+    private UsbManager usbManager;
     private UsbSerialDriver usbSerialDriver;
     private UsbDeviceConnection usbDeviceConnection;
     private UsbSerialPort usbSerialPort;
     private SerialInputOutputManager usbIoManager;
     private final Deque<byte[]> usbReadBuffer = new LinkedList<>();
+    private Exception usbReadError;
     private boolean usbReadBlock = false;
     private long usbReadTime = 0;
 
@@ -137,10 +141,18 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         setUpFixtureInt();
         telnetClient.sendAYT(1000); // not correctly handled by rfc2217_server.py, but WARNING output "ignoring Telnet command: '\xf6'" is a nice separator between tests
         telnetComPortOptionCounter[0] = 0;
+        telnetClient.sendCommand((byte)TelnetCommand.SB);
+        telnetWriteStream.write(new byte[] {RFC2217_COM_PORT_OPTION, RFC2217_PURGE_DATA, 3});
+        telnetClient.sendCommand((byte)TelnetCommand.SE);
+        for(int i=0; i<TELNET_COMMAND_WAIT; i++) {
+            if(telnetComPortOptionCounter[0] == 1) break;
+            Thread.sleep(1);
+        }
+        assertEquals("telnet connection lost", 1, telnetComPortOptionCounter[0].intValue());
         telnetWriteDelay = 0;
 
         context = InstrumentationRegistry.getContext();
-        final UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+        usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
         assertEquals("no USB device found", 1, availableDrivers.size());
         usbSerialDriver = availableDrivers.get(0);
@@ -173,24 +185,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             }
             assertTrue("USB permission dialog not confirmed", granted[0]);
         }
-        usbDeviceConnection = usbManager.openDevice(usbSerialDriver.getDevice());
-        usbSerialPort.open(usbDeviceConnection);
-        usbSerialPort.setDTR(true);
-        usbSerialPort.setRTS(true);
-        usbIoManager = new SerialInputOutputManager(usbSerialPort, this) {
-            @Override
-            public void run() {
-                if(SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY != null)
-                    Process.setThreadPriority(SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY);
-                super.run();
-            }
-        };
-
-        Executors.newSingleThreadExecutor().submit(usbIoManager);
-
-        synchronized (usbReadBuffer) {
-            usbReadBuffer.clear();
-        }
+        usbOpen(true);
     }
 
     @After
@@ -266,6 +261,46 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         }
     }
 
+    private void usbClose() {
+        if (usbIoManager != null) {
+            usbIoManager.stop();
+            usbIoManager = null;
+        }
+        if (usbSerialPort != null) {
+            try {
+                usbSerialPort.close();
+            } catch (IOException ignored) {
+            }
+            usbSerialPort = null;
+        }
+        if(usbDeviceConnection != null)
+            usbDeviceConnection.close();
+        usbDeviceConnection = null;
+    }
+
+    private void usbOpen(boolean withIoManager) throws Exception {
+        usbDeviceConnection = usbManager.openDevice(usbSerialDriver.getDevice());
+        usbSerialPort = usbSerialDriver.getPorts().get(test_device_port);
+        usbSerialPort.open(usbDeviceConnection);
+        usbSerialPort.setDTR(true);
+        usbSerialPort.setRTS(true);
+        if(withIoManager) {
+            usbIoManager = new SerialInputOutputManager(usbSerialPort, this) {
+                @Override
+                public void run() {
+                    if (SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY != null)
+                        Process.setThreadPriority(SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY);
+                    super.run();
+                }
+            };
+            Executors.newSingleThreadExecutor().submit(usbIoManager);
+        }
+        synchronized (usbReadBuffer) {
+            usbReadBuffer.clear();
+        }
+        usbReadError = null;
+    }
+
     // wait full time
     private byte[] usbRead() throws Exception {
         return usbRead(-1);
@@ -276,6 +311,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         ByteBuffer buf = ByteBuffer.allocate(8192);
         if(usbIoManager != null) {
             while (System.currentTimeMillis() < end) {
+                if(usbReadError != null)
+                    throw usbReadError;
                 synchronized (usbReadBuffer) {
                     while(usbReadBuffer.peek() != null)
                         buf.put(usbReadBuffer.remove());
@@ -336,7 +373,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         telnetClient.sendCommand((byte)TelnetCommand.SE);
 
         // windows does not like nonstandard baudrates. rfc2217_server.py terminates w/o response
-        for(int i=0; i<2000; i++) {
+        for(int i=0; i<TELNET_COMMAND_WAIT; i++) {
             if(telnetComPortOptionCounter[0] == 4) break;
             Thread.sleep(1);
         }
@@ -368,7 +405,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
     @Override
     public void onRunError(Exception e) {
-        fail("usb connection lost");
+        usbReadError = e;
+        //fail("usb connection lost");
     }
 
     // clone of org.apache.commons.lang3.StringUtils.indexOfDifference + optional startpos
@@ -419,6 +457,79 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         }
     }
 
+    private void doReadWrite(String reason) throws Exception {
+        byte[] buf1 = new byte[]{ 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
+        byte[] buf2 = new byte[]{ 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26};
+        byte[] data;
+
+        telnetWrite(buf1);
+        data = usbRead(buf1.length);
+        assertThat(reason, data, equalTo(buf1)); // includes array content in output
+        //assertArrayEquals("net2usb".getBytes(), data); // only includes array length in output
+        usbWrite(buf2);
+        data = telnetRead(buf2.length);
+        assertThat(reason, data, equalTo(buf2));
+    }
+
+    @Test
+    public void openClose() throws Exception {
+        byte[] data;
+        telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        doReadWrite("");
+
+        try {
+            usbSerialPort.open(usbDeviceConnection);
+            fail("already open expected");
+        } catch (IOException ignored) {
+        }
+        doReadWrite("");
+
+        usbSerialPort.close();
+        try {
+            usbSerialPort.close();
+            fail("already closed expected");
+        } catch (IOException ignored) {
+        }
+        try {
+            usbWrite(new byte[]{0x00});
+            fail("write error expected");
+        } catch (IOException ignored) {
+        } catch (NullPointerException ignored) {
+        }
+        try {
+            usbRead(1);
+            //fail("read error expected");
+        } catch (IOException ignored) {
+        } catch (NullPointerException ignored) {
+        }
+        try {
+            usbParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
+            fail("error expected");
+        } catch (IOException ignored) {
+        } catch (NullPointerException ignored) {
+        }
+
+        // partial re-open not supported
+        try {
+            usbSerialPort.open(usbDeviceConnection);
+            //usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+            doReadWrite("");
+            fail("re-open not supported");
+        } catch (IOException ignored) {
+        }
+        try {
+            usbSerialPort.close();
+        } catch (IOException ignored) {
+        }
+        // full re-open supported
+        usbClose();
+        usbOpen(true);
+        telnetParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
+        usbParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
+        doReadWrite("");
+    }
+
     @Test
     public void baudRate() throws Exception {
         byte[] data;
@@ -428,13 +539,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             // PL2303, FTDI: it's not 9600
             telnetParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
 
-            telnetWrite("net2usb".getBytes());
-            data = usbRead(7);
-            assertThat(data, equalTo("net2usb".getBytes())); // includes array content in output
-            //assertArrayEquals("net2usb".getBytes(), data); // only includes array length in output
-            usbWrite("usb2net".getBytes());
-            data = telnetRead(7);
-            assertThat(data, equalTo("usb2net".getBytes()));
+            doReadWrite("");
         }
 
         // invalid values
@@ -452,8 +557,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 ; // todo: add range check in driver
             else
                 fail("invalid baudrate 0");
-        } catch (java.io.IOException ignored) { // cp2105 second port
-        } catch (java.lang.IllegalArgumentException ignored) {
+        } catch (IOException ignored) { // cp2105 second port
+        } catch (IllegalArgumentException ignored) {
         }
         try {
             usbParameters(0, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -465,9 +570,9 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 ; // todo: add range check in driver
             else
                 fail("invalid baudrate 0");
-        } catch (java.lang.ArithmeticException ignored) { // ch340
-        } catch (java.io.IOException ignored) { // cp2105 second port
-        } catch (java.lang.IllegalArgumentException ignored) {
+        } catch (ArithmeticException ignored) { // ch340
+        } catch (IOException ignored) { // cp2105 second port
+        } catch (IllegalArgumentException ignored) {
         }
         try {
             usbParameters(1, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -481,8 +586,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 ;
             else
                 fail("invalid baudrate 0");
-        } catch (java.io.IOException ignored) { // ch340
-        } catch (java.lang.IllegalArgumentException ignored) {
+        } catch (IOException ignored) { // ch340
+        } catch (IllegalArgumentException ignored) {
         }
         try {
             usbParameters(2<<31, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -494,9 +599,9 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 ;
             else
                 fail("invalid baudrate 2^31");
-        } catch (java.lang.ArithmeticException ignored) { // ch340
-        } catch (java.io.IOException ignored) { // cp2105 second port
-        } catch (java.lang.IllegalArgumentException ignored) {
+        } catch (ArithmeticException ignored) { // ch340
+        } catch (IOException ignored) { // cp2105 second port
+        } catch (IllegalArgumentException ignored) {
         }
 
         for(int baudRate : new int[] {300, 2400, 19200, 42000, 115200} ) {
@@ -506,19 +611,14 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 try {
                     usbParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
                     fail("baudrate 300 on cp21xx restricted port");
-                } catch (java.io.IOException ignored) {
+                } catch (IOException ignored) {
                 }
                 continue;
             }
             telnetParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
             usbParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
 
-            telnetWrite("net2usb".getBytes());
-            data = usbRead(7);
-            assertThat(baudRate+"/8N1", data, equalTo("net2usb".getBytes()));
-            usbWrite("usb2net".getBytes());
-            data = telnetRead(7);
-            assertThat(baudRate+"/8N1", data, equalTo("usb2net".getBytes()));
+            doReadWrite(baudRate+"/8N1");
         }
         { // non matching baud rate
             telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -546,7 +646,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                     ; // todo: add range check in driver
                 else
                     fail("invalid databits "+i);
-            } catch (java.lang.IllegalArgumentException ignored) {
+            } catch (IllegalArgumentException ignored) {
             }
         }
 
@@ -582,7 +682,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             usbWrite(new byte[]{(byte) 0xff});
             data = telnetRead(2);
             assertThat("19000/7N1", data, equalTo(new byte[]{(byte) 0x80, (byte) 0xff}));
-        } catch (java.lang.IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
                 if(!isCp21xxRestrictedPort)
                     throw e;
         }
@@ -593,7 +693,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             usbWrite(new byte[]{(byte) 0xff});
             data = telnetRead(2);
             assertThat("19000/6N1", data, equalTo(new byte[]{(byte) 0xc0, (byte) 0xff}));
-        } catch (java.lang.IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             if (!(isCp21xxRestrictedPort || usbSerialDriver instanceof FtdiSerialDriver))
                 throw e;
         }
@@ -604,7 +704,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             usbWrite(new byte[] {(byte)0xff});
             data = telnetRead(2);
             assertThat("19000/5N1", data, equalTo(new byte[] {(byte)0xe0, (byte)0xff}));
-        } catch (java.lang.IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             if (!(isCp21xxRestrictedPort || usbSerialDriver instanceof FtdiSerialDriver))
                 throw e;
         }
@@ -624,7 +724,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             try {
                 usbParameters(19200, 8, 1, i);
                 fail("invalid parity "+i);
-            } catch (java.lang.IllegalArgumentException ignored) {
+            } catch (IllegalArgumentException ignored) {
             }
         }
         if(isCp21xxRestrictedPort) {
@@ -634,11 +734,11 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             try {
                 usbParameters(19200, 8, 1, UsbSerialPort.PARITY_MARK);
                 fail("parity mark");
-            } catch (java.lang.IllegalArgumentException ignored) {}
+            } catch (IllegalArgumentException ignored) {}
             try {
                 usbParameters(19200, 8, 1, UsbSerialPort.PARITY_SPACE);
                 fail("parity space");
-            } catch (java.lang.IllegalArgumentException ignored) {}
+            } catch (IllegalArgumentException ignored) {}
             return;
             // test below not possible as it requires unsupported 7 dataBits
         }
@@ -721,7 +821,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             try {
                 usbParameters(19200, 8, i, UsbSerialPort.PARITY_NONE);
                 fail("invalid stopbits " + i);
-            } catch (java.lang.IllegalArgumentException ignored) {
+            } catch (IllegalArgumentException ignored) {
             }
         }
 
@@ -754,12 +854,16 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 usbWrite(new byte[]{(byte) 0x41, (byte) 0xf9});
                 data = telnetRead(2);
                 assertThat("19200/8N1", data, equalTo(new byte[]{1, 11}));
-            } catch(java.lang.IllegalArgumentException e) {
+            } catch(IllegalArgumentException e) {
                 if(!isCp21xxRestrictedPort)
                     throw e;
             }
-            // todo: could create similar test for 1.5 stopbits, by reading at double speed
-            //       but only some devices support 1.5 stopbits and it is basically not used any more
+            try {
+                usbParameters(19200, 8, UsbSerialPort.STOPBITS_1_5, UsbSerialPort.PARITY_NONE);
+                // todo: could create similar test for 1.5 stopbits, by reading at double speed
+                //       but only some devices support 1.5 stopbits and it is basically not used any more
+            } catch(IllegalArgumentException ignored) {
+            }
         }
     }
 
@@ -953,4 +1057,31 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         }
     }
 
+    @Test
+    public void purgeHwBuffers() throws Exception {
+        // 2400 is slowest baud rate for isCp21xxRestrictedPort
+        usbParameters(2400, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnetParameters(2400, 8, 1, UsbSerialPort.PARITY_NONE);
+        byte[] buf = new byte[64];
+        for(int i=0; i<buf.length; i++) buf[i]='a';
+        StringBuilder data = new StringBuilder();
+
+        // purge send buffer
+        usbWrite(buf);
+        Thread.sleep(50); // ~ 12 characters
+        boolean purged = usbSerialPort.purgeHwBuffers(true, false);
+        usbWrite("bcd".getBytes());
+        Thread.sleep(50);
+        while(data.length()==0 || data.charAt(data.length()-1)!='d')
+            data.append(new String(telnetRead()));
+        Log.i(TAG, "purgeHwBuffers " + purged + ": " + buf.length+1 + " -> " + data.length());
+
+        assertTrue(data.length() > 5);
+        if(purged)
+            assertTrue(data.length() < buf.length+1);
+        else
+            assertEquals(data.length(), buf.length + 3);
+
+        // todo: purge receive buffer
+    }
 }

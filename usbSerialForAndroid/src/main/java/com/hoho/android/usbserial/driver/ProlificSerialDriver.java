@@ -88,7 +88,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         private static final int READ_ENDPOINT = 0x83;
         private static final int INTERRUPT_ENDPOINT = 0x81;
 
-        private static final int FLUSH_RX_REQUEST = 0x08;
+        private static final int FLUSH_RX_REQUEST = 0x08; // RX @ Prolific device = write @ usb-serial-for-android library
         private static final int FLUSH_TX_REQUEST = 0x09;
 
         private static final int SET_LINE_REQUEST = 0x20;
@@ -553,22 +553,22 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public boolean purgeHwBuffers(boolean purgeReadBuffers, boolean purgeWriteBuffers) throws IOException {
-            if (purgeReadBuffers) {
+        public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
+            if (purgeWriteBuffers) {
                 vendorOut(FLUSH_RX_REQUEST, 0, null);
             }
 
-            if (purgeWriteBuffers) {
+            if (purgeReadBuffers) {
                 vendorOut(FLUSH_TX_REQUEST, 0, null);
             }
 
-            return purgeReadBuffers || purgeWriteBuffers;
+            return true;
         }
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {
         final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
-        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_PROLIFIC),
+        supportedDevices.put(UsbId.VENDOR_PROLIFIC,
                 new int[] { UsbId.PROLIFIC_PL2303, });
         return supportedDevices;
     }
