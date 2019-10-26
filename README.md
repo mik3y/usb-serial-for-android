@@ -33,66 +33,67 @@ dependencies {
 }
 ```
 
-**2.** Copy [device_filter.xml](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples/src/main/res/xml/device_filter.xml) to your project's `res/xml/` directory.
-
-**3.** Configure your `AndroidManifest.xml` to notify your app when a device is attached (see [Android USB Host documentation](http://developer.android.com/guide/topics/connectivity/usb/host.html#discovering-d) for help).
+**2.** If the app should be notified when a device is attached, add 
+[device_filter.xml](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples/src/main/res/xml/device_filter.xml) 
+to your project's `res/xml/` directory and configure in your `AndroidManifest.xml`.
 
 ```xml
 <activity
     android:name="..."
     ...>
-  <intent-filter>
-    <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
-  </intent-filter>
-  <meta-data
-      android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-      android:resource="@xml/device_filter" />
+    <intent-filter>
+        <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+    </intent-filter>
+    <meta-data
+        android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+        android:resource="@xml/device_filter" />
 </activity>
 ```
 
-**4.** Use it! Example code snippet:
+**3.** Use it! Example code snippet:
 
 ```java
-// Find all available drivers from attached devices.
-UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
-List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager);
-if (availableDrivers.isEmpty()) {
-  return;
-}
+    // Find all available drivers from attached devices.
+    UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
+    List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager);
+    if (availableDrivers.isEmpty()) {
+        return;
+    }
 
-// Open a connection to the first available driver.
-UsbSerialDriver driver = availableDrivers.get(0);
-UsbDeviceConnection connection = manager.openDevice(driver.getDevice());
-if (connection == null) {
-  // You probably need to call UsbManager.requestPermission(driver.getDevice(), ..)
-  return;
-}
+    // Open a connection to the first available driver.
+    UsbSerialDriver driver = availableDrivers.get(0);
+    UsbDeviceConnection connection = manager.openDevice(driver.getDevice());
+    if (connection == null) {
+        // add UsbManager.requestPermission(driver.getDevice(), ..) handling here
+        return;
+    }
 
-// Read some data! Most have just one port (port 0).
-UsbSerialPort port = driver.getPorts().get(0);
-try {
-  port.open(connection);
-  port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
-
-  byte buffer[] = new byte[16];
-  int numBytesRead = port.read(buffer, 1000);
-  Log.d(TAG, "Read " + numBytesRead + " bytes.");
-} catch (IOException e) {
-  // Deal with error.
-} finally {
-  port.close();
+    UsbSerialPort port = driver.getPorts().get(0); // Most devices have just one port (port 0)
+    port.open(connection);
+    port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+    usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
+    Executors.newSingleThreadExecutor().submit(usbIoManager);
+```
+```java
+    port.write("hello".getBytes(), WRITE_WAIT_MILLIS);
+```
+```java
+@Override
+public void onNewData(byte[] data) {
+    runOnUiThread(() -> { textView.append(new String(data)); });
 }
 ```
+```java
+    port.close();
+```
 
-For a simple example, see the
-[UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples)
-in git, which is a simple application for reading and showing serial data.
+
+For a simple example, see
+[UsbSerialExamples](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples)
+folder in this project.
 
 For a more complete example, see separate github project 
-[SimpleUsbTerminal](https://github.com/kai-morich/SimpleUsbTerminal)
-
-A [simple Arduino application](https://github.com/mik3y/usb-serial-for-android/blob/master/arduino)
-is also available which can be used for testing.
+[SimpleUsbTerminal](https://github.com/kai-morich/SimpleUsbTerminal).
 
 ## Probing for Unrecognized Devices
 

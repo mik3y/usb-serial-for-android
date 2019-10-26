@@ -194,22 +194,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         try {
             telnetRead(0);
         } catch (Exception ignored) {}
-
-        try {
-            usbIoManager.setListener(null);
-            usbIoManager.stop();
-        } catch (Exception ignored) {}
-        try {
-            usbSerialPort.setDTR(false);
-            usbSerialPort.setRTS(false);
-            usbSerialPort.close();
-        } catch (Exception ignored) {}
-        try {
-            usbDeviceConnection.close();
-        } catch (Exception ignored) {}
-        usbIoManager = null;
-        usbSerialPort = null;
-        usbDeviceConnection = null;
+        usbClose();
         usbSerialDriver = null;
     }
 
@@ -261,10 +246,15 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
     private void usbClose() {
         if (usbIoManager != null) {
+            usbIoManager.setListener(null);
             usbIoManager.stop();
-            usbIoManager = null;
         }
         if (usbSerialPort != null) {
+            try {
+                usbSerialPort.setDTR(false);
+                usbSerialPort.setRTS(false);
+            } catch (Exception ignored) {
+            }
             try {
                 usbSerialPort.close();
             } catch (IOException ignored) {
@@ -274,6 +264,18 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         if(usbDeviceConnection != null)
             usbDeviceConnection.close();
         usbDeviceConnection = null;
+        if(usbIoManager != null) {
+            for(int i=0; i<2000; i++) {
+                if(SerialInputOutputManager.State.STOPPED == usbIoManager.getState()) break;
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            assertEquals(SerialInputOutputManager.State.STOPPED, usbIoManager.getState());
+            usbIoManager = null;
+        }
     }
 
     private void usbOpen(boolean withIoManager) throws Exception {
@@ -520,6 +522,11 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             usbSerialPort.close();
         } catch (IOException ignored) {
         }
+
+        if (usbSerialDriver instanceof Cp21xxSerialDriver) { // why needed?
+            usbIoManager.stop();
+            usbIoManager = null;
+        }
         // full re-open supported
         usbClose();
         usbOpen(true);
@@ -640,8 +647,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                     assertNotEquals(data1, buf1);
                     assertNotEquals(data2, buf2);
                 }
-                assertThat("42000/8N1", data1, equalTo(buf1));
             } else {
+                assertThat("42000/8N1", data1, equalTo(buf1));
                 assertThat("42000/8N1", data2, equalTo(buf2));
             }
         }
@@ -1109,4 +1116,85 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
         // todo: purge receive buffer
     }
+
+    @Test
+    // WriteAsync rarely makes sense, as data is not written until something is read
+    public void writeAsync() throws Exception {
+        if (usbSerialDriver instanceof FtdiSerialDriver)
+            return; // periodically sends status messages, so does not block here
+        usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+
+        SerialInputOutputManager ioManager;
+        ioManager = new SerialInputOutputManager(null);
+        assertEquals(null, ioManager.getListener());
+        ioManager.setListener(this);
+        assertEquals(this, ioManager.getListener());
+        ioManager = new SerialInputOutputManager(null, this);
+        assertEquals(this, ioManager.getListener());
+
+        byte[] data, buf = new byte[]{1};
+        int len;
+        usbIoManager.writeAsync(buf);
+        usbIoManager.writeAsync(buf);
+        data = telnetRead(1);
+        assertEquals(0, data.length);
+        telnetWrite(buf);
+        data = usbRead(1);
+        assertEquals(1, data.length);
+        data = telnetRead(2);
+        assertEquals(2, data.length);
+    }
+
+    @Test
+    // Blocking read should be avoided in the UI thread, as it makes the app unresponsive.
+    // You better use the SerialInputOutputManager.
+    //
+    // With the change from bulkTransfer to queued requests, the read timeout has no effect
+    // and the call blocks until close() if no data is available!
+    // The change from bulkTransfer to queued requests was necessary to prevent data loss.
+    public void readSync() throws Exception {
+        if (usbSerialDriver instanceof FtdiSerialDriver)
+            return; // periodically sends status messages, so does not block here
+
+        Runnable closeThread = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                usbClose();
+            }
+        };
+
+        usbClose();
+        usbOpen(false);
+        usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+
+        byte[] buf = new byte[]{1};
+        int len;
+        long time;
+        telnetWrite(buf);
+        len = usbSerialPort.read(buf, 0); // not blocking because data is available
+        assertEquals(1, len);
+
+        time = System.currentTimeMillis();
+        Executors.newSingleThreadExecutor().submit(closeThread);
+        len = usbSerialPort.read(buf, 0); // blocking until close()
+        assertEquals(0, len);
+        assertTrue(System.currentTimeMillis()-time >= 100);
+
+        usbOpen(false);
+        usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+
+        time = System.currentTimeMillis();
+        Executors.newSingleThreadExecutor().submit(closeThread);
+        len = usbSerialPort.read(buf, 10); // timeout not used any more -> blocking until close()
+        assertEquals(0, len);
+        assertTrue(System.currentTimeMillis()-time >= 100);
+   }
 }
