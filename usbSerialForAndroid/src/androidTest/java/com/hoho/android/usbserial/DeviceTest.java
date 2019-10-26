@@ -68,7 +68,6 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
     private static String  rfc2217_server_host;
     private static int     rfc2217_server_port = 2217;
     private static boolean rfc2217_server_nonstandard_baudrates;
-    private static boolean rfc2217_server_parity_mark_space;
     private static String  test_device_driver;
     private static int     test_device_port;
 
@@ -108,7 +107,6 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
     public static void setUpFixture() throws Exception {
         rfc2217_server_host                  =                 InstrumentationRegistry.getArguments().getString("rfc2217_server_host");
         rfc2217_server_nonstandard_baudrates = Boolean.valueOf(InstrumentationRegistry.getArguments().getString("rfc2217_server_nonstandard_baudrates"));
-        rfc2217_server_parity_mark_space     = Boolean.valueOf(InstrumentationRegistry.getArguments().getString("rfc2217_server_parity_mark_space"));
         test_device_driver                   =                 InstrumentationRegistry.getArguments().getString("test_device_driver");
         test_device_port                     = Integer.valueOf(InstrumentationRegistry.getArguments().getString("test_device_port","0"));
 
@@ -532,8 +530,6 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
     @Test
     public void baudRate() throws Exception {
-        byte[] data;
-
         if (false) { // default baud rate
             // CP2102: only works if first connection after attaching device
             // PL2303, FTDI: it's not 9600
@@ -604,9 +600,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         } catch (IllegalArgumentException ignored) {
         }
 
-        for(int baudRate : new int[] {300, 2400, 19200, 42000, 115200} ) {
-            if(baudRate == 42000 && !rfc2217_server_nonstandard_baudrates)
-                continue; // rfc2217_server.py would terminate
+        for(int baudRate : new int[] {300, 2400, 19200, 115200} ) {
             if(baudRate == 300 && isCp21xxRestrictedPort) {
                 try {
                     usbParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -620,10 +614,42 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
             doReadWrite(baudRate+"/8N1");
         }
+        if(rfc2217_server_nonstandard_baudrates && !isCp21xxRestrictedPort) {
+            // usbParameters does not fail on devices that do not support nonstandard baud rates
+            usbParameters(42000, 8, 1, UsbSerialPort.PARITY_NONE);
+            telnetParameters(42000, 8, 1, UsbSerialPort.PARITY_NONE);
+
+            byte[] buf1 = "abc".getBytes();
+            byte[] buf2 = "ABC".getBytes();
+            byte[] data1, data2;
+            usbWrite(buf1);
+            data1 = telnetRead();
+            telnetWrite(buf2);
+            data2 = usbRead();
+            if (usbSerialDriver instanceof ProlificSerialDriver) {
+                // not supported
+                assertNotEquals(data1, buf2);
+                assertNotEquals(data2, buf2);
+            } else if (usbSerialDriver instanceof Cp21xxSerialDriver) {
+                if (usbSerialDriver.getPorts().size() > 1) {
+                    // supported on cp2105 first port
+                    assertThat("42000/8N1", data1, equalTo(buf1));
+                    assertThat("42000/8N1", data2, equalTo(buf2));
+                } else {
+                    // not supported on cp2102
+                    assertNotEquals(data1, buf1);
+                    assertNotEquals(data2, buf2);
+                }
+                assertThat("42000/8N1", data1, equalTo(buf1));
+            } else {
+                assertThat("42000/8N1", data2, equalTo(buf2));
+            }
+        }
         { // non matching baud rate
             telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
             usbParameters(2400, 8, 1, UsbSerialPort.PARITY_NONE);
 
+            byte[] data;
             telnetWrite("net2usb".getBytes());
             data = usbRead();
             assertNotEquals(7, data.length);
@@ -762,7 +788,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
         if (usbSerialDriver instanceof CdcAcmSerialDriver) {
             // not supported by arduino_leonardo_bridge.ino, other devices might support it
-        } else if (rfc2217_server_parity_mark_space) {
+        } else {
             usbParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
             usbWrite(_8n1);
             data = telnetRead(4);
@@ -794,17 +820,16 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         if (usbSerialDriver instanceof CdcAcmSerialDriver) {
             // not supported by arduino_leonardo_bridge.ino, other devices might support it
         } else {
-            if (rfc2217_server_parity_mark_space) {
-                telnetParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
-                telnetWrite(_8n1);
-                data = usbRead(4);
-                assertThat("19200/7M1", data, equalTo(_7m1));
+            telnetParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
+            telnetWrite(_8n1);
+            data = usbRead(4);
+            assertThat("19200/7M1", data, equalTo(_7m1));
 
-                telnetParameters(19200, 7, 1, UsbSerialPort.PARITY_SPACE);
-                telnetWrite(_8n1);
-                data = usbRead(4);
-                assertThat("19200/7S1", data, equalTo(_7s1));
-            }
+            telnetParameters(19200, 7, 1, UsbSerialPort.PARITY_SPACE);
+            telnetWrite(_8n1);
+            data = usbRead(4);
+            assertThat("19200/7S1", data, equalTo(_7s1));
+
             usbParameters(19200, 7, 1, UsbSerialPort.PARITY_ODD);
             telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
             telnetWrite(_8n1);

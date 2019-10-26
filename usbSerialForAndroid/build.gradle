@@ -8,10 +8,9 @@ android {
         minSdkVersion 17
         targetSdkVersion 28
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-        testInstrumentationRunnerArguments = [
-                'rfc2217_server_host': '192.168.0.171',
-                'rfc2217_server_nonstandard_baudrates': 'false',    // false on Windows, Raspi
-                'rfc2217_server_parity_mark_space': 'true'          // false on Raspi
+        testInstrumentationRunnerArguments = [                    // Raspi   Windows   LinuxVM   ...
+                'rfc2217_server_host': '192.168.0.100',
+                'rfc2217_server_nonstandard_baudrates': 'true',   // true    false     false
         ]
     }
 
