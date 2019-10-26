@@ -50,6 +50,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
     private final UsbDevice mDevice;
     private final UsbSerialPort mPort;
+    private UsbRequest mUsbRequest;
 
     public CdcAcmSerialDriver(UsbDevice device) {
         mDevice = device;
@@ -253,6 +254,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             if (mConnection == null) {
                 throw new IOException("Already closed");
             }
+            synchronized (this) {
+                if (mUsbRequest != null)
+                    mUsbRequest.cancel();
+            }
             mConnection.close();
             mConnection = null;
         }
@@ -266,8 +271,11 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 if (!request.queue(buf, dest.length)) {
                     throw new IOException("Error queueing request.");
                 }
-
+                mUsbRequest = request;
                 final UsbRequest response = mConnection.requestWait();
+                synchronized (this) {
+                    mUsbRequest = null;
+                }
                 if (response == null) {
                     throw new IOException("Null response");
                 }
@@ -280,6 +288,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                     return 0;
                 }
             } finally {
+                mUsbRequest = null;
                 request.close();
             }
         }
