@@ -85,7 +85,6 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 		private UsbEndpoint mReadEndpoint;
 		private UsbEndpoint mWriteEndpoint;
-		private UsbRequest mUsbRequest;
 
 		public Ch340SerialPort(UsbDevice device, int portNumber) {
 			super(device, portNumber);
@@ -144,11 +143,9 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			if (mConnection == null) {
 				throw new IOException("Already closed");
 			}
-			synchronized (this) {
-				if (mUsbRequest != null)
-					mUsbRequest.cancel();
-			}
 			try {
+				for (int i = 0; i < mDevice.getInterfaceCount(); i++)
+					mConnection.releaseInterface(mDevice.getInterface(i));
 				mConnection.close();
 			} finally {
 				mConnection = null;
@@ -160,16 +157,14 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		public int read(byte[] dest, int timeoutMillis) throws IOException {
 			final UsbRequest request = new UsbRequest();
 			try {
+				if(mConnection == null)
+					throw new IOException("Connection closed");
 				request.initialize(mConnection, mReadEndpoint);
 				final ByteBuffer buf = ByteBuffer.wrap(dest);
 				if (!request.queue(buf, dest.length)) {
 					throw new IOException("Error queueing request.");
 				}
-				mUsbRequest = request;
 				final UsbRequest response = mConnection.requestWait();
-				synchronized (this) {
-					mUsbRequest = null;
-				}
 				if (response == null) {
 					throw new IOException("Null response");
 				}
@@ -182,7 +177,6 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 					return 0;
 				}
 			} finally {
-				mUsbRequest = null;
 				request.close();
 			}
 		}

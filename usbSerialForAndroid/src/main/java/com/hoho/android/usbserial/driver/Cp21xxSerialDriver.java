@@ -108,7 +108,6 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         private UsbEndpoint mReadEndpoint;
         private UsbEndpoint mWriteEndpoint;
-        private UsbRequest mUsbRequest;
 
         // second port of Cp2105 has limited baudRate, dataBits, stopBits, parity
         // unsupported baudrate returns error at controlTransfer(), other parameters are silently ignored
@@ -177,16 +176,12 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             if (mConnection == null) {
                 throw new IOException("Already closed");
             }
-            synchronized (this) {
-                if(mUsbRequest != null) {
-                    mUsbRequest.cancel();
-                }
-            }
             try {
                 setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_DISABLE);
             } catch (Exception ignored)
             {}
             try {
+                mConnection.releaseInterface(mDevice.getInterface(mPortNumber));
                 mConnection.close();
             } finally {
                 mConnection = null;
@@ -197,16 +192,14 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         public int read(byte[] dest, int timeoutMillis) throws IOException {
             final UsbRequest request = new UsbRequest();
             try {
+                if(mConnection == null)
+                    throw new IOException("Connection closed");
                 request.initialize(mConnection, mReadEndpoint);
                 final ByteBuffer buf = ByteBuffer.wrap(dest);
                 if (!request.queue(buf, dest.length)) {
                     throw new IOException("Error queueing request.");
                 }
-                mUsbRequest = request;
                 final UsbRequest response = mConnection.requestWait();
-                synchronized (this) {
-                    mUsbRequest = null;
-                }
                 if (response == null) {
                     throw new IOException("Null response");
                 }
@@ -219,7 +212,6 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
                     return 0;
                 }
             } finally {
-                mUsbRequest = null;
                 request.close();
             }
         }
