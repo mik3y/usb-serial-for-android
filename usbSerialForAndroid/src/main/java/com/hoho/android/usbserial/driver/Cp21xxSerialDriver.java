@@ -26,10 +26,12 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
+import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,11 +41,14 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
     private static final String TAG = Cp21xxSerialDriver.class.getSimpleName();
 
     private final UsbDevice mDevice;
-    private final UsbSerialPort mPort;
+    private final List<UsbSerialPort> mPorts;
 
     public Cp21xxSerialDriver(UsbDevice device) {
         mDevice = device;
-        mPort = new Cp21xxSerialPort(mDevice, 0);
+        mPorts = new ArrayList<>();
+        for( int port = 0; port < device.getInterfaceCount(); port++) {
+            mPorts.add(new Cp21xxSerialPort(mDevice, port));
+        }
     }
 
     @Override
@@ -53,7 +58,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
     @Override
     public List<UsbSerialPort> getPorts() {
-        return Collections.singletonList(mPort);
+        return mPorts;
     }
 
     public class Cp21xxSerialPort extends CommonUsbSerialPort {
@@ -103,6 +108,11 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         private UsbEndpoint mReadEndpoint;
         private UsbEndpoint mWriteEndpoint;
+        private UsbRequest mUsbRequest;
+
+        // second port of Cp2105 has limited baudRate, dataBits, stopBits, parity
+        // unsupported baudrate returns error at controlTransfer(), other parameters are silently ignored
+        private boolean mIsRestrictedPort;
 
         public Cp21xxSerialPort(UsbDevice device, int portNumber) {
             super(device, portNumber);
@@ -115,7 +125,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         private int setConfigSingle(int request, int value) {
             return mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, request, value,
-                    0, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+                    mPortNumber, null, 0, USB_WRITE_TIMEOUT_MILLIS);
         }
 
         @Override
@@ -126,17 +136,15 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
             mConnection = connection;
             boolean opened = false;
+            mIsRestrictedPort = mDevice.getInterfaceCount() == 2 && mPortNumber == 1;
             try {
-                for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
-                    UsbInterface usbIface = mDevice.getInterface(i);
-                    if (mConnection.claimInterface(usbIface, true)) {
-                        Log.d(TAG, "claimInterface " + i + " SUCCESS");
-                    } else {
-                        Log.d(TAG, "claimInterface " + i + " FAIL");
-                    }
+                if(mPortNumber >= mDevice.getInterfaceCount()) {
+                    throw new IOException("Unknown port number");
                 }
-
-                UsbInterface dataIface = mDevice.getInterface(mDevice.getInterfaceCount() - 1);
+                UsbInterface dataIface = mDevice.getInterface(mPortNumber);
+                if (!mConnection.claimInterface(dataIface, true)) {
+                    throw new IOException("Could not claim interface " + mPortNumber);
+                }
                 for (int i = 0; i < dataIface.getEndpointCount(); i++) {
                     UsbEndpoint ep = dataIface.getEndpoint(i);
                     if (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
@@ -169,8 +177,16 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             if (mConnection == null) {
                 throw new IOException("Already closed");
             }
+            synchronized (this) {
+                if(mUsbRequest != null) {
+                    mUsbRequest.cancel();
+                }
+            }
             try {
                 setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_DISABLE);
+            } catch (Exception ignored)
+            {}
+            try {
                 mConnection.close();
             } finally {
                 mConnection = null;
@@ -179,21 +195,33 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         public int read(byte[] dest, int timeoutMillis) throws IOException {
-            final int numBytesRead;
-            synchronized (mReadBufferLock) {
-                int readAmt = Math.min(dest.length, mReadBuffer.length);
-                numBytesRead = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer, readAmt,
-                        timeoutMillis);
-                if (numBytesRead < 0) {
-                    // This sucks: we get -1 on timeout, not 0 as preferred.
-                    // We *should* use UsbRequest, except it has a bug/api oversight
-                    // where there is no way to determine the number of bytes read
-                    // in response :\ -- http://b.android.com/28023
+            final UsbRequest request = new UsbRequest();
+            try {
+                request.initialize(mConnection, mReadEndpoint);
+                final ByteBuffer buf = ByteBuffer.wrap(dest);
+                if (!request.queue(buf, dest.length)) {
+                    throw new IOException("Error queueing request.");
+                }
+                mUsbRequest = request;
+                final UsbRequest response = mConnection.requestWait();
+                synchronized (this) {
+                    mUsbRequest = null;
+                }
+                if (response == null) {
+                    throw new IOException("Null response");
+                }
+
+                final int nread = buf.position();
+                if (nread > 0) {
+                    //Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
+                    return nread;
+                } else {
                     return 0;
                 }
-                System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);
+            } finally {
+                mUsbRequest = null;
+                request.close();
             }
-            return numBytesRead;
         }
 
         @Override
@@ -238,7 +266,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
                     (byte) ((baudRate >> 24) & 0xff)
             };
             int ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_BAUDRATE,
-                    0, 0, data, 4, USB_WRITE_TIMEOUT_MILLIS);
+                    0, mPortNumber, data, 4, USB_WRITE_TIMEOUT_MILLIS);
             if (ret < 0) {
                 throw new IOException("Error setting baud rate.");
             }
@@ -252,38 +280,62 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             int configDataBits = 0;
             switch (dataBits) {
                 case DATABITS_5:
+                    if(mIsRestrictedPort)
+                        throw new IllegalArgumentException("Unsupported dataBits value: " + dataBits);
                     configDataBits |= 0x0500;
                     break;
                 case DATABITS_6:
+                    if(mIsRestrictedPort)
+                        throw new IllegalArgumentException("Unsupported dataBits value: " + dataBits);
                     configDataBits |= 0x0600;
                     break;
                 case DATABITS_7:
+                    if(mIsRestrictedPort)
+                        throw new IllegalArgumentException("Unsupported dataBits value: " + dataBits);
                     configDataBits |= 0x0700;
                     break;
                 case DATABITS_8:
                     configDataBits |= 0x0800;
                     break;
                 default:
-                    configDataBits |= 0x0800;
-                    break;
+                    throw new IllegalArgumentException("Unknown dataBits value: " + dataBits);
             }
             
             switch (parity) {
+                case PARITY_NONE:
+                    break;
                 case PARITY_ODD:
                     configDataBits |= 0x0010;
                     break;
                 case PARITY_EVEN:
                     configDataBits |= 0x0020;
                     break;
+                case PARITY_MARK:
+                    if(mIsRestrictedPort)
+                        throw new IllegalArgumentException("Unsupported parity value: mark");
+                    configDataBits |= 0x0030;
+                    break;
+                case PARITY_SPACE:
+                    if(mIsRestrictedPort)
+                        throw new IllegalArgumentException("Unsupported parity value: space");
+                    configDataBits |= 0x0040;
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown parity value: " + parity);
             }
             
             switch (stopBits) {
                 case STOPBITS_1:
-                    configDataBits |= 0;
                     break;
+                case STOPBITS_1_5:
+                    throw new IllegalArgumentException("Unsupported stopBits value: 1.5");
                 case STOPBITS_2:
+                    if(mIsRestrictedPort)
+                        throw new IllegalArgumentException("Unsupported stopBits value: 2");
                     configDataBits |= 2;
                     break;
+                default:
+                    throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
             }
             setConfigSingle(SILABSER_SET_LINE_CTL_REQUEST_CODE, configDataBits);
         }
@@ -327,8 +379,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public boolean purgeHwBuffers(boolean purgeReadBuffers,
-                boolean purgeWriteBuffers) throws IOException {
+        public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
             int value = (purgeReadBuffers ? FLUSH_READ_CODE : 0)
                     | (purgeWriteBuffers ? FLUSH_WRITE_CODE : 0);
 
@@ -343,7 +394,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
     public static Map<Integer, int[]> getSupportedDevices() {
         final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
-        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_SILABS),
+        supportedDevices.put(UsbId.VENDOR_SILABS,
                 new int[] {
             UsbId.SILABS_CP2102,
             UsbId.SILABS_CP2105,

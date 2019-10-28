@@ -33,6 +33,9 @@ public final class UsbId {
 
     public static final int VENDOR_FTDI = 0x0403;
     public static final int FTDI_FT232R = 0x6001;
+    public static final int FTDI_FT2232H = 0x6010;
+    public static final int FTDI_FT4232H = 0x6011;
+    public static final int FTDI_FT232H = 0x6014;
     public static final int FTDI_FT231X = 0x6015;
 
     public static final int VENDOR_ATMEL = 0x03EB;
@@ -67,6 +70,10 @@ public final class UsbId {
 
     public static final int VENDOR_QINHENG = 0x1a86;
     public static final int QINHENG_HL340 = 0x7523;
+
+    // at www.linux-usb.org/usb.ids listed for NXP/LPC1768, but all processors supported by ARM mbed DAPLink firmware report these ids
+    public static final int VENDOR_ARM = 0x0d28;
+    public static final int ARM_MBED = 0x0204;
 
     private UsbId() {
         throw new IllegalAccessError("Non-instantiable class.");

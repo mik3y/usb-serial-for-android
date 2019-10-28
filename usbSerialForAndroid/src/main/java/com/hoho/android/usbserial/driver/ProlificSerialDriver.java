@@ -32,10 +32,12 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
+import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -86,7 +88,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         private static final int READ_ENDPOINT = 0x83;
         private static final int INTERRUPT_ENDPOINT = 0x81;
 
-        private static final int FLUSH_RX_REQUEST = 0x08;
+        private static final int FLUSH_RX_REQUEST = 0x08; // RX @ Prolific device = write @ usb-serial-for-android library
         private static final int FLUSH_TX_REQUEST = 0x09;
 
         private static final int SET_LINE_REQUEST = 0x20;
@@ -368,15 +370,28 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         @Override
         public int read(byte[] dest, int timeoutMillis) throws IOException {
-            synchronized (mReadBufferLock) {
-                int readAmt = Math.min(dest.length, mReadBuffer.length);
-                int numBytesRead = mConnection.bulkTransfer(mReadEndpoint, mReadBuffer,
-                        readAmt, timeoutMillis);
-                if (numBytesRead < 0) {
+            final UsbRequest request = new UsbRequest();
+            try {
+                request.initialize(mConnection, mReadEndpoint);
+                final ByteBuffer buf = ByteBuffer.wrap(dest);
+                if (!request.queue(buf, dest.length)) {
+                    throw new IOException("Error queueing request.");
+                }
+
+                final UsbRequest response = mConnection.requestWait();
+                if (response == null) {
+                    throw new IOException("Null response");
+                }
+
+                final int nread = buf.position();
+                if (nread > 0) {
+                    //Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
+                    return nread;
+                } else {
                     return 0;
                 }
-                System.arraycopy(mReadBuffer, 0, dest, 0, numBytesRead);
-                return numBytesRead;
+            } finally {
+                request.close();
             }
         }
 
@@ -538,22 +553,22 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public boolean purgeHwBuffers(boolean purgeReadBuffers, boolean purgeWriteBuffers) throws IOException {
-            if (purgeReadBuffers) {
+        public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
+            if (purgeWriteBuffers) {
                 vendorOut(FLUSH_RX_REQUEST, 0, null);
             }
 
-            if (purgeWriteBuffers) {
+            if (purgeReadBuffers) {
                 vendorOut(FLUSH_TX_REQUEST, 0, null);
             }
 
-            return purgeReadBuffers || purgeWriteBuffers;
+            return true;
         }
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {
         final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
-        supportedDevices.put(Integer.valueOf(UsbId.VENDOR_PROLIFIC),
+        supportedDevices.put(UsbId.VENDOR_PROLIFIC,
                 new int[] { UsbId.PROLIFIC_PL2303, });
         return supportedDevices;
     }

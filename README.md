@@ -1,85 +1,104 @@
+[![Jitpack](https://jitpack.io/v/mik3y/usb-serial-for-android.svg)](https://jitpack.io/#mik3y/usb-serial-for-android)
+[![Codacy](https://api.codacy.com/project/badge/Grade/4d528e82e35d42d49f659e9b93a9c77d)](https://www.codacy.com/manual/kai-morich/usb-serial-for-android-mik3y?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=mik3y/usb-serial-for-android&amp;utm_campaign=Badge_Grade)
+[![codecov](https://codecov.io/gh/mik3y/usb-serial-for-android/branch/master/graph/badge.svg)](https://codecov.io/gh/mik3y/usb-serial-for-android)
+
 # usb-serial-for-android
 
 This is a driver library for communication with Arduinos and other USB serial hardware on
 Android, using the
-[Android USB Host API](http://developer.android.com/guide/topics/connectivity/usb/host.html)
-available on Android 3.1+.
+[Android USB Host Mode (OTG)](http://developer.android.com/guide/topics/connectivity/usb/host.html)
+available since Android 3.1 and working reliably since Android 4.2.
 
 No root access, ADK, or special kernel drivers are required; all drivers are implemented in
 Java.  You get a raw serial port with `read()`, `write()`, and other basic
 functions for use with your own protocols.
 
-* **Homepage**: https://github.com/mik3y/usb-serial-for-android
-* **Google group**: http://groups.google.com/group/usb-serial-for-android
-* **Latest release**: [v0.1.0](https://github.com/mik3y/usb-serial-for-android/releases)
-
 ## Quick Start
 
-**1.** [Link your project](https://github.com/mik3y/usb-serial-for-android/wiki/Building-From-Source) to the library.
+**1.** Add library to your project:
 
-**2.** Copy [device_filter.xml](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples/src/main/res/xml/device_filter.xml) to your project's `res/xml/` directory.
+Add jitpack.io repository to your root build.gradle:
+```gradle
+allprojects {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+Add library to dependencies
+```gradle
+dependencies {
+    implementation 'com.github.mik3y:usb-serial-for-android:Tag'
+}
+```
 
-**3.** Configure your `AndroidManifest.xml` to notify your app when a device is attached (see [Android USB Host documentation](http://developer.android.com/guide/topics/connectivity/usb/host.html#discovering-d) for help).
+**2.** If the app should be notified when a device is attached, add 
+[device_filter.xml](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples/src/main/res/xml/device_filter.xml) 
+to your project's `res/xml/` directory and configure in your `AndroidManifest.xml`.
 
 ```xml
 <activity
     android:name="..."
     ...>
-  <intent-filter>
-    <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
-  </intent-filter>
-  <meta-data
-      android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-      android:resource="@xml/device_filter" />
+    <intent-filter>
+        <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+    </intent-filter>
+    <meta-data
+        android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+        android:resource="@xml/device_filter" />
 </activity>
 ```
 
-**4.** Use it! Example code snippet:
+**3.** Use it! Example code snippet:
 
 ```java
-// Find all available drivers from attached devices.
-UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
-List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager);
-if (availableDrivers.isEmpty()) {
-  return;
-}
+    // Find all available drivers from attached devices.
+    UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
+    List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager);
+    if (availableDrivers.isEmpty()) {
+        return;
+    }
 
-// Open a connection to the first available driver.
-UsbSerialDriver driver = availableDrivers.get(0);
-UsbDeviceConnection connection = manager.openDevice(driver.getDevice());
-if (connection == null) {
-  // You probably need to call UsbManager.requestPermission(driver.getDevice(), ..)
-  return;
-}
+    // Open a connection to the first available driver.
+    UsbSerialDriver driver = availableDrivers.get(0);
+    UsbDeviceConnection connection = manager.openDevice(driver.getDevice());
+    if (connection == null) {
+        // add UsbManager.requestPermission(driver.getDevice(), ..) handling here
+        return;
+    }
 
-// Read some data! Most have just one port (port 0).
-UsbSerialPort port = driver.getPorts().get(0);
-try {
-  port.open(connection);
-  port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
-
-  byte buffer[] = new byte[16];
-  int numBytesRead = port.read(buffer, 1000);
-  Log.d(TAG, "Read " + numBytesRead + " bytes.");
-} catch (IOException e) {
-  // Deal with error.
-} finally {
-  port.close();
+    UsbSerialPort port = driver.getPorts().get(0); // Most devices have just one port (port 0)
+    port.open(connection);
+    port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+    usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
+    Executors.newSingleThreadExecutor().submit(usbIoManager);
+```
+```java
+    port.write("hello".getBytes(), WRITE_WAIT_MILLIS);
+```
+```java
+@Override
+public void onNewData(byte[] data) {
+    runOnUiThread(() -> { textView.append(new String(data)); });
 }
 ```
+```java
+    port.close();
+```
 
-For a more complete example, see the
-[UsbSerialExamples project](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples)
-in git, which is a simple application for reading and showing serial data.
 
-A [simple Arduino application](https://github.com/mik3y/usb-serial-for-android/blob/master/arduino)
-is also available which can be used for testing.
+For a simple example, see
+[UsbSerialExamples](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples)
+folder in this project.
 
+For a more complete example, see separate github project 
+[SimpleUsbTerminal](https://github.com/kai-morich/SimpleUsbTerminal).
 
 ## Probing for Unrecognized Devices
 
 Sometimes you may need to do a little extra work to support devices which
-usb-serial-for-android doesn't [yet] know about -- but which you know to be
+usb-serial-for-android doesn't (yet) know about -- but which you know to be
 compatible with one of the built-in drivers.  This may be the case for a brand
 new device or for one using a custom VID/PID pair.
 
@@ -107,27 +126,31 @@ Of course, nothing requires you to use UsbSerialProber at all: you can
 instantiate driver classes directly if you know what you're doing; just supply
 a compatible UsbDevice.
 
-
 ## Compatible Devices
 
-* *Serial chips:* FT232R, CDC/ACM (eg Arduino Uno) and possibly others.
-  See [CompatibleSerialDevices](https://github.com/mik3y/usb-serial-for-android/wiki/Compatible-Serial-Devices).
-* *Android phones and tablets:* Nexus 7, Motorola Xoom, and many others.
-  See [CompatibleAndroidDevices](https://github.com/mik3y/usb-serial-for-android/wiki/Compatible-Android-Devices).
+This library supports USB to serial converter chips:
+* FTDI FT232, FT2232, ...
+* Prolific PL2303
+* Silabs CP2102, CP2105, ...
+* Qinheng CH340
 
+and devices implementing the CDC/ACM protocol like
+* Arduino using ATmega32U4
+* Digispark using V-USB software USB
+* BBC micro:bit using ARM mbed DAPLink firmware
+* ...
 
 ## Author, License, and Copyright
 
-usb-serial-for-android is written and maintained by *mike wakerly*.
+usb-serial-for-android is written and maintained by *mike wakerly* and *kai morich*
 
 This library is licensed under *LGPL Version 2.1*.  Please see LICENSE.txt for the
 complete license.
 
 Copyright 2011-2012, Google Inc. All Rights Reserved.
 
-Portions of this library are based on libftdi
-(http://www.intra2net.com/en/developer/libftdi).  Please see
-FtdiSerialDriver.java for more information.
+Portions of this library are based on [libftdi](http://www.intra2net.com/en/developer/libftdi).
+Please see FtdiSerialDriver.java for more information.
 
 ## Help & Discussion
 
@@ -135,9 +158,5 @@ For common problems, see the
 [Troubleshooting](https://github.com/mik3y/usb-serial-for-android/wiki/Troubleshooting)
 wiki page.
 
-For other help and discussion, please join our Google Group,
-[usb-serial-for-android](https://groups.google.com/forum/?fromgroups#!forum/usb-serial-for-android).
-
-Are you using the library? Let us know on the group and we'll add your project to
+Are you using the library? Add your project to 
 [ProjectsUsingUsbSerialForAndroid](https://github.com/mik3y/usb-serial-for-android/wiki/Projects-Using-usb-serial-for-android).
-

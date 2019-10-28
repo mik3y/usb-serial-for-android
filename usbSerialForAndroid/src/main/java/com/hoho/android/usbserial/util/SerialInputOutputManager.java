@@ -50,7 +50,7 @@ public class SerialInputOutputManager implements Runnable {
     // Synchronized by 'mWriteBuffer'
     private final ByteBuffer mWriteBuffer = ByteBuffer.allocate(BUFSIZ);
 
-    private enum State {
+    public enum State {
         STOPPED,
         RUNNING,
         STOPPING
@@ -111,7 +111,7 @@ public class SerialInputOutputManager implements Runnable {
         }
     }
 
-    private synchronized State getState() {
+    public synchronized State getState() {
         return mState;
     }
 
@@ -120,7 +120,6 @@ public class SerialInputOutputManager implements Runnable {
      * called, or until a driver exception is raised.
      *
      * NOTE(mikey): Uses inefficient read/write-with-timeout.
-     * TODO(mikey): Read asynchronously with {@link UsbRequest#queue(ByteBuffer, int)}
      */
     @Override
     public void run() {
