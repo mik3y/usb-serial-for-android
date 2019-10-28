@@ -362,6 +362,14 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setDTR(boolean value) throws IOException {
+            mConnection.controlTransfer(
+                    UsbConstants.USB_DIR_OUT | UsbConstants.USB_TYPE_VENDOR | 0x01,
+                    0x07,
+                    value ? 0x101 : 0x100,
+                    0,
+                    null,
+                    0,
+                    2000);
         }
 
         @Override
@@ -376,6 +384,14 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setRTS(boolean value) throws IOException {
+            mConnection.controlTransfer(
+                0x41,
+                0x07,
+                value ? 0x202 : 0x200,
+                0,
+                null,
+                0,
+                2000);
         }
 
         @Override
