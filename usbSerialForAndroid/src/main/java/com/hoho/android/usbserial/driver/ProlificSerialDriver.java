@@ -336,8 +336,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                 opened = true;
             } finally {
                 if (!opened) {
-                    mConnection = null;
-                    connection.releaseInterface(usbInterface);
+                    close();
                 }
             }
         }
@@ -373,10 +372,11 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         @Override
         public int read(byte[] dest, int timeoutMillis) throws IOException {
+            if(mConnection == null) {
+                throw new IOException("Connection closed");
+            }
             final UsbRequest request = new UsbRequest();
             try {
-                if(mConnection == null)
-                    throw new IOException("Connection closed");
                 request.initialize(mConnection, mReadEndpoint);
                 final ByteBuffer buf = ByteBuffer.wrap(dest);
                 if (!request.queue(buf, dest.length)) {
@@ -404,6 +404,9 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         public int write(byte[] src, int timeoutMillis) throws IOException {
             int offset = 0;
 
+            if(mConnection == null) {
+                throw new IOException("Connection closed");
+            }
             while (offset < src.length) {
                 final int writeLength;
                 final int amtWritten;

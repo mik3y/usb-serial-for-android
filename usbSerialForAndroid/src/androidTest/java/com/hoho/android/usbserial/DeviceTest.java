@@ -229,7 +229,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
     private byte[] telnetRead(int expectedLength) throws Exception {
         long end = System.currentTimeMillis() + TELNET_READ_WAIT;
-        ByteBuffer buf = ByteBuffer.allocate(4096);
+        ByteBuffer buf = ByteBuffer.allocate(8192);
         while(System.currentTimeMillis() < end) {
             if(telnetReadStream.available() > 0) {
                 buf.put((byte) telnetReadStream.read());
@@ -498,23 +498,21 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         doReadWrite("");
 
         usbClose();
+        usbSerialPort = usbSerialDriver.getPorts().get(test_device_port);
         try {
             usbSerialPort.close();
             fail("already closed expected");
         } catch (IOException ignored) {
-        } catch (NullPointerException ignored) {
         }
         try {
             usbWrite(new byte[]{0x00});
             fail("write error expected");
         } catch (IOException ignored) {
-        } catch (NullPointerException ignored) {
         }
         try {
             usbRead(1);
-            //fail("read error expected");
+            fail("read error expected");
         } catch (IOException ignored) {
-        } catch (NullPointerException ignored) {
         }
         try {
             usbParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -522,11 +520,22 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         } catch (IOException ignored) {
         } catch (NullPointerException ignored) {
         }
+        usbSerialPort = null;
 
         usbOpen(true);
         telnetParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
         usbParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
         doReadWrite("");
+
+        // close before iomanager
+        assertEquals(SerialInputOutputManager.State.RUNNING, usbIoManager.getState());
+        usbSerialPort.close();
+        for (int i = 0; i < 1000; i++) {
+            if (usbIoManager.getState() == SerialInputOutputManager.State.STOPPED)
+                break;
+            Thread.sleep(1);
+        }
+        assertEquals(SerialInputOutputManager.State.STOPPED, usbIoManager.getState());
     }
 
     @Test
@@ -684,21 +693,21 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnetParameters(19200, 7, 1, UsbSerialPort.PARITY_NONE);
         telnetWrite(new byte[] {0x00});
-        Thread.sleep(1); // one bit is 0.05 milliseconds long, wait >> stop bit
+        Thread.sleep(10); // one bit is 0.05 milliseconds long, wait >> stop bit
         telnetWrite(new byte[] {(byte)0xff});
         data = usbRead(2);
         assertThat("19200/7N1", data, equalTo(new byte[] {(byte)0x80, (byte)0xff}));
 
         telnetParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
         telnetWrite(new byte[] {0x00});
-        Thread.sleep(1);
+        Thread.sleep(10);
         telnetWrite(new byte[] {(byte)0xff});
         data = usbRead(2);
         assertThat("19000/6N1", data, equalTo(new byte[] {(byte)0xc0, (byte)0xff}));
 
         telnetParameters(19200, 5, 1, UsbSerialPort.PARITY_NONE);
         telnetWrite(new byte[] {0x00});
-        Thread.sleep(1);
+        Thread.sleep(10);
         telnetWrite(new byte[] {(byte)0xff});
         data = usbRead(2);
         assertThat("19000/5N1", data, equalTo(new byte[] {(byte)0xe0, (byte)0xff}));
@@ -708,7 +717,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
             usbParameters(19200, 7, 1, UsbSerialPort.PARITY_NONE);
             usbWrite(new byte[]{0x00});
-            Thread.sleep(1);
+            Thread.sleep(10);
             usbWrite(new byte[]{(byte) 0xff});
             data = telnetRead(2);
             assertThat("19000/7N1", data, equalTo(new byte[]{(byte) 0x80, (byte) 0xff}));
@@ -719,7 +728,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         try {
             usbParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
             usbWrite(new byte[]{0x00});
-            Thread.sleep(1);
+            Thread.sleep(10);
             usbWrite(new byte[]{(byte) 0xff});
             data = telnetRead(2);
             assertThat("19000/6N1", data, equalTo(new byte[]{(byte) 0xc0, (byte) 0xff}));
@@ -730,7 +739,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         try {
             usbParameters(19200, 5, 1, UsbSerialPort.PARITY_NONE);
             usbWrite(new byte[] {0x00});
-            Thread.sleep(1);
+            Thread.sleep(5);
             usbWrite(new byte[] {(byte)0xff});
             data = telnetRead(2);
             assertThat("19000/5N1", data, equalTo(new byte[] {(byte)0xe0, (byte)0xff}));
@@ -1217,5 +1226,109 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             assertTrue("not closed in time", i<100);
             Thread.sleep(1);
         }
-   }
+    }
+
+    @Test
+    public void wrongDriver() throws Exception {
+
+        UsbDeviceConnection wrongDeviceConnection;
+        UsbSerialDriver wrongSerialDriver;
+        UsbSerialPort wrongSerialPort;
+
+        if(!(usbSerialDriver instanceof CdcAcmSerialDriver)) {
+            wrongDeviceConnection = usbManager.openDevice(usbSerialDriver.getDevice());
+            wrongSerialDriver = new CdcAcmSerialDriver(usbSerialDriver.getDevice());
+            wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            try {
+                wrongSerialPort.open(wrongDeviceConnection);
+                wrongSerialPort.setParameters(115200, UsbSerialPort.DATABITS_8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE); // ch340 fails here
+                wrongSerialPort.write(new byte[]{1}, 1000); // pl2302 does not fail, but sends with wrong baud rate
+                if(!(usbSerialDriver instanceof ProlificSerialDriver))
+                    fail("error expected");
+            } catch (IOException ignored) {
+            }
+            try {
+                if(usbSerialDriver instanceof ProlificSerialDriver) {
+                    assertNotEquals(new byte[]{1}, telnetRead());
+                }
+                wrongSerialPort.close();
+                if(!(usbSerialDriver instanceof Ch34xSerialDriver |
+                     usbSerialDriver instanceof ProlificSerialDriver))
+                    fail("error expected");
+            } catch (IOException ignored) {
+            }
+        }
+        if(!(usbSerialDriver instanceof Ch34xSerialDriver)) {
+            wrongDeviceConnection = usbManager.openDevice(usbSerialDriver.getDevice());
+            wrongSerialDriver = new Ch34xSerialDriver(usbSerialDriver.getDevice());
+            wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            try {
+                wrongSerialPort.open(wrongDeviceConnection);
+                fail("error expected");
+            } catch (IOException ignored) {
+            }
+            try {
+                wrongSerialPort.close();
+                fail("error expected");
+            } catch (IOException ignored) {
+            }
+        }
+        // FTDI only recovers from Cp21xx control commands with power toggle, so skip this combination!
+        if(!(usbSerialDriver instanceof Cp21xxSerialDriver | usbSerialDriver instanceof FtdiSerialDriver)) {
+            wrongDeviceConnection = usbManager.openDevice(usbSerialDriver.getDevice());
+            wrongSerialDriver = new Cp21xxSerialDriver(usbSerialDriver.getDevice());
+            wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            try {
+                wrongSerialPort.open(wrongDeviceConnection);
+                //if(usbSerialDriver instanceof FtdiSerialDriver)
+                //    wrongSerialPort.setParameters(115200, UsbSerialPort.DATABITS_8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE); // ch340 fails here
+                fail("error expected");
+            } catch (IOException ignored) {
+            }
+            try {
+                wrongSerialPort.close();
+                //if(!(usbSerialDriver instanceof FtdiSerialDriver))
+                //    fail("error expected");
+            } catch (IOException ignored) {
+            }
+        }
+        if(!(usbSerialDriver instanceof FtdiSerialDriver)) {
+            wrongDeviceConnection = usbManager.openDevice(usbSerialDriver.getDevice());
+            wrongSerialDriver = new FtdiSerialDriver(usbSerialDriver.getDevice());
+            wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            try {
+                wrongSerialPort.open(wrongDeviceConnection);
+                if(usbSerialDriver instanceof Cp21xxSerialDriver)
+                    wrongSerialPort.setParameters(115200, UsbSerialPort.DATABITS_8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE); // ch340 fails here
+                fail("error expected");
+            } catch (IOException ignored) {
+            }
+            try {
+                wrongSerialPort.close();
+                if(!(usbSerialDriver instanceof Cp21xxSerialDriver))
+                    fail("error expected");
+            } catch (IOException ignored) {
+            }
+        }
+        if(!(usbSerialDriver instanceof ProlificSerialDriver)) {
+            wrongDeviceConnection = usbManager.openDevice(usbSerialDriver.getDevice());
+            wrongSerialDriver = new ProlificSerialDriver(usbSerialDriver.getDevice());
+            wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            try {
+                wrongSerialPort.open(wrongDeviceConnection);
+                fail("error expected");
+            } catch (IOException ignored) {
+            }
+            try {
+                wrongSerialPort.close();
+                fail("error expected");
+            } catch (IOException ignored) {
+            }
+        }
+        // test that device recovers from wrong commands
+        usbOpen(true);
+        telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        doReadWrite("");
+    }
 }

@@ -65,25 +65,19 @@ public class ProbeTable {
 
         try {
             method = driverClass.getMethod("getSupportedDevices");
-        } catch (SecurityException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchMethodException e) {
+        } catch (SecurityException | NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
 
         final Map<Integer, int[]> devices;
         try {
             devices = (Map<Integer, int[]>) method.invoke(null);
-        } catch (IllegalArgumentException e) {
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        } catch (InvocationTargetException e) {
+        } catch (IllegalArgumentException | IllegalAccessException | InvocationTargetException e) {
             throw new RuntimeException(e);
         }
 
         for (Map.Entry<Integer, int[]> entry : devices.entrySet()) {
-            final int vendorId = entry.getKey().intValue();
+            final int vendorId = entry.getKey();
             for (int productId : entry.getValue()) {
                 addProduct(vendorId, productId, driverClass);
             }

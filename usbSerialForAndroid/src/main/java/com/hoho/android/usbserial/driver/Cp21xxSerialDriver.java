@@ -123,9 +123,13 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             return Cp21xxSerialDriver.this;
         }
 
-        private int setConfigSingle(int request, int value) {
-            return mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, request, value,
+        private int setConfigSingle(int request, int value) throws IOException {
+            int result = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, request, value,
                     mPortNumber, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 0) {
+                throw new IOException("Setting baudrate failed: result=" + result);
+            }
+            return result;
         }
 
         @Override
@@ -163,11 +167,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
                 opened = true;
             } finally {
                 if (!opened) {
-                    try {
-                        close();
-                    } catch (IOException e) {
-                        // Ignore IOExceptions during close()
-                    }
+                    close();
                 }
             }
         }
@@ -197,10 +197,11 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         public int read(byte[] dest, int timeoutMillis) throws IOException {
+            if(mConnection == null) {
+                throw new IOException("Connection closed");
+            }
             final UsbRequest request = new UsbRequest();
             try {
-                if(mConnection == null)
-                    throw new IOException("Connection closed");
                 request.initialize(mConnection, mReadEndpoint);
                 final ByteBuffer buf = ByteBuffer.wrap(dest);
                 if (!request.queue(buf, dest.length)) {
@@ -232,6 +233,9 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         public int write(byte[] src, int timeoutMillis) throws IOException {
             int offset = 0;
 
+            if(mConnection == null) {
+                throw new IOException("Connection closed");
+            }
             while (offset < src.length) {
                 final int writeLength;
                 final int amtWritten;

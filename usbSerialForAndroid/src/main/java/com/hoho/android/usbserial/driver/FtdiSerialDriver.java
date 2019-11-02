@@ -257,7 +257,6 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             } finally {
                 if (!opened) {
                     close();
-                    mConnection = null;
                 }
             }
         }
@@ -279,12 +278,13 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
         @Override
         public int read(byte[] dest, int timeoutMillis) throws IOException {
+            if(mConnection == null) {
+                throw new IOException("Connection closed");
+            }
             final UsbEndpoint endpoint = mDevice.getInterface(mPortNumber).getEndpoint(0);
             final UsbRequest request = new UsbRequest();
             final ByteBuffer buf = ByteBuffer.wrap(dest);
             try {
-                if(mConnection == null)
-                    throw new IOException("Connection closed");
                 request.initialize(mConnection, endpoint);
                 if (!request.queue(buf, dest.length)) {
                     throw new IOException("Error queueing request.");
@@ -308,6 +308,9 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
         @Override
         public int write(byte[] src, int timeoutMillis) throws IOException {
+            if(mConnection == null) {
+                throw new IOException("Connection closed");
+            }
             final UsbEndpoint endpoint = mDevice.getInterface(mPortNumber).getEndpoint(1);
             int offset = 0;
 

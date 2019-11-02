@@ -130,11 +130,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 				opened = true;
 			} finally {
 				if (!opened) {
-					try {
-						close();
-					} catch (IOException e) {
-						// Ignore IOExceptions during close()
-					}
+					close();
 				}
 			}
 		}
@@ -162,10 +158,11 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 		@Override
 		public int read(byte[] dest, int timeoutMillis) throws IOException {
+			if(mConnection == null) {
+				throw new IOException("Connection closed");
+			}
 			final UsbRequest request = new UsbRequest();
 			try {
-				if(mConnection == null)
-					throw new IOException("Connection closed");
 				request.initialize(mConnection, mReadEndpoint);
 				final ByteBuffer buf = ByteBuffer.wrap(dest);
 				if (!request.queue(buf, dest.length)) {
@@ -197,6 +194,9 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		public int write(byte[] src, int timeoutMillis) throws IOException {
 			int offset = 0;
 
+			if(mConnection == null) {
+				throw new IOException("Connection closed");
+			}
 			while (offset < src.length) {
 				final int writeLength;
 				final int amtWritten;

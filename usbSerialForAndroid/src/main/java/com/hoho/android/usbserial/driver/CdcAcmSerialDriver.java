@@ -107,7 +107,6 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             mConnection = connection;
             boolean opened = false;
             try {
-
                 if (1 == mDevice.getInterfaceCount()) {
                     Log.d(TAG,"device might be castrated ACM device, trying single interface logic");
                     openSingleInterface();
@@ -115,15 +114,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                     Log.d(TAG,"trying default interface logic");
                     openInterface();
                 }
-
                 opened = true;
             } finally {
                 if (!opened) {
-                    mConnection = null;
-                    // just to be on the save side
-                    mControlEndpoint = null;
-                    mReadEndpoint = null;
-                    mWriteEndpoint = null;
+                    close();
                 }
             }
         }
@@ -258,6 +252,9 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 if (mUsbRequest != null)
                     mUsbRequest.cancel();
             }
+            mControlEndpoint = null;
+            mReadEndpoint = null;
+            mWriteEndpoint = null;
             try {
                 mConnection.releaseInterface(mControlInterface);
                 mConnection.releaseInterface(mDataInterface);
@@ -271,10 +268,11 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         @Override
         public int read(byte[] dest, int timeoutMillis) throws IOException {
+            if(mConnection == null) {
+                throw new IOException("Connection closed");
+            }
             final UsbRequest request = new UsbRequest();
             try {
-                if(mConnection == null)
-                    throw new IOException("Connection closed");
                 request.initialize(mConnection, mReadEndpoint);
                 final ByteBuffer buf = ByteBuffer.wrap(dest);
                 if (!request.queue(buf, dest.length)) {
@@ -307,6 +305,9 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             // TODO(mikey): Nearly identical to FtdiSerial write. Refactor.
             int offset = 0;
 
+            if(mConnection == null) {
+                throw new IOException("Connection closed");
+            }
             while (offset < src.length) {
                 final int writeLength;
                 final int amtWritten;
