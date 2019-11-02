@@ -362,6 +362,8 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             } finally {
                 try {
                     mConnection.releaseInterface(mDevice.getInterface(0));
+                } catch(Exception ignored) {}
+                try {
                     mConnection.close();
                 } finally {
                     mConnection = null;

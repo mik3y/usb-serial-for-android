@@ -269,6 +269,8 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             }
             try {
                 mConnection.releaseInterface(mDevice.getInterface(mPortNumber));
+            } catch(Exception ignored) {}
+            try {
                 mConnection.close();
             } finally {
                 mConnection = null;
