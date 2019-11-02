@@ -145,9 +145,9 @@ public interface UsbSerialPort {
      *            {@link #PARITY_EVEN}, {@link #PARITY_MARK}, or
      *            {@link #PARITY_SPACE}.
      * @throws IOException on error setting the port parameters
+     * @throws UnsupportedOperationException if not supported by a specific device
      */
-    public void setParameters(
-            int baudRate, int dataBits, int stopBits, int parity) throws IOException;
+    public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException;
 
     /**
      * Gets the CD (Carrier Detect) bit from the underlying UART.

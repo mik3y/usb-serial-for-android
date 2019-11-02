@@ -132,8 +132,7 @@ abstract class CommonUsbSerialPort implements UsbSerialPort {
     public abstract int write(final byte[] src, final int timeoutMillis) throws IOException;
 
     @Override
-    public abstract void setParameters(
-            int baudRate, int dataBits, int stopBits, int parity) throws IOException;
+    public abstract void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException;
 
     @Override
     public abstract boolean getCD() throws IOException;

@@ -99,7 +99,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		@Override
 		public void open(UsbDeviceConnection connection) throws IOException {
 			if (mConnection != null) {
-				throw new IOException("Already opened.");
+				throw new IOException("Already open");
 			}
 
 			mConnection = connection;
@@ -108,7 +108,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 				for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
 					UsbInterface usbIface = mDevice.getInterface(i);
 					if (!mConnection.claimInterface(usbIface, true)) {
-						throw new IOException("Could not claim data interface.");
+						throw new IOException("Could not claim data interface");
 					}
 				}
 
@@ -166,7 +166,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 				request.initialize(mConnection, mReadEndpoint);
 				final ByteBuffer buf = ByteBuffer.wrap(dest);
 				if (!request.queue(buf, dest.length)) {
-					throw new IOException("Error queueing request.");
+					throw new IOException("Error queueing request");
 				}
 				mUsbRequest = request;
 				final UsbRequest response = mConnection.requestWait();
@@ -275,7 +275,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			checkState("init #1", 0x5f, 0, new int[]{-1 /* 0x27, 0x30 */, 0x00});
 
 			if (controlOut(0xa1, 0, 0) < 0) {
-				throw new IOException("init failed! #2");
+				throw new IOException("Init failed: #2");
 			}
 
 			setBaudRate(DEFAULT_BAUD_RATE);
@@ -283,13 +283,13 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			checkState("init #4", 0x95, 0x2518, new int[]{-1 /* 0x56, c3*/, 0x00});
 
 			if (controlOut(0x9a, 0x2518, LCR_ENABLE_RX | LCR_ENABLE_TX | LCR_CS8) < 0) {
-				throw new IOException("init failed! #5");
+				throw new IOException("Init failed: #5");
 			}
 
 			checkState("init #6", 0x95, 0x0706, new int[]{0xff, 0xee});
 
 			if (controlOut(0xa1, 0x501f, 0xd90a) < 0) {
-				throw new IOException("init failed! #7");
+				throw new IOException("Init failed: #7");
 			}
 
 			setBaudRate(DEFAULT_BAUD_RATE);
@@ -313,25 +313,27 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 					}
 
 			if (factor > 0xfff0) {
-				throw new IOException("Baudrate " + baudRate + " not supported");
+				throw new UnsupportedOperationException("Unsupported baud rate: " + baudRate);
 			}
 
 			factor = 0x10000 - factor;
 
 			int ret = controlOut(0x9a, 0x1312, (int) ((factor & 0xff00) | divisor));
 			if (ret < 0) {
-				throw new IOException("Error setting baud rate. #1)");
+				throw new IOException("Error setting baud rate: #1)");
 			}
 
 			ret = controlOut(0x9a, 0x0f2c, (int) (factor & 0xff));
 			if (ret < 0) {
-				throw new IOException("Error setting baud rate. #2");
+				throw new IOException("Error setting baud rate: #2");
 			}
 		}
 
 		@Override
-		public void setParameters(int baudRate, int dataBits, int stopBits, int parity)
-				throws IOException {
+		public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
+			if(baudRate <= 0) {
+				throw new IllegalArgumentException("Invalid baud rate: " + baudRate);
+			}
 			setBaudRate(baudRate);
 
 			int lcr = LCR_ENABLE_RX | LCR_ENABLE_TX;
@@ -350,7 +352,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 					lcr |= LCR_CS8;
 					break;
 				default:
-					throw new IllegalArgumentException("Unknown dataBits value: " + dataBits);
+					throw new IllegalArgumentException("Invalid data bits: " + dataBits);
 			}
 
 			switch (parity) {
@@ -369,19 +371,19 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 					lcr |= LCR_ENABLE_PAR | LCR_MARK_SPACE | LCR_PAR_EVEN;
 					break;
 				default:
-					throw new IllegalArgumentException("Unknown parity value: " + parity);
+					throw new IllegalArgumentException("Invalid parity: " + parity);
 			}
 
 			switch (stopBits) {
 				case STOPBITS_1:
 					break;
 				case STOPBITS_1_5:
-					throw new IllegalArgumentException("Unsupported stopBits value: 1.5");
+					throw new UnsupportedOperationException("Unsupported stop bits: 1.5");
 				case STOPBITS_2:
 					lcr |= LCR_STOP_BITS_2;
 					break;
 				default:
-					throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
+					throw new IllegalArgumentException("Invalid stop bits: " + stopBits);
 			}
 
 			int ret = controlOut(0x9a, 0x2518, lcr);

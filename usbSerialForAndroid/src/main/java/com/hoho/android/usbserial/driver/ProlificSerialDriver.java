@@ -380,7 +380,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                 request.initialize(mConnection, mReadEndpoint);
                 final ByteBuffer buf = ByteBuffer.wrap(dest);
                 if (!request.queue(buf, dest.length)) {
-                    throw new IOException("Error queueing request.");
+                    throw new IOException("Error queueing request");
                 }
 
                 final UsbRequest response = mConnection.requestWait();
@@ -439,8 +439,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void setParameters(int baudRate, int dataBits, int stopBits,
-                int parity) throws IOException {
+        public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
             if ((mBaudRate == baudRate) && (mDataBits == dataBits)
                     && (mStopBits == stopBits) && (mParity == parity)) {
                 // Make sure no action is performed if there is nothing to change
@@ -449,6 +448,9 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
             byte[] lineRequestData = new byte[7];
 
+            if(baudRate <= 0) {
+                throw new IllegalArgumentException("Invalid baud rate: " + baudRate);
+            }
             lineRequestData[0] = (byte) (baudRate & 0xff);
             lineRequestData[1] = (byte) ((baudRate >> 8) & 0xff);
             lineRequestData[2] = (byte) ((baudRate >> 16) & 0xff);
@@ -458,44 +460,39 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             case STOPBITS_1:
                 lineRequestData[4] = 0;
                 break;
-
             case STOPBITS_1_5:
                 lineRequestData[4] = 1;
                 break;
-
             case STOPBITS_2:
                 lineRequestData[4] = 2;
                 break;
-
             default:
-                throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
+                throw new IllegalArgumentException("Invalid stop bits: " + stopBits);
             }
 
             switch (parity) {
             case PARITY_NONE:
                 lineRequestData[5] = 0;
                 break;
-
             case PARITY_ODD:
                 lineRequestData[5] = 1;
                 break;
-            
             case PARITY_EVEN:
                 lineRequestData[5] = 2;
                 break;
-
             case PARITY_MARK:
                 lineRequestData[5] = 3;
                 break;
-
             case PARITY_SPACE:
                 lineRequestData[5] = 4;
                 break;
-
             default:
-                throw new IllegalArgumentException("Unknown parity value: " + parity);
+                throw new IllegalArgumentException("Invalid parity: " + parity);
             }
 
+            if(dataBits < DATABITS_5 || dataBits > DATABITS_8) {
+                throw new IllegalArgumentException("Invalid data bits: " + dataBits);
+            }
             lineRequestData[6] = (byte) dataBits;
 
             ctrlOut(SET_LINE_REQUEST, 0, 0, lineRequestData);

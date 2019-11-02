@@ -135,7 +135,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         @Override
         public void open(UsbDeviceConnection connection) throws IOException {
             if (mConnection != null) {
-                throw new IOException("Already opened.");
+                throw new IOException("Already open");
             }
 
             mConnection = connection;
@@ -205,7 +205,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
                 request.initialize(mConnection, mReadEndpoint);
                 final ByteBuffer buf = ByteBuffer.wrap(dest);
                 if (!request.queue(buf, dest.length)) {
-                    throw new IOException("Error queueing request.");
+                    throw new IOException("Error queueing request");
                 }
                 mUsbRequest = request;
                 final UsbRequest response = mConnection.requestWait();
@@ -276,37 +276,39 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             int ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_BAUDRATE,
                     0, mPortNumber, data, 4, USB_WRITE_TIMEOUT_MILLIS);
             if (ret < 0) {
-                throw new IOException("Error setting baud rate.");
+                throw new IOException("Error setting baud rate");
             }
         }
 
         @Override
-        public void setParameters(int baudRate, int dataBits, int stopBits, int parity)
-                throws IOException {
+        public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
+            if(baudRate <= 0) {
+                throw new IllegalArgumentException("Invalid baud rate: " + baudRate);
+            }
             setBaudRate(baudRate);
 
             int configDataBits = 0;
             switch (dataBits) {
                 case DATABITS_5:
                     if(mIsRestrictedPort)
-                        throw new IllegalArgumentException("Unsupported dataBits value: " + dataBits);
+                        throw new UnsupportedOperationException("Unsupported data bits: " + dataBits);
                     configDataBits |= 0x0500;
                     break;
                 case DATABITS_6:
                     if(mIsRestrictedPort)
-                        throw new IllegalArgumentException("Unsupported dataBits value: " + dataBits);
+                        throw new UnsupportedOperationException("Unsupported data bits: " + dataBits);
                     configDataBits |= 0x0600;
                     break;
                 case DATABITS_7:
                     if(mIsRestrictedPort)
-                        throw new IllegalArgumentException("Unsupported dataBits value: " + dataBits);
+                        throw new UnsupportedOperationException("Unsupported data bits: " + dataBits);
                     configDataBits |= 0x0700;
                     break;
                 case DATABITS_8:
                     configDataBits |= 0x0800;
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown dataBits value: " + dataBits);
+                    throw new IllegalArgumentException("Invalid data bits: " + dataBits);
             }
             
             switch (parity) {
@@ -320,30 +322,30 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
                     break;
                 case PARITY_MARK:
                     if(mIsRestrictedPort)
-                        throw new IllegalArgumentException("Unsupported parity value: mark");
+                        throw new UnsupportedOperationException("Unsupported parity: mark");
                     configDataBits |= 0x0030;
                     break;
                 case PARITY_SPACE:
                     if(mIsRestrictedPort)
-                        throw new IllegalArgumentException("Unsupported parity value: space");
+                        throw new UnsupportedOperationException("Unsupported parity: space");
                     configDataBits |= 0x0040;
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown parity value: " + parity);
+                    throw new IllegalArgumentException("Invalid parity: " + parity);
             }
             
             switch (stopBits) {
                 case STOPBITS_1:
                     break;
                 case STOPBITS_1_5:
-                    throw new IllegalArgumentException("Unsupported stopBits value: 1.5");
+                    throw new UnsupportedOperationException("Unsupported stop bits: 1.5");
                 case STOPBITS_2:
                     if(mIsRestrictedPort)
-                        throw new IllegalArgumentException("Unsupported stopBits value: 2");
+                        throw new UnsupportedOperationException("Unsupported stop bits: 2");
                     configDataBits |= 2;
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
+                    throw new IllegalArgumentException("Invalid stop bits: " + stopBits);
             }
             setConfigSingle(SILABSER_SET_LINE_CTL_REQUEST_CODE, configDataBits);
         }

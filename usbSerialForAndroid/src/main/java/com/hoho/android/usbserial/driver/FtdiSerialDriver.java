@@ -287,7 +287,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             try {
                 request.initialize(mConnection, endpoint);
                 if (!request.queue(buf, dest.length)) {
-                    throw new IOException("Error queueing request.");
+                    throw new IOException("Error queueing request");
                 }
 
                 final UsbRequest response = mConnection.requestWait();
@@ -360,21 +360,23 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void setParameters(int baudRate, int dataBits, int stopBits, int parity)
-                throws IOException {
+        public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
+            if(baudRate <= 0) {
+                throw new IllegalArgumentException("Invalid baud rate: " + baudRate);
+            }
             setBaudRate(baudRate);
 
             int config = 0;
             switch (dataBits) {
                 case DATABITS_5:
                 case DATABITS_6:
-                    throw new IllegalArgumentException("Unsupported dataBits value: " + dataBits);
+                    throw new UnsupportedOperationException("Unsupported data bits: " + dataBits);
                 case DATABITS_7:
                 case DATABITS_8:
                     config |= dataBits;
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown dataBits value: " + dataBits);
+                    throw new IllegalArgumentException("Invalid data bits: " + dataBits);
             }
 
             switch (parity) {
@@ -394,7 +396,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                     config |= (0x04 << 8);
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown parity value: " + parity);
+                    throw new IllegalArgumentException("Invalid parity: " + parity);
             }
 
             switch (stopBits) {
@@ -402,12 +404,12 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                     config |= (0x00 << 11);
                     break;
                 case STOPBITS_1_5:
-                    throw new IllegalArgumentException("Unsupported stopBits value: 1.5");
+                    throw new UnsupportedOperationException("Unsupported stop bits: 1.5");
                 case STOPBITS_2:
                     config |= (0x02 << 11);
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
+                    throw new IllegalArgumentException("Invalid stop bits: " + stopBits);
             }
 
             int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE,

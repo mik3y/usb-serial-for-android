@@ -553,33 +553,12 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         // invalid values
         try {
             usbParameters(-1, 8, 1, UsbSerialPort.PARITY_NONE);
-            if (usbSerialDriver instanceof Ch34xSerialDriver)
-                ; // todo: add range check in driver
-            else if (usbSerialDriver instanceof FtdiSerialDriver)
-                ; // todo: add range check in driver
-            else if (usbSerialDriver instanceof ProlificSerialDriver)
-                ; // todo: add range check in driver
-            else if (usbSerialDriver instanceof Cp21xxSerialDriver)
-                ; // todo: add range check in driver
-            else if (usbSerialDriver instanceof CdcAcmSerialDriver)
-                ; // todo: add range check in driver
-            else
-                fail("invalid baudrate 0");
-        } catch (IOException ignored) { // cp2105 second port
+            fail("invalid baud rate");
         } catch (IllegalArgumentException ignored) {
         }
         try {
             usbParameters(0, 8, 1, UsbSerialPort.PARITY_NONE);
-            if (usbSerialDriver instanceof ProlificSerialDriver)
-                ; // todo: add range check in driver
-            else if (usbSerialDriver instanceof Cp21xxSerialDriver)
-                ; // todo: add range check in driver
-            else if (usbSerialDriver instanceof CdcAcmSerialDriver)
-                ; // todo: add range check in driver
-            else
-                fail("invalid baudrate 0");
-        } catch (ArithmeticException ignored) { // ch340
-        } catch (IOException ignored) { // cp2105 second port
+            fail("invalid baud rate");
         } catch (IllegalArgumentException ignored) {
         }
         try {
@@ -593,8 +572,9 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             else if (usbSerialDriver instanceof CdcAcmSerialDriver)
                 ;
             else
-                fail("invalid baudrate 0");
-        } catch (IOException ignored) { // ch340
+                fail("invalid baudrate 1");
+        } catch (UnsupportedOperationException ignored) { // ch340
+        } catch (IOException ignored) { // cp2105 second port
         } catch (IllegalArgumentException ignored) {
         }
         try {
@@ -679,12 +659,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         for(int i: new int[] {0, 4, 9}) {
             try {
                 usbParameters(19200, i, 1, UsbSerialPort.PARITY_NONE);
-                if (usbSerialDriver instanceof ProlificSerialDriver)
-                    ; // todo: add range check in driver
-                else if (usbSerialDriver instanceof CdcAcmSerialDriver)
-                    ; // todo: add range check in driver
-                else
-                    fail("invalid databits "+i);
+                fail("invalid databits "+i);
             } catch (IllegalArgumentException ignored) {
             }
         }
@@ -721,7 +696,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             usbWrite(new byte[]{(byte) 0xff});
             data = telnetRead(2);
             assertThat("19000/7N1", data, equalTo(new byte[]{(byte) 0x80, (byte) 0xff}));
-        } catch (IllegalArgumentException e) {
+        } catch (UnsupportedOperationException e) {
                 if(!isCp21xxRestrictedPort)
                     throw e;
         }
@@ -732,7 +707,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             usbWrite(new byte[]{(byte) 0xff});
             data = telnetRead(2);
             assertThat("19000/6N1", data, equalTo(new byte[]{(byte) 0xc0, (byte) 0xff}));
-        } catch (IllegalArgumentException e) {
+        } catch (UnsupportedOperationException e) {
             if (!(isCp21xxRestrictedPort || usbSerialDriver instanceof FtdiSerialDriver))
                 throw e;
         }
@@ -743,7 +718,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             usbWrite(new byte[] {(byte)0xff});
             data = telnetRead(2);
             assertThat("19000/5N1", data, equalTo(new byte[] {(byte)0xe0, (byte)0xff}));
-        } catch (IllegalArgumentException e) {
+        } catch (UnsupportedOperationException e) {
             if (!(isCp21xxRestrictedPort || usbSerialDriver instanceof FtdiSerialDriver))
                 throw e;
         }
@@ -774,11 +749,11 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             try {
                 usbParameters(19200, 8, 1, UsbSerialPort.PARITY_MARK);
                 fail("parity mark");
-            } catch (IllegalArgumentException ignored) {}
+            } catch (UnsupportedOperationException ignored) {}
             try {
                 usbParameters(19200, 8, 1, UsbSerialPort.PARITY_SPACE);
                 fail("parity space");
-            } catch (IllegalArgumentException ignored) {}
+            } catch (UnsupportedOperationException ignored) {}
             return;
             // test below not possible as it requires unsupported 7 dataBits
         }
@@ -894,7 +869,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 usbWrite(new byte[]{(byte) 0x41, (byte) 0xf9});
                 data = telnetRead(2);
                 assertThat("19200/8N1", data, equalTo(new byte[]{1, 11}));
-            } catch(IllegalArgumentException e) {
+            } catch(UnsupportedOperationException e) {
                 if(!isCp21xxRestrictedPort)
                     throw e;
             }
@@ -902,7 +877,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 usbParameters(19200, 8, UsbSerialPort.STOPBITS_1_5, UsbSerialPort.PARITY_NONE);
                 // todo: could create similar test for 1.5 stopbits, by reading at double speed
                 //       but only some devices support 1.5 stopbits and it is basically not used any more
-            } catch(IllegalArgumentException ignored) {
+            } catch(UnsupportedOperationException ignored) {
             }
         }
     }
