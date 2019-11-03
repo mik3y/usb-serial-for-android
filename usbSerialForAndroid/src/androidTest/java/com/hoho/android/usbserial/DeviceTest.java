@@ -25,6 +25,7 @@ import android.util.Log;
 
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
 import com.hoho.android.usbserial.driver.Ch34xSerialDriver;
+import com.hoho.android.usbserial.driver.CommonUsbSerialPort;
 import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
 import com.hoho.android.usbserial.driver.FtdiSerialDriver;
 import com.hoho.android.usbserial.driver.ProbeTable;
@@ -222,6 +223,33 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         telnetClient = null;
     }
 
+    private class TestBuffer {
+        private byte[] buf;
+        private int len;
+
+        private TestBuffer(int length) {
+            len = 0;
+            buf = new byte[length];
+            int i=0;
+            int j=0;
+            for(j=0; j<length/16; j++)
+                for(int k=0; k<16; k++)
+                    buf[i++]=(byte)j;
+            while(i<length)
+                buf[i++]=(byte)j;
+        }
+
+        private boolean testRead(byte[] data) {
+            assertNotEquals(0, data.length);
+            assertTrue("got " + (len+data.length) +" bytes", (len+data.length) <= buf.length);
+            for(int j=0; j<data.length; j++)
+                assertEquals("at pos "+(len+j), (byte)((len+j)/16), data[j]);
+            len += data.length;
+            //Log.d(TAG, "read " + len);
+            return len == buf.length;
+        }
+    }
+
     // wait full time
     private byte[] telnetRead() throws Exception {
         return telnetRead(-1);
@@ -229,7 +257,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
     private byte[] telnetRead(int expectedLength) throws Exception {
         long end = System.currentTimeMillis() + TELNET_READ_WAIT;
-        ByteBuffer buf = ByteBuffer.allocate(8192);
+        ByteBuffer buf = ByteBuffer.allocate(65536);
         while(System.currentTimeMillis() < end) {
             if(telnetReadStream.available() > 0) {
                 buf.put((byte) telnetReadStream.read());
@@ -337,14 +365,11 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         } else {
             byte[] b1 = new byte[256];
             while (System.currentTimeMillis() < end) {
-                int len = usbSerialPort.read(b1, USB_READ_WAIT / 10);
-                if (len > 0) {
+                int len = usbSerialPort.read(b1, USB_READ_WAIT);
+                if (len > 0)
                     buf.put(b1, 0, len);
-                } else {
-                    if (expectedLength >= 0 && buf.position() >= expectedLength)
-                        break;
-                    Thread.sleep(1);
-                }
+                if (expectedLength >= 0 && buf.position() >= expectedLength)
+                    break;
             }
         }
         byte[] data = new byte[buf.position()];
@@ -908,6 +933,85 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
     }
 
     @Test
+    public void writeTimeout() throws Exception {
+        usbOpen(true);
+        usbParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnetParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+
+        // Basically all devices have a UsbEndpoint.getMaxPacketSize() 64. When the timeout
+        // in usbSerialPort.write() is reached, some packets have been written and the rest
+        // is discarded. bulkTransfer() does not return the number written so far, but -1.
+        // With 115200 baud and 1/2 second timeout, typical values are:
+        //   ch340    6080 of 6144
+        //   pl2302   5952 of 6144
+        //   cp2102   6400 of 7168
+        //   cp2105   6272 of 7168
+        //   ft232    5952 of 6144
+        //   ft2232   9728 of 10240
+        //   arduino   128 of 144
+        int timeout = 500;
+        int len = 0;
+        int startLen = 1024;
+        int step = 1024;
+        int minLen = 4069;
+        int maxLen = 12288;
+        int bufferSize = 997;
+        TestBuffer buf = new TestBuffer(len);
+        if(usbSerialDriver instanceof CdcAcmSerialDriver) {
+            startLen = 16;
+            step = 16;
+            minLen = 128;
+            maxLen = 256;
+            bufferSize = 31;
+        }
+
+        try {
+            for (len = startLen; len < maxLen; len += step) {
+                buf = new TestBuffer(len);
+                Log.d(TAG, "write buffer size " + len);
+                usbSerialPort.write(buf.buf, timeout);
+                while (!buf.testRead(telnetRead(-1)))
+                    ;
+            }
+            fail("write timeout expected between " + minLen + " and " + maxLen + ", is " + len);
+        } catch (IOException e) {
+            Log.d(TAG, "usbWrite failed", e);
+            while (true) {
+                byte[] data = telnetRead(-1);
+                if (data.length == 0) break;
+                if (buf.testRead(data)) break;
+            }
+            Log.d(TAG, "received " + buf.len + " of " + len + " bytes of failing usbWrite");
+            assertTrue("write timeout expected between " + minLen + " and " + maxLen + ", is " + len, len > minLen);
+        }
+
+        // With smaller writebuffer, the timeout is used per bulkTransfer.
+        // Should further calls only use the remaining timout?
+        ((CommonUsbSerialPort) usbSerialPort).setWriteBufferSize(bufferSize);
+        len = maxLen;
+        buf = new TestBuffer(len);
+        Log.d(TAG, "write buffer size " + len);
+        usbSerialPort.write(buf.buf, timeout);
+        while (!buf.testRead(telnetRead(-1)))
+            ;
+    }
+
+    @Test
+    public void writeFragments() throws Exception {
+        usbOpen(true);
+        usbParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnetParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+
+        ((CommonUsbSerialPort) usbSerialPort).setWriteBufferSize(12);
+        ((CommonUsbSerialPort) usbSerialPort).setWriteBufferSize(12); // keeps last buffer
+        TestBuffer buf = new TestBuffer(256);
+        usbSerialPort.write(buf.buf, 5000);
+        while (!buf.testRead(telnetRead(-1)))
+            ;
+        // todo: deduplicate write method, use bulkTransfer with offset
+    }
+
+    @Test
     // provoke data loss, when data is not read fast enough
     public void readBufferOverflow() throws Exception {
         if(usbSerialDriver instanceof CdcAcmSerialDriver)
@@ -1077,6 +1181,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
     @Test
     public void purgeHwBuffers() throws Exception {
+        // purge write buffer
         // 2400 is slowest baud rate for isCp21xxRestrictedPort
         usbOpen(true);
         usbParameters(2400, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -1085,9 +1190,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         for(int i=0; i<buf.length; i++) buf[i]='a';
         StringBuilder data = new StringBuilder();
 
-        // purge send buffer
         usbWrite(buf);
-        Thread.sleep(50); // ~ 12 characters
+        Thread.sleep(50); // ~ 12 bytes
         boolean purged = usbSerialPort.purgeHwBuffers(true, false);
         usbWrite("bcd".getBytes());
         Thread.sleep(50);
@@ -1101,7 +1205,32 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         else
             assertEquals(data.length(), buf.length + 3);
 
-        // todo: purge receive buffer
+        // purge read buffer
+        usbClose();
+        usbOpen(false);
+        usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnetWrite("x".getBytes());
+        Thread.sleep(10); // ~ 20 bytes
+        purged = usbSerialPort.purgeHwBuffers(false, true);
+        Log.d(TAG, "purged = " + purged);
+        telnetWrite("y".getBytes());
+        Thread.sleep(10); // ~ 20 bytes
+        if(purged) {
+            if(usbSerialDriver instanceof Cp21xxSerialDriver) { // only working on some devices/ports
+                if(isCp21xxRestrictedPort) {
+                    assertThat(usbRead(2), equalTo("xy".getBytes())); // cp2105/1
+                } else if(usbSerialDriver.getPorts().size() > 1) {
+                    assertThat(usbRead(1), equalTo("y".getBytes()));  // cp2105/0
+                } else {
+                    assertThat(usbRead(2), equalTo("xy".getBytes())); // cp2102
+                }
+            } else {
+                assertThat(usbRead(1), equalTo("y".getBytes()));
+            }
+        } else {
+            assertThat(usbRead(2), equalTo("xy".getBytes()));
+        }
     }
 
     @Test

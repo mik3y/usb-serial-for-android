@@ -31,9 +31,8 @@ import java.io.IOException;
  *
  * @author mike wakerly (opensource@hoho.com)
  */
-abstract class CommonUsbSerialPort implements UsbSerialPort {
+public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
-    public static final int DEFAULT_READ_BUFFER_SIZE = 16 * 1024;
     public static final int DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024;
 
     protected final UsbDevice mDevice;
@@ -42,11 +41,7 @@ abstract class CommonUsbSerialPort implements UsbSerialPort {
     // non-null when open()
     protected UsbDeviceConnection mConnection = null;
 
-    protected final Object mReadBufferLock = new Object();
     protected final Object mWriteBufferLock = new Object();
-
-    /** Internal read buffer.  Guarded by {@link #mReadBufferLock}. */
-    protected byte[] mReadBuffer;
 
     /** Internal write buffer.  Guarded by {@link #mWriteBufferLock}. */
     protected byte[] mWriteBuffer;
@@ -55,7 +50,6 @@ abstract class CommonUsbSerialPort implements UsbSerialPort {
         mDevice = device;
         mPortNumber = portNumber;
 
-        mReadBuffer = new byte[DEFAULT_READ_BUFFER_SIZE];
         mWriteBuffer = new byte[DEFAULT_WRITE_BUFFER_SIZE];
     }
     
@@ -87,21 +81,6 @@ abstract class CommonUsbSerialPort implements UsbSerialPort {
     @Override
     public String getSerial() {
         return mConnection.getSerial();
-    }
-
-    /**
-     * Sets the size of the internal buffer used to exchange data with the USB
-     * stack for read operations.  Most users should not need to change this.
-     *
-     * @param bufferSize the size in bytes
-     */
-    public final void setReadBufferSize(int bufferSize) {
-        synchronized (mReadBufferLock) {
-            if (bufferSize == mReadBuffer.length) {
-                return;
-            }
-            mReadBuffer = new byte[bufferSize];
-        }
     }
 
     /**
