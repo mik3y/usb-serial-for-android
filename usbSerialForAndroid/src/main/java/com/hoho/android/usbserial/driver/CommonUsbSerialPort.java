@@ -23,8 +23,12 @@ package com.hoho.android.usbserial.driver;
 
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
+import android.hardware.usb.UsbEndpoint;
+import android.hardware.usb.UsbRequest;
+import android.util.Log;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * A base class shared by several driver implementations.
@@ -33,16 +37,19 @@ import java.io.IOException;
  */
 public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
-    public static final int DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024;
+    private static final String TAG = CommonUsbSerialPort.class.getSimpleName();
+    private static final int DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024;
 
     protected final UsbDevice mDevice;
     protected final int mPortNumber;
 
     // non-null when open()
     protected UsbDeviceConnection mConnection = null;
+    protected UsbEndpoint mReadEndpoint;
+    protected UsbEndpoint mWriteEndpoint;
+    protected UsbRequest mUsbRequest;
 
     protected final Object mWriteBufferLock = new Object();
-
     /** Internal write buffer.  Guarded by {@link #mWriteBufferLock}. */
     protected byte[] mWriteBuffer;
 
@@ -52,7 +59,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
         mWriteBuffer = new byte[DEFAULT_WRITE_BUFFER_SIZE];
     }
-    
+
     @Override
     public String toString() {
         return String.format("<%s device_name=%s device_id=%s port_number=%s>",
@@ -105,10 +112,76 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public abstract void close() throws IOException;
 
     @Override
-    public abstract int read(final byte[] dest, final int timeoutMillis) throws IOException;
+    public int read(final byte[] dest, final int timeoutMillis) throws IOException {
+        if(mConnection == null) {
+            throw new IOException("Connection closed");
+        }
+        final UsbRequest request = new UsbRequest();
+        try {
+            request.initialize(mConnection, mReadEndpoint);
+            final ByteBuffer buf = ByteBuffer.wrap(dest);
+            if (!request.queue(buf, dest.length)) {
+                throw new IOException("Error queueing request");
+            }
+            mUsbRequest = request;
+            final UsbRequest response = mConnection.requestWait();
+            synchronized (this) {
+                mUsbRequest = null;
+            }
+            if (response == null) {
+                throw new IOException("Null response");
+            }
+            final int nread = buf.position();
+            if (nread > 0) {
+                return readFilter(dest, nread);
+            } else {
+                return 0;
+            }
+        } finally {
+            mUsbRequest = null;
+            request.close();
+        }
+    }
+
+    protected int readFilter(final byte[] buffer, int len) throws IOException { return len; }
 
     @Override
-    public abstract int write(final byte[] src, final int timeoutMillis) throws IOException;
+    public int write(final byte[] src, final int timeoutMillis) throws IOException {
+        int offset = 0;
+
+        if(mConnection == null) {
+            throw new IOException("Connection closed");
+        }
+        while (offset < src.length) {
+            final int writeLength;
+            final int amtWritten;
+
+            synchronized (mWriteBufferLock) {
+                final byte[] writeBuffer;
+
+                writeLength = Math.min(src.length - offset, mWriteBuffer.length);
+                if (offset == 0) {
+                    writeBuffer = src;
+                } else {
+                    // bulkTransfer does not support offsets, make a copy.
+                    System.arraycopy(src, offset, mWriteBuffer, 0, writeLength);
+                    writeBuffer = mWriteBuffer;
+                }
+
+                amtWritten = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, writeLength,
+                        timeoutMillis);
+            }
+            if (amtWritten <= 0) {
+                throw new IOException("Error writing " + writeLength
+                        + " bytes at offset " + offset + " length=" + src.length);
+            }
+
+            Log.d(TAG, "Wrote amt=" + amtWritten + " attempted=" + writeLength);
+            offset += amtWritten;
+        }
+        return offset;
+    }
+
 
     @Override
     public abstract void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException;

@@ -32,12 +32,10 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
-import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -111,8 +109,6 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         private int mDeviceType = DEVICE_TYPE_HX;
 
-        private UsbEndpoint mReadEndpoint;
-        private UsbEndpoint mWriteEndpoint;
         private UsbEndpoint mInterruptEndpoint;
 
         private int mControlLinesValue = 0;
@@ -368,74 +364,6 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                     mConnection = null;
                 }
             }
-        }
-
-        @Override
-        public int read(byte[] dest, int timeoutMillis) throws IOException {
-            if(mConnection == null) {
-                throw new IOException("Connection closed");
-            }
-            final UsbRequest request = new UsbRequest();
-            try {
-                request.initialize(mConnection, mReadEndpoint);
-                final ByteBuffer buf = ByteBuffer.wrap(dest);
-                if (!request.queue(buf, dest.length)) {
-                    throw new IOException("Error queueing request");
-                }
-
-                final UsbRequest response = mConnection.requestWait();
-                if (response == null) {
-                    throw new IOException("Null response");
-                }
-
-                final int nread = buf.position();
-                if (nread > 0) {
-                    //Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
-                    return nread;
-                } else {
-                    return 0;
-                }
-            } finally {
-                request.close();
-            }
-        }
-
-        @Override
-        public int write(byte[] src, int timeoutMillis) throws IOException {
-            int offset = 0;
-
-            if(mConnection == null) {
-                throw new IOException("Connection closed");
-            }
-            while (offset < src.length) {
-                final int writeLength;
-                final int amtWritten;
-
-                synchronized (mWriteBufferLock) {
-                    final byte[] writeBuffer;
-
-                    writeLength = Math.min(src.length - offset, mWriteBuffer.length);
-                    if (offset == 0) {
-                        writeBuffer = src;
-                    } else {
-                        // bulkTransfer does not support offsets, make a copy.
-                        System.arraycopy(src, offset, mWriteBuffer, 0, writeLength);
-                        writeBuffer = mWriteBuffer;
-                    }
-
-                    amtWritten = mConnection.bulkTransfer(mWriteEndpoint,
-                            writeBuffer, writeLength, timeoutMillis);
-                }
-
-                if (amtWritten <= 0) {
-                    throw new IOException("Error writing " + writeLength
-                            + " bytes at offset " + offset + " length="
-                            + src.length);
-                }
-
-                offset += amtWritten;
-            }
-            return offset;
         }
 
         @Override
