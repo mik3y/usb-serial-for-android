@@ -266,18 +266,10 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void close() throws IOException {
-            if (mConnection == null) {
-                throw new IOException("Already closed");
-            }
+        public void closeInt() {
             try {
                 mConnection.releaseInterface(mDevice.getInterface(mPortNumber));
             } catch(Exception ignored) {}
-            try {
-                mConnection.close();
-            } finally {
-                mConnection = null;
-            }
         }
 
         private int setBaudRate(int baudRate) throws IOException {

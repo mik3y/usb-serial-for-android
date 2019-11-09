@@ -109,7 +109,26 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public abstract void open(UsbDeviceConnection connection) throws IOException;
 
     @Override
-    public abstract void close() throws IOException;
+    public void close() throws IOException {
+        if (mConnection == null) {
+            throw new IOException("Already closed");
+        }
+        synchronized (this) {
+            if (mUsbRequest != null)
+                mUsbRequest.cancel();
+        }
+        try {
+            closeInt();
+        } catch(Exception ignored) {}
+        try {
+            mConnection.close();
+        } finally {
+            mConnection = null;
+        }
+
+    }
+
+    protected abstract void closeInt();
 
     @Override
     public int read(final byte[] dest, final int timeoutMillis) throws IOException {

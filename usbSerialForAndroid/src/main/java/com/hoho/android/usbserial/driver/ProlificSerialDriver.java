@@ -338,10 +338,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void close() throws IOException {
-            if (mConnection == null) {
-                throw new IOException("Already closed");
-            }
+        public void closeInt() {
             try {
                 mStopReadStatusThread = true;
                 synchronized (mReadStatusThreadLock) {
@@ -354,16 +351,10 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                     }
                 }
                 resetDevice();
-            } finally {
-                try {
-                    mConnection.releaseInterface(mDevice.getInterface(0));
-                } catch(Exception ignored) {}
-                try {
-                    mConnection.close();
-                } finally {
-                    mConnection = null;
-                }
-            }
+            } catch(Exception ignored) {}
+            try {
+                mConnection.releaseInterface(mDevice.getInterface(0));
+            } catch(Exception ignored) {}
         }
 
         @Override

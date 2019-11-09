@@ -166,26 +166,13 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void close() throws IOException {
-            if (mConnection == null) {
-                throw new IOException("Already closed");
-            }
-            synchronized (this) {
-                if(mUsbRequest != null) {
-                    mUsbRequest.cancel();
-                }
-            }
+        public void closeInt() {
             try {
                 setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_DISABLE);
             } catch (Exception ignored) {}
             try {
                 mConnection.releaseInterface(mDevice.getInterface(mPortNumber));
             } catch(Exception ignored) {}
-            try {
-                mConnection.close();
-            } finally {
-                mConnection = null;
-            }
         }
 
         private void setBaudRate(int baudRate) throws IOException {

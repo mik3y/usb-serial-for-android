@@ -239,26 +239,11 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void close() throws IOException {
-            if (mConnection == null) {
-                throw new IOException("Already closed");
-            }
-            synchronized (this) {
-                if (mUsbRequest != null)
-                    mUsbRequest.cancel();
-            }
-            mControlEndpoint = null;
-            mReadEndpoint = null;
-            mWriteEndpoint = null;
+        public void closeInt() {
             try {
                 mConnection.releaseInterface(mControlInterface);
                 mConnection.releaseInterface(mDataInterface);
             } catch(Exception ignored) {}
-            try {
-                mConnection.close();
-            } finally {
-                mConnection = null;
-            }
         }
 
         @Override

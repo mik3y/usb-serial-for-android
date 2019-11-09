@@ -129,23 +129,11 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		}
 
 		@Override
-		public void close() throws IOException {
-			if (mConnection == null) {
-				throw new IOException("Already closed");
-			}
-			synchronized (this) {
-				if (mUsbRequest != null)
-					mUsbRequest.cancel();
-			}
+		public void closeInt() {
 			try {
 				for (int i = 0; i < mDevice.getInterfaceCount(); i++)
 					mConnection.releaseInterface(mDevice.getInterface(i));
 			} catch(Exception ignored) {}
-			try {
-				mConnection.close();
-			} finally {
-				mConnection = null;
-			}
 		}
 
 		private int controlOut(int request, int value, int index) {
