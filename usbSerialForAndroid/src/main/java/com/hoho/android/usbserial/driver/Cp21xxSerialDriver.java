@@ -78,6 +78,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         private static final int SILABSER_SET_MHS_REQUEST_CODE = 0x07;
         private static final int SILABSER_SET_BAUDRATE = 0x1E;
         private static final int SILABSER_FLUSH_REQUEST_CODE = 0x12;
+        private static final int SILABSER_SET_DTR_RTS_REQUEST_CODE = 0x07;
 
        private static final int FLUSH_READ_CODE = 0x0a;
        private static final int FLUSH_WRITE_CODE = 0x05;
@@ -102,6 +103,21 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         private static final int CONTROL_WRITE_DTR = 0x0100;
         private static final int CONTROL_WRITE_RTS = 0x0200;
+
+        /*
+         * SILABSER_SET_DTR_RTS_REQUEST_CODE
+         */
+        private static final int DTR_ENABLE = 0x101;
+        private static final int DTR_DISABLE = 0x100;
+        private static final int RTS_ENABLE = 0x202;
+        private static final int RTS_DISABLE = 0x200;
+
+        private UsbEndpoint mReadEndpoint;
+        private UsbEndpoint mWriteEndpoint;
+        private UsbRequest mUsbRequest;
+
+        private boolean dtr = false;
+        private boolean rts = false;
 
         // second port of Cp2105 has limited baudRate, dataBits, stopBits, parity
         // unsupported baudrate returns error at controlTransfer(), other parameters are silently ignored
@@ -276,11 +292,13 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         public boolean getDTR() throws IOException {
-            return true;
+            return dtr;
         }
 
         @Override
         public void setDTR(boolean value) throws IOException {
+            dtr = value;
+            setConfigSingle(SILABSER_SET_DTR_RTS_REQUEST_CODE, dtr ? DTR_ENABLE : DTR_DISABLE);
         }
 
         @Override
@@ -290,11 +308,13 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         public boolean getRTS() throws IOException {
-            return true;
+            return rts;
         }
 
         @Override
         public void setRTS(boolean value) throws IOException {
+            rts = value;
+            setConfigSingle(SILABSER_SET_DTR_RTS_REQUEST_CODE, rts ? RTS_ENABLE : RTS_DISABLE);
         }
 
         @Override
