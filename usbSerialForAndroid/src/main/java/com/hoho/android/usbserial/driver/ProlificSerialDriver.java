@@ -32,12 +32,10 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
-import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -111,8 +109,6 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         private int mDeviceType = DEVICE_TYPE_HX;
 
-        private UsbEndpoint mReadEndpoint;
-        private UsbEndpoint mWriteEndpoint;
         private UsbEndpoint mInterruptEndpoint;
 
         private int mControlLinesValue = 0;
@@ -336,17 +332,13 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                 opened = true;
             } finally {
                 if (!opened) {
-                    mConnection = null;
-                    connection.releaseInterface(usbInterface);
+                    close();
                 }
             }
         }
 
         @Override
-        public void close() throws IOException {
-            if (mConnection == null) {
-                throw new IOException("Already closed");
-            }
+        public void closeInt() {
             try {
                 mStopReadStatusThread = true;
                 synchronized (mReadStatusThreadLock) {
@@ -359,80 +351,14 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                     }
                 }
                 resetDevice();
-            } finally {
-                try {
-                    mConnection.releaseInterface(mDevice.getInterface(0));
-                } finally {
-                    mConnection = null;
-                }
-            }
-        }
-
-        @Override
-        public int read(byte[] dest, int timeoutMillis) throws IOException {
-            final UsbRequest request = new UsbRequest();
+            } catch(Exception ignored) {}
             try {
-                request.initialize(mConnection, mReadEndpoint);
-                final ByteBuffer buf = ByteBuffer.wrap(dest);
-                if (!request.queue(buf, dest.length)) {
-                    throw new IOException("Error queueing request.");
-                }
-
-                final UsbRequest response = mConnection.requestWait();
-                if (response == null) {
-                    throw new IOException("Null response");
-                }
-
-                final int nread = buf.position();
-                if (nread > 0) {
-                    //Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
-                    return nread;
-                } else {
-                    return 0;
-                }
-            } finally {
-                request.close();
-            }
+                mConnection.releaseInterface(mDevice.getInterface(0));
+            } catch(Exception ignored) {}
         }
 
         @Override
-        public int write(byte[] src, int timeoutMillis) throws IOException {
-            int offset = 0;
-
-            while (offset < src.length) {
-                final int writeLength;
-                final int amtWritten;
-
-                synchronized (mWriteBufferLock) {
-                    final byte[] writeBuffer;
-
-                    writeLength = Math.min(src.length - offset, mWriteBuffer.length);
-                    if (offset == 0) {
-                        writeBuffer = src;
-                    } else {
-                        // bulkTransfer does not support offsets, make a copy.
-                        System.arraycopy(src, offset, mWriteBuffer, 0, writeLength);
-                        writeBuffer = mWriteBuffer;
-                    }
-
-                    amtWritten = mConnection.bulkTransfer(mWriteEndpoint,
-                            writeBuffer, writeLength, timeoutMillis);
-                }
-
-                if (amtWritten <= 0) {
-                    throw new IOException("Error writing " + writeLength
-                            + " bytes at offset " + offset + " length="
-                            + src.length);
-                }
-
-                offset += amtWritten;
-            }
-            return offset;
-        }
-
-        @Override
-        public void setParameters(int baudRate, int dataBits, int stopBits,
-                int parity) throws IOException {
+        public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
             if ((mBaudRate == baudRate) && (mDataBits == dataBits)
                     && (mStopBits == stopBits) && (mParity == parity)) {
                 // Make sure no action is performed if there is nothing to change
@@ -441,6 +367,9 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
             byte[] lineRequestData = new byte[7];
 
+            if(baudRate <= 0) {
+                throw new IllegalArgumentException("Invalid baud rate: " + baudRate);
+            }
             lineRequestData[0] = (byte) (baudRate & 0xff);
             lineRequestData[1] = (byte) ((baudRate >> 8) & 0xff);
             lineRequestData[2] = (byte) ((baudRate >> 16) & 0xff);
@@ -450,44 +379,39 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             case STOPBITS_1:
                 lineRequestData[4] = 0;
                 break;
-
             case STOPBITS_1_5:
                 lineRequestData[4] = 1;
                 break;
-
             case STOPBITS_2:
                 lineRequestData[4] = 2;
                 break;
-
             default:
-                throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
+                throw new IllegalArgumentException("Invalid stop bits: " + stopBits);
             }
 
             switch (parity) {
             case PARITY_NONE:
                 lineRequestData[5] = 0;
                 break;
-
             case PARITY_ODD:
                 lineRequestData[5] = 1;
                 break;
-            
             case PARITY_EVEN:
                 lineRequestData[5] = 2;
                 break;
-
             case PARITY_MARK:
                 lineRequestData[5] = 3;
                 break;
-
             case PARITY_SPACE:
                 lineRequestData[5] = 4;
                 break;
-
             default:
-                throw new IllegalArgumentException("Unknown parity value: " + parity);
+                throw new IllegalArgumentException("Invalid parity: " + parity);
             }
 
+            if(dataBits < DATABITS_5 || dataBits > DATABITS_8) {
+                throw new IllegalArgumentException("Invalid data bits: " + dataBits);
+            }
             lineRequestData[6] = (byte) dataBits;
 
             ctrlOut(SET_LINE_REQUEST, 0, 0, lineRequestData);

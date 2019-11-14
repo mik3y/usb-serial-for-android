@@ -125,12 +125,12 @@ public class SerialInputOutputManager implements Runnable {
     public void run() {
         synchronized (this) {
             if (getState() != State.STOPPED) {
-                throw new IllegalStateException("Already running.");
+                throw new IllegalStateException("Already running");
             }
             mState = State.RUNNING;
         }
 
-        Log.i(TAG, "Running ..");
+        Log.i(TAG, "Running ...");
         try {
             while (true) {
                 if (getState() != State.RUNNING) {
@@ -148,7 +148,7 @@ public class SerialInputOutputManager implements Runnable {
         } finally {
             synchronized (this) {
                 mState = State.STOPPED;
-                Log.i(TAG, "Stopped.");
+                Log.i(TAG, "Stopped");
             }
         }
     }

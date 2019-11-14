@@ -25,11 +25,8 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
-import android.hardware.usb.UsbRequest;
-import android.util.Log;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -83,10 +80,6 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		private boolean dtr = false;
 		private boolean rts = false;
 
-		private UsbEndpoint mReadEndpoint;
-		private UsbEndpoint mWriteEndpoint;
-		private UsbRequest mUsbRequest;
-
 		public Ch340SerialPort(UsbDevice device, int portNumber) {
 			super(device, portNumber);
 		}
@@ -99,7 +92,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		@Override
 		public void open(UsbDeviceConnection connection) throws IOException {
 			if (mConnection != null) {
-				throw new IOException("Already opened.");
+				throw new IOException("Already open");
 			}
 
 			mConnection = connection;
@@ -108,7 +101,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 				for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
 					UsbInterface usbIface = mDevice.getInterface(i);
 					if (!mConnection.claimInterface(usbIface, true)) {
-						throw new IOException("Could not claim data interface.");
+						throw new IOException("Could not claim data interface");
 					}
 				}
 
@@ -130,95 +123,17 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 				opened = true;
 			} finally {
 				if (!opened) {
-					try {
-						close();
-					} catch (IOException e) {
-						// Ignore IOExceptions during close()
-					}
+					close();
 				}
 			}
 		}
 
 		@Override
-		public void close() throws IOException {
-			if (mConnection == null) {
-				throw new IOException("Already closed");
-			}
-			synchronized (this) {
-				if (mUsbRequest != null)
-					mUsbRequest.cancel();
-			}
+		public void closeInt() {
 			try {
-				mConnection.close();
-			} finally {
-				mConnection = null;
-			}
-		}
-
-
-		@Override
-		public int read(byte[] dest, int timeoutMillis) throws IOException {
-			final UsbRequest request = new UsbRequest();
-			try {
-				request.initialize(mConnection, mReadEndpoint);
-				final ByteBuffer buf = ByteBuffer.wrap(dest);
-				if (!request.queue(buf, dest.length)) {
-					throw new IOException("Error queueing request.");
-				}
-				mUsbRequest = request;
-				final UsbRequest response = mConnection.requestWait();
-				synchronized (this) {
-					mUsbRequest = null;
-				}
-				if (response == null) {
-					throw new IOException("Null response");
-				}
-
-				final int nread = buf.position();
-				if (nread > 0) {
-					//Log.d(TAG, HexDump.dumpHexString(dest, 0, Math.min(32, dest.length)));
-					return nread;
-				} else {
-					return 0;
-				}
-			} finally {
-				mUsbRequest = null;
-				request.close();
-			}
-		}
-
-		@Override
-		public int write(byte[] src, int timeoutMillis) throws IOException {
-			int offset = 0;
-
-			while (offset < src.length) {
-				final int writeLength;
-				final int amtWritten;
-
-				synchronized (mWriteBufferLock) {
-					final byte[] writeBuffer;
-
-					writeLength = Math.min(src.length - offset, mWriteBuffer.length);
-					if (offset == 0) {
-						writeBuffer = src;
-					} else {
-						// bulkTransfer does not support offsets, make a copy.
-						System.arraycopy(src, offset, mWriteBuffer, 0, writeLength);
-						writeBuffer = mWriteBuffer;
-					}
-
-					amtWritten = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, writeLength,
-							timeoutMillis);
-				}
-				if (amtWritten <= 0) {
-					throw new IOException("Error writing " + writeLength
-							+ " bytes at offset " + offset + " length=" + src.length);
-				}
-
-				Log.d(TAG, "Wrote amt=" + amtWritten + " attempted=" + writeLength);
-				offset += amtWritten;
-			}
-			return offset;
+				for (int i = 0; i < mDevice.getInterfaceCount(); i++)
+					mConnection.releaseInterface(mDevice.getInterface(i));
+			} catch(Exception ignored) {}
 		}
 
 		private int controlOut(int request, int value, int index) {
@@ -269,7 +184,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			checkState("init #1", 0x5f, 0, new int[]{-1 /* 0x27, 0x30 */, 0x00});
 
 			if (controlOut(0xa1, 0, 0) < 0) {
-				throw new IOException("init failed! #2");
+				throw new IOException("Init failed: #2");
 			}
 
 			setBaudRate(DEFAULT_BAUD_RATE);
@@ -277,13 +192,13 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			checkState("init #4", 0x95, 0x2518, new int[]{-1 /* 0x56, c3*/, 0x00});
 
 			if (controlOut(0x9a, 0x2518, LCR_ENABLE_RX | LCR_ENABLE_TX | LCR_CS8) < 0) {
-				throw new IOException("init failed! #5");
+				throw new IOException("Init failed: #5");
 			}
 
 			checkState("init #6", 0x95, 0x0706, new int[]{0xff, 0xee});
 
 			if (controlOut(0xa1, 0x501f, 0xd90a) < 0) {
-				throw new IOException("init failed! #7");
+				throw new IOException("Init failed: #7");
 			}
 
 			setBaudRate(DEFAULT_BAUD_RATE);
@@ -307,25 +222,27 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 					}
 
 			if (factor > 0xfff0) {
-				throw new IOException("Baudrate " + baudRate + " not supported");
+				throw new UnsupportedOperationException("Unsupported baud rate: " + baudRate);
 			}
 
 			factor = 0x10000 - factor;
 
 			int ret = controlOut(0x9a, 0x1312, (int) ((factor & 0xff00) | divisor));
 			if (ret < 0) {
-				throw new IOException("Error setting baud rate. #1)");
+				throw new IOException("Error setting baud rate: #1)");
 			}
 
 			ret = controlOut(0x9a, 0x0f2c, (int) (factor & 0xff));
 			if (ret < 0) {
-				throw new IOException("Error setting baud rate. #2");
+				throw new IOException("Error setting baud rate: #2");
 			}
 		}
 
 		@Override
-		public void setParameters(int baudRate, int dataBits, int stopBits, int parity)
-				throws IOException {
+		public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
+			if(baudRate <= 0) {
+				throw new IllegalArgumentException("Invalid baud rate: " + baudRate);
+			}
 			setBaudRate(baudRate);
 
 			int lcr = LCR_ENABLE_RX | LCR_ENABLE_TX;
@@ -344,7 +261,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 					lcr |= LCR_CS8;
 					break;
 				default:
-					throw new IllegalArgumentException("Unknown dataBits value: " + dataBits);
+					throw new IllegalArgumentException("Invalid data bits: " + dataBits);
 			}
 
 			switch (parity) {
@@ -363,19 +280,19 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 					lcr |= LCR_ENABLE_PAR | LCR_MARK_SPACE | LCR_PAR_EVEN;
 					break;
 				default:
-					throw new IllegalArgumentException("Unknown parity value: " + parity);
+					throw new IllegalArgumentException("Invalid parity: " + parity);
 			}
 
 			switch (stopBits) {
 				case STOPBITS_1:
 					break;
 				case STOPBITS_1_5:
-					throw new IllegalArgumentException("Unsupported stopBits value: 1.5");
+					throw new UnsupportedOperationException("Unsupported stop bits: 1.5");
 				case STOPBITS_2:
 					lcr |= LCR_STOP_BITS_2;
 					break;
 				default:
-					throw new IllegalArgumentException("Unknown stopBits value: " + stopBits);
+					throw new IllegalArgumentException("Invalid stop bits: " + stopBits);
 			}
 
 			int ret = controlOut(0x9a, 0x2518, lcr);

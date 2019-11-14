@@ -76,7 +76,7 @@ public final class UsbId {
     public static final int ARM_MBED = 0x0204;
 
     private UsbId() {
-        throw new IllegalAccessError("Non-instantiable class.");
+        throw new IllegalAccessError("Non-instantiable class");
     }
 
 }
