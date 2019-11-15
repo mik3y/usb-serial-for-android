@@ -112,10 +112,6 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         private static final int RTS_ENABLE = 0x202;
         private static final int RTS_DISABLE = 0x200;
 
-        private UsbEndpoint mReadEndpoint;
-        private UsbEndpoint mWriteEndpoint;
-        private UsbRequest mUsbRequest;
-
         private boolean dtr = false;
         private boolean rts = false;
 
