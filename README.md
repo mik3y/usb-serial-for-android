@@ -1,3 +1,4 @@
+[![Actions Status](https://github.com/mik3y/usb-serial-for-android/workflows/build/badge.svg)](https://github.com/mik3y/usb-serial-for-android/actions)
 [![Jitpack](https://jitpack.io/v/mik3y/usb-serial-for-android.svg)](https://jitpack.io/#mik3y/usb-serial-for-android)
 [![Codacy](https://api.codacy.com/project/badge/Grade/4d528e82e35d42d49f659e9b93a9c77d)](https://www.codacy.com/manual/kai-morich/usb-serial-for-android-mik3y?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=mik3y/usb-serial-for-android&amp;utm_campaign=Badge_Grade)
 [![codecov](https://codecov.io/gh/mik3y/usb-serial-for-android/branch/master/graph/badge.svg)](https://codecov.io/gh/mik3y/usb-serial-for-android)
@@ -52,6 +53,7 @@ to your project's `res/xml/` directory and configure in your `AndroidManifest.xm
 
 **3.** Use it! Example code snippet:
 
+open device:
 ```java
     // Find all available drivers from attached devices.
     UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
@@ -71,18 +73,25 @@ to your project's `res/xml/` directory and configure in your `AndroidManifest.xm
     UsbSerialPort port = driver.getPorts().get(0); // Most devices have just one port (port 0)
     port.open(connection);
     port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+```
+then use direct read/write
+```java
+    port.write(request, WRITE_WAIT_MILLIS);
+    len = port.read(response, READ_WAIT_MILLIS);
+```
+or direct write + event driven read:
+```java
     usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
     Executors.newSingleThreadExecutor().submit(usbIoManager);
-```
-```java
+    ...
     port.write("hello".getBytes(), WRITE_WAIT_MILLIS);
-```
-```java
+    
 @Override
 public void onNewData(byte[] data) {
     runOnUiThread(() -> { textView.append(new String(data)); });
 }
 ```
+and finally:
 ```java
     port.close();
 ```
