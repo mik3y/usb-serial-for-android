@@ -24,6 +24,7 @@ package com.hoho.android.usbserial.driver;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /**
@@ -31,7 +32,7 @@ import java.io.IOException;
  *
  * @author mike wakerly (opensource@hoho.com)
  */
-public interface UsbSerialPort {
+public interface UsbSerialPort extends Closeable {
 
     /** 5 data bits. */
     public static final int DATABITS_5 = 5;
@@ -117,21 +118,21 @@ public interface UsbSerialPort {
      * Reads as many bytes as possible into the destination buffer.
      *
      * @param dest the destination byte buffer
-     * @param timeoutMillis the timeout for reading
+     * @param timeout the timeout for reading in milliseconds, 0 is infinite
      * @return the actual number of bytes read
      * @throws IOException if an error occurred during reading
      */
-    public int read(final byte[] dest, final int timeoutMillis) throws IOException;
+    public int read(final byte[] dest, final int timeout) throws IOException;
 
     /**
      * Writes as many bytes as possible from the source buffer.
      *
      * @param src the source byte buffer
-     * @param timeoutMillis the timeout for writing
+     * @param timeout the timeout for writing in milliseconds, 0 is infinite
      * @return the actual number of bytes written
      * @throws IOException if an error occurred during writing
      */
-    public int write(final byte[] src, final int timeoutMillis) throws IOException;
+    public int write(final byte[] src, final int timeout) throws IOException;
 
     /**
      * Sets various serial port parameters.

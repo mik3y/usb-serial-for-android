@@ -21,7 +21,6 @@
 
 package com.hoho.android.usbserial.util;
 
-import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
 import com.hoho.android.usbserial.driver.UsbSerialPort;
@@ -30,8 +29,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * Utility class which services a {@link UsbSerialPort} in its {@link #run()}
- * method.
+ * Utility class which services a {@link UsbSerialPort} in its {@link #run()} method.
  *
  * @author mike wakerly (opensource@hoho.com)
  */
@@ -39,16 +37,16 @@ public class SerialInputOutputManager implements Runnable {
 
     private static final String TAG = SerialInputOutputManager.class.getSimpleName();
     private static final boolean DEBUG = true;
-
-    private static final int READ_WAIT_MILLIS = 200;
     private static final int BUFSIZ = 4096;
 
-    private final UsbSerialPort mDriver;
+    /**
+     * default read timeout is infinite, to avoid data loss with bulkTransfer API
+     */
+    private int mReadTimeout = 0;
+    private int mWriteTimeout = 0;
 
     private final ByteBuffer mReadBuffer = ByteBuffer.allocate(BUFSIZ);
-
-    // Synchronized by 'mWriteBuffer'
-    private final ByteBuffer mWriteBuffer = ByteBuffer.allocate(BUFSIZ);
+    private final ByteBuffer mWriteBuffer = ByteBuffer.allocate(BUFSIZ); // Synchronized by 'mWriteBuffer'
 
     public enum State {
         STOPPED,
@@ -56,11 +54,9 @@ public class SerialInputOutputManager implements Runnable {
         STOPPING
     }
 
-    // Synchronized by 'this'
-    private State mState = State.STOPPED;
-
-    // Synchronized by 'this'
-    private Listener mListener;
+    private State mState = State.STOPPED; // Synchronized by 'this'
+    private Listener mListener; // Synchronized by 'this'
+    private final UsbSerialPort mSerialPort;
 
     public interface Listener {
         /**
@@ -69,24 +65,17 @@ public class SerialInputOutputManager implements Runnable {
         public void onNewData(byte[] data);
 
         /**
-         * Called when {@link SerialInputOutputManager#run()} aborts due to an
-         * error.
+         * Called when {@link SerialInputOutputManager#run()} aborts due to an error.
          */
         public void onRunError(Exception e);
     }
 
-    /**
-     * Creates a new instance with no listener.
-     */
-    public SerialInputOutputManager(UsbSerialPort driver) {
-        this(driver, null);
+    public SerialInputOutputManager(UsbSerialPort serialPort) {
+        mSerialPort = serialPort;
     }
 
-    /**
-     * Creates a new instance with the provided listener.
-     */
-    public SerialInputOutputManager(UsbSerialPort driver, Listener listener) {
-        mDriver = driver;
+    public SerialInputOutputManager(UsbSerialPort serialPort, Listener listener) {
+        mSerialPort = serialPort;
         mListener = listener;
     }
 
@@ -98,6 +87,29 @@ public class SerialInputOutputManager implements Runnable {
         return mListener;
     }
 
+    public void setReadTimeout(int timeout) {
+        // when set if already running, read already blocks and the new value will not become effective now
+        if(mReadTimeout == 0 && timeout != 0 && mState != State.STOPPED)
+            throw new IllegalStateException("Set readTimeout before SerialInputOutputManager is started");
+        mReadTimeout = timeout;
+    }
+
+    public int getReadTimeout() {
+        return mReadTimeout;
+    }
+
+    public void setWriteTimeout(int timeout) {
+        mWriteTimeout = timeout;
+    }
+
+    public int getWriteTimeout() {
+        return mWriteTimeout;
+    }
+
+    /*
+     * when writeAsync is used, it is recommended to use readTimeout != 0,
+     * else the write will be delayed until read data is available
+     */
     public void writeAsync(byte[] data) {
         synchronized (mWriteBuffer) {
             mWriteBuffer.put(data);
@@ -155,7 +167,7 @@ public class SerialInputOutputManager implements Runnable {
 
     private void step() throws IOException {
         // Handle incoming data.
-        int len = mDriver.read(mReadBuffer.array(), READ_WAIT_MILLIS);
+        int len = mSerialPort.read(mReadBuffer.array(), mReadTimeout);
         if (len > 0) {
             if (DEBUG) Log.d(TAG, "Read data len=" + len);
             final Listener listener = getListener();
@@ -182,7 +194,7 @@ public class SerialInputOutputManager implements Runnable {
             if (DEBUG) {
                 Log.d(TAG, "Writing data len=" + len);
             }
-            mDriver.write(outBuff, READ_WAIT_MILLIS);
+            mSerialPort.write(outBuff, mWriteTimeout);
         }
     }
 

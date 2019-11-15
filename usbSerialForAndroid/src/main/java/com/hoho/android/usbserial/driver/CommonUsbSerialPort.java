@@ -39,6 +39,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
     private static final String TAG = CommonUsbSerialPort.class.getSimpleName();
     private static final int DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024;
+    private static final int MAX_READ_SIZE = 16 * 1024; // = old bulkTransfer limit
 
     protected final UsbDevice mDevice;
     protected final int mPortNumber;
@@ -131,41 +132,56 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     protected abstract void closeInt();
 
     @Override
-    public int read(final byte[] dest, final int timeoutMillis) throws IOException {
+    public int read(final byte[] dest, final int timeout) throws IOException {
         if(mConnection == null) {
             throw new IOException("Connection closed");
         }
-        final UsbRequest request = new UsbRequest();
-        try {
-            request.initialize(mConnection, mReadEndpoint);
-            final ByteBuffer buf = ByteBuffer.wrap(dest);
-            if (!request.queue(buf, dest.length)) {
-                throw new IOException("Error queueing request");
-            }
-            mUsbRequest = request;
-            final UsbRequest response = mConnection.requestWait();
-            synchronized (this) {
+        final int nread;
+        if (timeout != 0) {
+            // bulkTransfer will cause data loss with short timeout + high baud rates + continuous transfer
+            //   https://stackoverflow.com/questions/9108548/android-usb-host-bulktransfer-is-losing-data
+            // but mConnection.requestWait(timeout) available since Android 8.0 es even worse,
+            // as it crashes with short timeout, e.g.
+            //   A/libc: Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x276a in tid 29846 (pool-2-thread-1), pid 29618 (.usbserial.test)
+            //     /system/lib64/libusbhost.so (usb_request_wait+192)
+            //     /system/lib64/libandroid_runtime.so (android_hardware_UsbDeviceConnection_request_wait(_JNIEnv*, _jobject*, long)+84)
+            // data loss / crashes were observed with timeout up to 200 msec
+            int readMax = Math.min(dest.length, MAX_READ_SIZE);
+            nread = mConnection.bulkTransfer(mReadEndpoint, dest, readMax, timeout);
+
+        } else {
+            final UsbRequest request = new UsbRequest();
+            try {
+                request.initialize(mConnection, mReadEndpoint);
+                final ByteBuffer buf = ByteBuffer.wrap(dest);
+                if (!request.queue(buf, dest.length)) {
+                    throw new IOException("Error queueing request");
+                }
+                mUsbRequest = request;
+                final UsbRequest response = mConnection.requestWait();
+                synchronized (this) {
+                    mUsbRequest = null;
+                }
+                if (response == null) {
+                    throw new IOException("Null response");
+                }
+                nread = buf.position();
+            } finally {
                 mUsbRequest = null;
+                request.close();
             }
-            if (response == null) {
-                throw new IOException("Null response");
-            }
-            final int nread = buf.position();
-            if (nread > 0) {
-                return readFilter(dest, nread);
-            } else {
-                return 0;
-            }
-        } finally {
-            mUsbRequest = null;
-            request.close();
+        }
+        if (nread > 0) {
+            return readFilter(dest, nread);
+        } else {
+            return 0;
         }
     }
 
     protected int readFilter(final byte[] buffer, int len) throws IOException { return len; }
 
     @Override
-    public int write(final byte[] src, final int timeoutMillis) throws IOException {
+    public int write(final byte[] src, final int timeout) throws IOException {
         int offset = 0;
 
         if(mConnection == null) {
@@ -187,8 +203,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                     writeBuffer = mWriteBuffer;
                 }
 
-                amtWritten = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, writeLength,
-                        timeoutMillis);
+                amtWritten = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, writeLength, timeout);
             }
             if (amtWritten <= 0) {
                 throw new IOException("Error writing " + writeLength
