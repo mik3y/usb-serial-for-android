@@ -268,7 +268,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
         public void setLatencyTimer(int latencyTime) throws IOException {
             int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_SET_LATENCY_TIMER_REQUEST,
-                    latencyTime, 0 /* index */, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+                    latencyTime, mIndex, null, 0, USB_WRITE_TIMEOUT_MILLIS);
             if (result != 0) {
                 throw new IOException("Set latency timer failed: result=" + result);
             }
@@ -277,7 +277,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         public int getLatencyTimer() throws IOException {
             byte[] data = new byte[1];
             int result = mConnection.controlTransfer(FTDI_DEVICE_IN_REQTYPE, SIO_GET_LATENCY_TIMER_REQUEST,
-                    0, 0 /* index */, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
+                    0, mIndex, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
             if (result != 1) {
                 throw new IOException("Get latency timer failed: result=" + result);
             }
@@ -287,7 +287,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         public int getModemStatus() throws IOException {
             byte[] data = new byte[2];
             int result = mConnection.controlTransfer(FTDI_DEVICE_IN_REQTYPE, SIO_GET_MODEM_STATUS_REQUEST,
-                    0, 0 /* index */, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
+                    0, mIndex, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
             if (result != 2) {
                 throw new IOException("Get modem statusfailed: result=" + result);
             }
@@ -513,7 +513,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         @Override
         public void setDTR(boolean value) throws IOException {
             int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_MODEM_CTRL_REQUEST,
-                    value ? SIO_SET_DTR_HIGH : SIO_SET_DTR_LOW, 0 /* index */, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+                    value ? SIO_SET_DTR_HIGH : SIO_SET_DTR_LOW, mIndex, null, 0, USB_WRITE_TIMEOUT_MILLIS);
             if (result != 0) {
                 throw new IOException("Set DTR failed: result=" + result);
             }
@@ -533,7 +533,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         @Override
         public void setRTS(boolean value) throws IOException {
             int result = mConnection.controlTransfer(FTDI_DEVICE_OUT_REQTYPE, SIO_MODEM_CTRL_REQUEST,
-                    value ? SIO_SET_RTS_HIGH : SIO_SET_RTS_LOW, 0 /* index */, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+                    value ? SIO_SET_RTS_HIGH : SIO_SET_RTS_LOW, mIndex, null, 0, USB_WRITE_TIMEOUT_MILLIS);
             if (result != 0) {
                 throw new IOException("Set DTR failed: result=" + result);
             }
