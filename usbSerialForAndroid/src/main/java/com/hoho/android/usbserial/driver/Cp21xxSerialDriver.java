@@ -138,43 +138,30 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void open(UsbDeviceConnection connection) throws IOException {
-            if (mConnection != null) {
-                throw new IOException("Already open");
-            }
-
-            mConnection = connection;
-            boolean opened = false;
+        public void openInt(UsbDeviceConnection connection) throws IOException {
             mIsRestrictedPort = mDevice.getInterfaceCount() == 2 && mPortNumber == 1;
-            try {
-                if(mPortNumber >= mDevice.getInterfaceCount()) {
-                    throw new IOException("Unknown port number");
-                }
-                UsbInterface dataIface = mDevice.getInterface(mPortNumber);
-                if (!mConnection.claimInterface(dataIface, true)) {
-                    throw new IOException("Could not claim interface " + mPortNumber);
-                }
-                for (int i = 0; i < dataIface.getEndpointCount(); i++) {
-                    UsbEndpoint ep = dataIface.getEndpoint(i);
-                    if (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
-                        if (ep.getDirection() == UsbConstants.USB_DIR_IN) {
-                            mReadEndpoint = ep;
-                        } else {
-                            mWriteEndpoint = ep;
-                        }
+            if(mPortNumber >= mDevice.getInterfaceCount()) {
+                throw new IOException("Unknown port number");
+            }
+            UsbInterface dataIface = mDevice.getInterface(mPortNumber);
+            if (!mConnection.claimInterface(dataIface, true)) {
+                throw new IOException("Could not claim interface " + mPortNumber);
+            }
+            for (int i = 0; i < dataIface.getEndpointCount(); i++) {
+                UsbEndpoint ep = dataIface.getEndpoint(i);
+                if (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                    if (ep.getDirection() == UsbConstants.USB_DIR_IN) {
+                        mReadEndpoint = ep;
+                    } else {
+                        mWriteEndpoint = ep;
                     }
                 }
-
-                setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_ENABLE);
-                setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, MCR_ALL | CONTROL_WRITE_DTR | CONTROL_WRITE_RTS);
-                setConfigSingle(SILABSER_SET_BAUDDIV_REQUEST_CODE, BAUD_RATE_GEN_FREQ / DEFAULT_BAUD_RATE);
-    //            setParameters(DEFAULT_BAUD_RATE, DEFAULT_DATA_BITS, DEFAULT_STOP_BITS, DEFAULT_PARITY);
-                opened = true;
-            } finally {
-                if (!opened) {
-                    close();
-                }
             }
+
+            setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_ENABLE);
+            setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, MCR_ALL | CONTROL_WRITE_DTR | CONTROL_WRITE_RTS);
+            setConfigSingle(SILABSER_SET_BAUDDIV_REQUEST_CODE, BAUD_RATE_GEN_FREQ / DEFAULT_BAUD_RATE);
+//            setParameters(DEFAULT_BAUD_RATE, DEFAULT_DATA_BITS, DEFAULT_STOP_BITS, DEFAULT_PARITY);
         }
 
         @Override

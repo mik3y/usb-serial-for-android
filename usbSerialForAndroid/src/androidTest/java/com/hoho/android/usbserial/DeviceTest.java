@@ -1091,13 +1091,13 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         //
         int diffLen = readSpeedInt(5, 0);
         if(usbSerialDriver instanceof Ch34xSerialDriver && diffLen == -1)
-            diffLen = 0; // todo: investigate last packet loss
+             diffLen = 0; // todo: investigate last packet loss
         assertEquals(0, diffLen);
     }
 
     private int readSpeedInt(int writeSeconds, int readTimeout) throws Exception {
         int baudrate = 115200;
-        if(usbSerialDriver instanceof Ch34xSerialDriver && readTimeout != 0)
+        if(usbSerialDriver instanceof Ch34xSerialDriver)
             baudrate = 38400;
         int writeAhead = 5*baudrate/10; // write ahead for another 5 second read
         if(usbSerialDriver instanceof CdcAcmSerialDriver)
@@ -1355,8 +1355,6 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
 
         int longTimeout = 1000;
         int shortTimeout = 10;
-        if(usbSerialDriver instanceof Ch34xSerialDriver)
-            shortTimeout = 20; // too short timeout causes mysterious effects like lost telnet data
         time = System.currentTimeMillis();
         len = usbSerialPort.read(buf, shortTimeout);
         assertEquals(0, len);

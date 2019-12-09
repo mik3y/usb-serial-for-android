@@ -107,26 +107,42 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     }
 
     @Override
-    public abstract void open(UsbDeviceConnection connection) throws IOException;
+    public void open(UsbDeviceConnection connection) throws IOException {
+        if (mConnection != null) {
+            throw new IOException("Already open");
+        }
+        mConnection = connection;
+        try {
+            openInt(connection);
+            if (mReadEndpoint == null || mWriteEndpoint == null) {
+                throw new IOException("Could not get read & write endpoints");
+            }
+            mUsbRequest = new UsbRequest();
+            mUsbRequest.initialize(mConnection, mReadEndpoint);
+        } catch(Exception e) {
+            close();
+            throw e;
+        }
+    }
+
+    protected abstract void openInt(UsbDeviceConnection connection) throws IOException;
 
     @Override
     public void close() throws IOException {
         if (mConnection == null) {
             throw new IOException("Already closed");
         }
-        synchronized (this) {
-            if (mUsbRequest != null)
-                mUsbRequest.cancel();
-        }
+        try {
+            mUsbRequest.cancel();
+        } catch(Exception ignored) {}
+        mUsbRequest = null;
         try {
             closeInt();
         } catch(Exception ignored) {}
         try {
             mConnection.close();
-        } finally {
-            mConnection = null;
-        }
-
+        } catch(Exception ignored) {}
+        mConnection = null;
     }
 
     protected abstract void closeInt();
@@ -150,26 +166,15 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             nread = mConnection.bulkTransfer(mReadEndpoint, dest, readMax, timeout);
 
         } else {
-            final UsbRequest request = new UsbRequest();
-            try {
-                request.initialize(mConnection, mReadEndpoint);
-                final ByteBuffer buf = ByteBuffer.wrap(dest);
-                if (!request.queue(buf, dest.length)) {
-                    throw new IOException("Error queueing request");
-                }
-                mUsbRequest = request;
-                final UsbRequest response = mConnection.requestWait();
-                synchronized (this) {
-                    mUsbRequest = null;
-                }
-                if (response == null) {
-                    throw new IOException("Null response");
-                }
-                nread = buf.position();
-            } finally {
-                mUsbRequest = null;
-                request.close();
+            final ByteBuffer buf = ByteBuffer.wrap(dest);
+            if (!mUsbRequest.queue(buf, dest.length)) {
+                throw new IOException("Queueing USB request failed");
             }
+            final UsbRequest response = mConnection.requestWait();
+            if (response == null) {
+                throw new IOException("Waiting for USB request failed");
+            }
+            nread = buf.position();
         }
         if (nread > 0) {
             return readFilter(dest, nread);

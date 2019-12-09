@@ -94,26 +94,13 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void open(UsbDeviceConnection connection) throws IOException {
-            if (mConnection != null) {
-                throw new IOException("Already open");
-            }
-
-            mConnection = connection;
-            boolean opened = false;
-            try {
-                if (1 == mDevice.getInterfaceCount()) {
-                    Log.d(TAG,"device might be castrated ACM device, trying single interface logic");
-                    openSingleInterface();
-                } else {
-                    Log.d(TAG,"trying default interface logic");
-                    openInterface();
-                }
-                opened = true;
-            } finally {
-                if (!opened) {
-                    close();
-                }
+        public void openInt(UsbDeviceConnection connection) throws IOException {
+            if (1 == mDevice.getInterfaceCount()) {
+                Log.d(TAG,"device might be castrated ACM device, trying single interface logic");
+                openSingleInterface();
+            } else {
+                Log.d(TAG,"trying default interface logic");
+                openInterface();
             }
         }
 
@@ -223,9 +210,6 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                     mReadEndpoint = ep;
                 if (ep.getDirection() == UsbConstants.USB_DIR_OUT && ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)
                     mWriteEndpoint = ep;
-            }
-            if (mReadEndpoint == null || mWriteEndpoint == null) {
-                throw new IOException("Could not get read&write endpoints");
             }
         }
 

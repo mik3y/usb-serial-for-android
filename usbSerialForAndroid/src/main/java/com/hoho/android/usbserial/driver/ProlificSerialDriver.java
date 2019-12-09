@@ -263,78 +263,63 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void open(UsbDeviceConnection connection) throws IOException {
-            if (mConnection != null) {
-                throw new IOException("Already open");
-            }
-
+        public void openInt(UsbDeviceConnection connection) throws IOException {
             UsbInterface usbInterface = mDevice.getInterface(0);
 
             if (!connection.claimInterface(usbInterface, true)) {
                 throw new IOException("Error claiming Prolific interface 0");
             }
 
-            mConnection = connection;
-            boolean opened = false;
-            try {
-                for (int i = 0; i < usbInterface.getEndpointCount(); ++i) {
-                    UsbEndpoint currentEndpoint = usbInterface.getEndpoint(i);
+            for (int i = 0; i < usbInterface.getEndpointCount(); ++i) {
+                UsbEndpoint currentEndpoint = usbInterface.getEndpoint(i);
 
-                    switch (currentEndpoint.getAddress()) {
-                    case READ_ENDPOINT:
-                        mReadEndpoint = currentEndpoint;
-                        break;
+                switch (currentEndpoint.getAddress()) {
+                case READ_ENDPOINT:
+                    mReadEndpoint = currentEndpoint;
+                    break;
 
-                    case WRITE_ENDPOINT:
-                        mWriteEndpoint = currentEndpoint;
-                        break;
+                case WRITE_ENDPOINT:
+                    mWriteEndpoint = currentEndpoint;
+                    break;
 
-                    case INTERRUPT_ENDPOINT:
-                        mInterruptEndpoint = currentEndpoint;
-                        break;
-                    }
-                }
-
-                if (mDevice.getDeviceClass() == 0x02) {
-                    mDeviceType = DEVICE_TYPE_0;
-                } else {
-                    try {
-                        Method getRawDescriptorsMethod
-                            = mConnection.getClass().getMethod("getRawDescriptors");
-                        byte[] rawDescriptors
-                            = (byte[]) getRawDescriptorsMethod.invoke(mConnection);
-                        byte maxPacketSize0 = rawDescriptors[7];
-                        if (maxPacketSize0 == 64) {
-                            mDeviceType = DEVICE_TYPE_HX;
-                        } else if ((mDevice.getDeviceClass() == 0x00)
-                                || (mDevice.getDeviceClass() == 0xff)) {
-                            mDeviceType = DEVICE_TYPE_1;
-                        } else {
-                          Log.w(TAG, "Could not detect PL2303 subtype, "
-                              + "Assuming that it is a HX device");
-                          mDeviceType = DEVICE_TYPE_HX;
-                        }
-                    } catch (NoSuchMethodException e) {
-                        Log.w(TAG, "Method UsbDeviceConnection.getRawDescriptors, "
-                                + "required for PL2303 subtype detection, not "
-                                + "available! Assuming that it is a HX device");
-                        mDeviceType = DEVICE_TYPE_HX;
-                    } catch (Exception e) {
-                        Log.e(TAG, "An unexpected exception occured while trying "
-                                + "to detect PL2303 subtype", e);
-                    }
-                }
-
-                setControlLines(mControlLinesValue);
-                resetDevice();
-
-                doBlackMagic();
-                opened = true;
-            } finally {
-                if (!opened) {
-                    close();
+                case INTERRUPT_ENDPOINT:
+                    mInterruptEndpoint = currentEndpoint;
+                    break;
                 }
             }
+
+            if (mDevice.getDeviceClass() == 0x02) {
+                mDeviceType = DEVICE_TYPE_0;
+            } else {
+                try {
+                    Method getRawDescriptorsMethod
+                        = mConnection.getClass().getMethod("getRawDescriptors");
+                    byte[] rawDescriptors
+                        = (byte[]) getRawDescriptorsMethod.invoke(mConnection);
+                    byte maxPacketSize0 = rawDescriptors[7];
+                    if (maxPacketSize0 == 64) {
+                        mDeviceType = DEVICE_TYPE_HX;
+                    } else if ((mDevice.getDeviceClass() == 0x00)
+                            || (mDevice.getDeviceClass() == 0xff)) {
+                        mDeviceType = DEVICE_TYPE_1;
+                    } else {
+                      Log.w(TAG, "Could not detect PL2303 subtype, "
+                          + "Assuming that it is a HX device");
+                      mDeviceType = DEVICE_TYPE_HX;
+                    }
+                } catch (NoSuchMethodException e) {
+                    Log.w(TAG, "Method UsbDeviceConnection.getRawDescriptors, "
+                            + "required for PL2303 subtype detection, not "
+                            + "available! Assuming that it is a HX device");
+                    mDeviceType = DEVICE_TYPE_HX;
+                } catch (Exception e) {
+                    Log.e(TAG, "An unexpected exception occured while trying "
+                            + "to detect PL2303 subtype", e);
+                }
+            }
+            setControlLines(mControlLinesValue);
+            resetDevice();
+            doBlackMagic();
         }
 
         @Override

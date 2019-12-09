@@ -295,32 +295,19 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void open(UsbDeviceConnection connection) throws IOException {
-            if (mConnection != null) {
-                throw new IOException("Already open");
+        public void openInt(UsbDeviceConnection connection) throws IOException {
+            if (connection.claimInterface(mDevice.getInterface(mPortNumber), true)) {
+                Log.d(TAG, "claimInterface " + mPortNumber + " SUCCESS");
+            } else {
+                throw new IOException("Error claiming interface " + mPortNumber);
             }
-            mConnection = connection;
-
-            boolean opened = false;
-            try {
-                if (connection.claimInterface(mDevice.getInterface(mPortNumber), true)) {
-                    Log.d(TAG, "claimInterface " + mPortNumber + " SUCCESS");
-                } else {
-                    throw new IOException("Error claiming interface " + mPortNumber);
-                }
-                if (mDevice.getInterface(mPortNumber).getEndpointCount() < 2) {
-                    throw new IOException("Insufficient number of endpoints (" +
-                            mDevice.getInterface(mPortNumber).getEndpointCount() + ")");
-                }
-                mReadEndpoint = mDevice.getInterface(mPortNumber).getEndpoint(0);
-                mWriteEndpoint = mDevice.getInterface(mPortNumber).getEndpoint(1);
-                reset();
-                opened = true;
-            } finally {
-                if (!opened) {
-                    close();
-                }
+            if (mDevice.getInterface(mPortNumber).getEndpointCount() < 2) {
+                throw new IOException("Insufficient number of endpoints (" +
+                        mDevice.getInterface(mPortNumber).getEndpointCount() + ")");
             }
+            mReadEndpoint = mDevice.getInterface(mPortNumber).getEndpoint(0);
+            mWriteEndpoint = mDevice.getInterface(mPortNumber).getEndpoint(1);
+            reset();
         }
 
         @Override

@@ -90,42 +90,28 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		}
 
 		@Override
-		public void open(UsbDeviceConnection connection) throws IOException {
-			if (mConnection != null) {
-				throw new IOException("Already open");
-			}
-
-			mConnection = connection;
-			boolean opened = false;
-			try {
-				for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
-					UsbInterface usbIface = mDevice.getInterface(i);
-					if (!mConnection.claimInterface(usbIface, true)) {
-						throw new IOException("Could not claim data interface");
-					}
-				}
-
-				UsbInterface dataIface = mDevice.getInterface(mDevice.getInterfaceCount() - 1);
-				for (int i = 0; i < dataIface.getEndpointCount(); i++) {
-					UsbEndpoint ep = dataIface.getEndpoint(i);
-					if (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
-						if (ep.getDirection() == UsbConstants.USB_DIR_IN) {
-							mReadEndpoint = ep;
-						} else {
-							mWriteEndpoint = ep;
-						}
-					}
-				}
-
-				initialize();
-				setBaudRate(DEFAULT_BAUD_RATE);
-
-				opened = true;
-			} finally {
-				if (!opened) {
-					close();
+		public void openInt(UsbDeviceConnection connection) throws IOException {
+			for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
+				UsbInterface usbIface = mDevice.getInterface(i);
+				if (!mConnection.claimInterface(usbIface, true)) {
+					throw new IOException("Could not claim data interface");
 				}
 			}
+
+			UsbInterface dataIface = mDevice.getInterface(mDevice.getInterfaceCount() - 1);
+			for (int i = 0; i < dataIface.getEndpointCount(); i++) {
+				UsbEndpoint ep = dataIface.getEndpoint(i);
+				if (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+					if (ep.getDirection() == UsbConstants.USB_DIR_IN) {
+						mReadEndpoint = ep;
+					} else {
+						mWriteEndpoint = ep;
+					}
+				}
+			}
+
+			initialize();
+			setBaudRate(DEFAULT_BAUD_RATE);
 		}
 
 		@Override
