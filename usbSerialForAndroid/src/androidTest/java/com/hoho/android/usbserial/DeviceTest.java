@@ -164,6 +164,11 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         context = InstrumentationRegistry.getContext();
         usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
+        if(availableDrivers.isEmpty()) {
+            ProbeTable customTable = new ProbeTable();
+            customTable.addProduct(0x2342, 0x8036, CdcAcmSerialDriver.class); // arduino multiport cdc witch custom VID
+            availableDrivers = new UsbSerialProber(customTable).findAllDrivers(usbManager);
+        }
         assertEquals("no USB device found", 1, availableDrivers.size());
         usbSerialDriver = availableDrivers.get(0);
         if(test_device_driver != null) {

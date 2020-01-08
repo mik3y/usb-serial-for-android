@@ -29,7 +29,7 @@ import android.hardware.usb.UsbInterface;
 import android.util.Log;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,11 +47,26 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
     private final String TAG = CdcAcmSerialDriver.class.getSimpleName();
 
     private final UsbDevice mDevice;
-    private final UsbSerialPort mPort;
+    private final List<UsbSerialPort> mPorts;
 
     public CdcAcmSerialDriver(UsbDevice device) {
         mDevice = device;
-        mPort = new CdcAcmSerialPort(device, 0);
+        mPorts = new ArrayList<>();
+
+        int controlInterfaceCount = 0;
+        int dataInterfaceCount = 0;
+        for( int i = 0; i < device.getInterfaceCount(); i++) {
+            if(device.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_COMM)
+                controlInterfaceCount++;
+            if(device.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA)
+                dataInterfaceCount++;
+        }
+        for( int port = 0; port < Math.min(controlInterfaceCount, dataInterfaceCount); port++) {
+            mPorts.add(new CdcAcmSerialPort(mDevice, port));
+        }
+        if(mPorts.size() == 0) {
+            mPorts.add(new CdcAcmSerialPort(mDevice, -1));
+        }
     }
 
     @Override
@@ -61,7 +76,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
     @Override
     public List<UsbSerialPort> getPorts() {
-        return Collections.singletonList(mPort);
+        return mPorts;
     }
 
     class CdcAcmSerialPort extends CommonUsbSerialPort {
@@ -95,7 +110,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         @Override
         public void openInt(UsbDeviceConnection connection) throws IOException {
-            if (1 == mDevice.getInterfaceCount()) {
+            if (mPortNumber == -1) {
                 Log.d(TAG,"device might be castrated ACM device, trying single interface logic");
                 openSingleInterface();
             } else {
@@ -105,77 +120,51 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         private void openSingleInterface() throws IOException {
-            // the following code is inspired by the cdc-acm driver
-            // in the linux kernel
+            // the following code is inspired by the cdc-acm driver in the linux kernel
 
             mControlIndex = 0;
             mControlInterface = mDevice.getInterface(0);
-            Log.d(TAG, "Control iface=" + mControlInterface);
-
             mDataInterface = mDevice.getInterface(0);
-            Log.d(TAG, "data iface=" + mDataInterface);
-
             if (!mConnection.claimInterface(mControlInterface, true)) {
                 throw new IOException("Could not claim shared control/data interface");
             }
 
-            int endCount = mControlInterface.getEndpointCount();
-
-            if (endCount < 3) {
-                Log.d(TAG,"not enough endpoints - need 3. count=" + mControlInterface.getEndpointCount());
-                throw new IOException("Insufficient number of endpoints (" + mControlInterface.getEndpointCount() + ")");
-            }
-
-            // Analyse endpoints for their properties
-            mControlEndpoint = null;
-            mReadEndpoint = null;
-            mWriteEndpoint = null;
-            for (int i = 0; i < endCount; ++i) {
+            for (int i = 0; i < mControlInterface.getEndpointCount(); ++i) {
                 UsbEndpoint ep = mControlInterface.getEndpoint(i);
-                if ((ep.getDirection() == UsbConstants.USB_DIR_IN) &&
-                    (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_INT)) {
-                    Log.d(TAG,"Found controlling endpoint");
+                if ((ep.getDirection() == UsbConstants.USB_DIR_IN) && (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_INT)) {
                     mControlEndpoint = ep;
-                } else if ((ep.getDirection() == UsbConstants.USB_DIR_IN) &&
-                           (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)) {
-                    Log.d(TAG,"Found reading endpoint");
+                } else if ((ep.getDirection() == UsbConstants.USB_DIR_IN) && (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)) {
                     mReadEndpoint = ep;
-                } else if ((ep.getDirection() == UsbConstants.USB_DIR_OUT) &&
-                        (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)) {
-                    Log.d(TAG,"Found writing endpoint");
+                } else if ((ep.getDirection() == UsbConstants.USB_DIR_OUT) && (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)) {
                     mWriteEndpoint = ep;
                 }
-
-
-                if ((mControlEndpoint != null) &&
-                    (mReadEndpoint != null) &&
-                    (mWriteEndpoint != null)) {
-                    Log.d(TAG,"Found all required endpoints");
-                    break;
-                }
             }
-
-            if ((mControlEndpoint == null) ||
-                    (mReadEndpoint == null) ||
-                    (mWriteEndpoint == null)) {
-                Log.d(TAG,"Could not establish all endpoints");
-                throw new IOException("Could not establish all endpoints");
+            if (mControlEndpoint == null) {
+                throw new IOException("No control endpoint");
             }
         }
 
         private void openInterface() throws IOException {
             Log.d(TAG, "claiming interfaces, count=" + mDevice.getInterfaceCount());
 
+            int controlInterfaceCount = 0;
+            int dataInterfaceCount = 0;
             mControlInterface = null;
             mDataInterface = null;
             for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
                 UsbInterface usbInterface = mDevice.getInterface(i);
                 if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_COMM) {
-                    mControlIndex = i;
-                    mControlInterface = usbInterface;
+                    if(controlInterfaceCount == mPortNumber) {
+                        mControlIndex = i;
+                        mControlInterface = usbInterface;
+                    }
+                    controlInterfaceCount++;
                 }
                 if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA) {
-                    mDataInterface = usbInterface;
+                    if(dataInterfaceCount == mPortNumber) {
+                        mDataInterface = usbInterface;
+                    }
+                    dataInterfaceCount++;
                 }
             }
 
@@ -202,8 +191,6 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 throw new IOException("Could not claim data interface");
             }
 
-            mReadEndpoint = null;
-            mWriteEndpoint = null;
             for (int i = 0; i < mDataInterface.getEndpointCount(); i++) {
                 UsbEndpoint ep = mDataInterface.getEndpoint(i);
                 if (ep.getDirection() == UsbConstants.USB_DIR_IN && ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)
