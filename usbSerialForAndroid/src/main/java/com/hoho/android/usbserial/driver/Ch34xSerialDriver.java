@@ -123,15 +123,15 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		}
 
 		private int controlOut(int request, int value, int index) {
-			final int REQTYPE_HOST_TO_DEVICE = 0x41;
+			final int REQTYPE_HOST_TO_DEVICE = UsbConstants.USB_TYPE_VENDOR | UsbConstants.USB_DIR_OUT;
 			return mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, request,
 					value, index, null, 0, USB_TIMEOUT_MILLIS);
 		}
 
 
 		private int controlIn(int request, int value, int index, byte[] buffer) {
-			final int REQTYPE_HOST_TO_DEVICE = UsbConstants.USB_TYPE_VENDOR | UsbConstants.USB_DIR_IN;
-			return mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, request,
+			final int REQTYPE_DEVICE_TO_HOST = UsbConstants.USB_TYPE_VENDOR | UsbConstants.USB_DIR_IN;
+			return mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST, request,
 					value, index, buffer, buffer.length, USB_TIMEOUT_MILLIS);
 		}
 
