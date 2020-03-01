@@ -5,7 +5,7 @@ publishing {
         maven(MavenPublication) {
             groupId 'com.github.mik3y'
             artifactId 'usb-serial-for-android'
-            version '2.2.0a'
+            version '2.2.2a'
             afterEvaluate {
                 artifact androidSourcesJar
                 artifact bundleReleaseAar

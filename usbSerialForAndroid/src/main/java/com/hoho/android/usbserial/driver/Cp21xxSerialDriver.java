@@ -128,13 +128,12 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             return Cp21xxSerialDriver.this;
         }
 
-        private int setConfigSingle(int request, int value) throws IOException {
+        private void setConfigSingle(int request, int value) throws IOException {
             int result = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, request, value,
                     mPortNumber, null, 0, USB_WRITE_TIMEOUT_MILLIS);
             if (result != 0) {
-                throw new IOException("Setting baudrate failed: result=" + result);
+                throw new IOException("Control transfer failed: " + request + " / " + value + " -> " + result);
             }
-            return result;
         }
 
         @Override
@@ -160,7 +159,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
             setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_ENABLE);
             setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, MCR_ALL | CONTROL_WRITE_DTR | CONTROL_WRITE_RTS);
-            setConfigSingle(SILABSER_SET_BAUDDIV_REQUEST_CODE, BAUD_RATE_GEN_FREQ / DEFAULT_BAUD_RATE);
+//            setConfigSingle(SILABSER_SET_BAUDDIV_REQUEST_CODE, BAUD_RATE_GEN_FREQ / DEFAULT_BAUD_RATE);
 //            setParameters(DEFAULT_BAUD_RATE, DEFAULT_DATA_BITS, DEFAULT_STOP_BITS, DEFAULT_PARITY);
         }
 
