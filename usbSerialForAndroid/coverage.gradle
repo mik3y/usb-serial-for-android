@@ -43,3 +43,9 @@ android {
         }
     }
 }
+// create report even if tests fail
+project.gradle.taskGraph.whenReady {
+    -> project.tasks.findAll { it.name =~ /connected.+AndroidTest/ }.each {
+        it.ignoreFailures = true
+    }
+}
