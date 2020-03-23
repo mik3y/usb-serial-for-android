@@ -96,12 +96,12 @@ and finally:
     port.close();
 ```
 
-
 For a simple example, see
 [UsbSerialExamples](https://github.com/mik3y/usb-serial-for-android/blob/master/usbSerialExamples)
 folder in this project.
 
-For a more complete example, see separate github project 
+For a more complete example with background service to stay connected while
+the app is not visible or rotating, see separate github project 
 [SimpleUsbTerminal](https://github.com/kai-morich/SimpleUsbTerminal).
 
 ## Probing for Unrecognized Devices

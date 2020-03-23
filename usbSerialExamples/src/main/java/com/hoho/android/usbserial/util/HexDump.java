@@ -16,6 +16,8 @@
 
 package com.hoho.android.usbserial.util;
 
+import java.security.InvalidParameterException;
+
 /**
  * Clone of Android's HexDump class, for use in debugging. Cosmetic changes
  * only.
@@ -32,17 +34,12 @@ public class HexDump {
     public static String dumpHexString(byte[] array, int offset, int length) {
         StringBuilder result = new StringBuilder();
 
-        byte[] line = new byte[16];
+        byte[] line = new byte[8];
         int lineIndex = 0;
 
-        result.append("\n0x");
-        result.append(toHexString(offset));
-
         for (int i = offset; i < offset + length; i++) {
-            if (lineIndex == 16) {
-                result.append(" ");
-
-                for (int j = 0; j < 16; j++) {
+            if (lineIndex == line.length) {
+                for (int j = 0; j < line.length; j++) {
                     if (line[j] > ' ' && line[j] < '~') {
                         result.append(new String(line, j, 1));
                     } else {
@@ -50,32 +47,26 @@ public class HexDump {
                     }
                 }
 
-                result.append("\n0x");
-                result.append(toHexString(i));
+                result.append("\n");
                 lineIndex = 0;
             }
 
             byte b = array[i];
-            result.append(" ");
             result.append(HEX_DIGITS[(b >>> 4) & 0x0F]);
             result.append(HEX_DIGITS[b & 0x0F]);
+            result.append(" ");
 
             line[lineIndex++] = b;
         }
 
-        if (lineIndex != 16) {
-            int count = (16 - lineIndex) * 3;
-            count++;
-            for (int i = 0; i < count; i++) {
-                result.append(" ");
-            }
-
-            for (int i = 0; i < lineIndex; i++) {
-                if (line[i] > ' ' && line[i] < '~') {
-                    result.append(new String(line, i, 1));
-                } else {
-                    result.append(".");
-                }
+        for (int i = 0; i < (line.length - lineIndex); i++) {
+            result.append("   ");
+        }
+        for (int i = 0; i < lineIndex; i++) {
+            if (line[i] > ' ' && line[i] < '~') {
+                result.append(new String(line, i, 1));
+            } else {
+                result.append(".");
             }
         }
 
@@ -145,7 +136,7 @@ public class HexDump {
         if (c >= 'a' && c <= 'f')
             return (c - 'a' + 10);
 
-        throw new RuntimeException("Invalid hex char '" + c + "'");
+        throw new InvalidParameterException("Invalid hex char '" + c + "'");
     }
 
     public static byte[] hexStringToByteArray(String hexString) {

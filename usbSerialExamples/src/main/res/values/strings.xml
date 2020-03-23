@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <string name="app_title">USB Serial Example</string>
-    <string name="app_name">Serial Example</string>
-    <string name="refreshing">Refreshing...</string>
-    <string name="textBtnRTS">RTS - Request To Send</string>
-    <string name="textBtnDTR">DTR - Data Terminal Ready</string>
-
+    <string name="app_title">USB Serial For Android Example</string>
+    <string name="app_name">USB Serial Example</string>
+    <string name="devices">USB Devices</string>
 </resources>
