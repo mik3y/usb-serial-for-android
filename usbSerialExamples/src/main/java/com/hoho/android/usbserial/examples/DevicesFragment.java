@@ -2,7 +2,6 @@ package com.hoho.android.usbserial.examples;
 
 import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
@@ -41,6 +40,7 @@ public class DevicesFragment extends ListFragment {
     private ArrayList<ListItem> listItems = new ArrayList<>();
     private ArrayAdapter<ListItem> listAdapter;
     private int baudRate = 19200;
+    private boolean withIoManager = true;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -95,15 +95,24 @@ public class DevicesFragment extends ListFragment {
             refresh();
             return true;
         } else if (id ==R.id.baud_rate) {
-            final String[] baudRates = getResources().getStringArray(R.array.baud_rates);
-            int pos = java.util.Arrays.asList(baudRates).indexOf(String.valueOf(baudRate));
+            final String[] values = getResources().getStringArray(R.array.baud_rates);
+            int pos = java.util.Arrays.asList(values).indexOf(String.valueOf(baudRate));
             AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
             builder.setTitle("Baud rate");
-            builder.setSingleChoiceItems(baudRates, pos, new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int item) {
-                    baudRate = Integer.valueOf(baudRates[item]);
-                    dialog.dismiss();
-                }
+            builder.setSingleChoiceItems(values, pos, (dialog, which) -> {
+                baudRate = Integer.parseInt(values[which]);
+                dialog.dismiss();
+            });
+            builder.create().show();
+            return true;
+        } else if (id ==R.id.read_mode) {
+            final String[] values = getResources().getStringArray(R.array.read_modes);
+            int pos = withIoManager ? 0 : 1; // read_modes[0]=event/io-manager, read_modes[1]=direct
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            builder.setTitle("Read mode");
+            builder.setSingleChoiceItems(values, pos, (dialog, which) -> {
+                withIoManager = (which == 0);
+                dialog.dismiss();
             });
             builder.create().show();
             return true;
@@ -142,6 +151,7 @@ public class DevicesFragment extends ListFragment {
             args.putInt("device", item.device.getDeviceId());
             args.putInt("port", item.port);
             args.putInt("baud", baudRate);
+            args.putBoolean("withIoManager", withIoManager);
             Fragment fragment = new TerminalFragment();
             fragment.setArguments(args);
             getFragmentManager().beginTransaction().replace(R.id.fragment, fragment, "terminal").addToBackStack(null).commit();

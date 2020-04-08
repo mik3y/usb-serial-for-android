@@ -36,6 +36,7 @@ import com.hoho.android.usbserial.util.HexDump;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.Executors;
 
 public class TerminalFragment extends Fragment implements SerialInputOutputManager.Listener {
@@ -44,8 +45,10 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
     private static final String INTENT_ACTION_GRANT_USB = BuildConfig.APPLICATION_ID + ".GRANT_USB";
     private static final int WRITE_WAIT_MILLIS = 2000;
+    private static final int READ_WAIT_MILLIS = 2000;
 
     private int deviceId, portNum, baudRate;
+    private boolean withIoManager;
 
     private BroadcastReceiver broadcastReceiver;
     private Handler mainLooper;
@@ -82,6 +85,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         deviceId = getArguments().getInt("device");
         portNum = getArguments().getInt("port");
         baudRate = getArguments().getInt("baud");
+        withIoManager = getArguments().getBoolean("withIoManager");
     }
 
     @Override
@@ -115,7 +119,13 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         TextView sendText = view.findViewById(R.id.send_text);
         View sendBtn = view.findViewById(R.id.send_btn);
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
+        View receiveBtn = view.findViewById(R.id.receive_btn);
         controlLines = new ControlLines(view);
+        if(withIoManager) {
+            receiveBtn.setVisibility(View.GONE);
+        } else {
+            receiveBtn.setOnClickListener(v -> read());
+        }
         return view;
     }
 
@@ -197,8 +207,10 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         try {
             usbSerialPort.open(usbConnection);
             usbSerialPort.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
-            usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
-            Executors.newSingleThreadExecutor().submit(usbIoManager);
+            if(withIoManager) {
+                usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
+                Executors.newSingleThreadExecutor().submit(usbIoManager);
+            }
             status("connected");
             connected = true;
             controlLines.start();
@@ -228,7 +240,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         try {
             byte[] data = (str + '\n').getBytes();
             SpannableStringBuilder spn = new SpannableStringBuilder();
-            spn.append("send " + data.length + " bytes:\n");
+            spn.append("send " + data.length + " bytes\n");
             spn.append(HexDump.dumpHexString(data)+"\n");
             spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             receiveText.append(spn);
@@ -238,11 +250,28 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         }
     }
 
+    private void read() {
+        if(!connected) {
+            Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            byte[] buffer = new byte[8192];
+            int len = usbSerialPort.read(buffer, READ_WAIT_MILLIS);
+            receive(Arrays.copyOf(buffer, len));
+        } catch (IOException e) {
+            // when using read with timeout, USB bulkTransfer returns -1 on timeout _and_ errors
+            // like connection loss, so there is typically no exception thrown here on error
+            status("connection lost: " + e.getMessage());
+            disconnect();
+        }
+    }
+
     private void receive(byte[] data) {
-        String str = new String(data);
         SpannableStringBuilder spn = new SpannableStringBuilder();
-        spn.append("receive " + data.length + " bytes:\n");
-        spn.append(HexDump.dumpHexString(data)+"\n");
+        spn.append("receive " + data.length + " bytes\n");
+        if(data.length > 0)
+            spn.append(HexDump.dumpHexString(data)+"\n");
         receiveText.append(spn);
     }
 

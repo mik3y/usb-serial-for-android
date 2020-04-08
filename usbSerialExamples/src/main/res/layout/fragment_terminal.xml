@@ -93,6 +93,12 @@
         android:textAppearance="@style/TextAppearance.AppCompat.Medium"
         android:typeface="monospace" />
 
+    <Button
+        android:id="@+id/receive_btn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Read" />
+
     <View
         android:layout_width="match_parent"
         android:background="?android:attr/listDivider"

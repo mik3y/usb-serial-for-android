@@ -6,4 +6,7 @@
     <item
         android:id="@+id/baud_rate"
         android:title="Baud rate" />
+    <item
+        android:id="@+id/read_mode"
+        android:title="Read mode" />
 </menu>
