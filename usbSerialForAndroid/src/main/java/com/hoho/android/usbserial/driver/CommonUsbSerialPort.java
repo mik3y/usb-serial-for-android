@@ -221,6 +221,10 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         return offset;
     }
 
+    @Override
+    public boolean isOpen() {
+        return mConnection != null;
+    }
 
     @Override
     public abstract void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException;

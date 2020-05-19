@@ -226,4 +226,9 @@ public interface UsbSerialPort extends Closeable {
      */
     public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException;
 
+    /**
+     * @return the current state of the connection
+     */
+    public boolean isOpen();
+
 }
