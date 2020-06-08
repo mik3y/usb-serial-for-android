@@ -90,7 +90,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		}
 
 		@Override
-		public void openInt(UsbDeviceConnection connection) throws IOException {
+		protected void openInt(UsbDeviceConnection connection) throws IOException {
 			for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
 				UsbInterface usbIface = mDevice.getInterface(i);
 				if (!mConnection.claimInterface(usbIface, true)) {
@@ -115,7 +115,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		}
 
 		@Override
-		public void closeInt() {
+		protected void closeInt() {
 			try {
 				for (int i = 0; i < mDevice.getInterfaceCount(); i++)
 					mConnection.releaseInterface(mDevice.getInterface(i));

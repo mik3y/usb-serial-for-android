@@ -68,12 +68,8 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                 mDevice.getDeviceId(), mPortNumber);
     }
 
-    /**
-     * Returns the currently-bound USB device.
-     *
-     * @return the device
-     */
-    public final UsbDevice getDevice() {
+    @Override
+    public UsbDevice getDevice() {
         return mDevice;
     }
 

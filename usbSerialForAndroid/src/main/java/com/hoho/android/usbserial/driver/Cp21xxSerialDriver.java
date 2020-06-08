@@ -137,7 +137,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void openInt(UsbDeviceConnection connection) throws IOException {
+        protected void openInt(UsbDeviceConnection connection) throws IOException {
             mIsRestrictedPort = mDevice.getInterfaceCount() == 2 && mPortNumber == 1;
             if(mPortNumber >= mDevice.getInterfaceCount()) {
                 throw new IOException("Unknown port number");
@@ -164,7 +164,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void closeInt() {
+        protected void closeInt() {
             try {
                 setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_DISABLE);
             } catch (Exception ignored) {}

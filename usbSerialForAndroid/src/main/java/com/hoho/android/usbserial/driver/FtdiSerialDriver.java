@@ -117,23 +117,23 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         return mPorts;
     }
 
-    private class FtdiSerialPort extends CommonUsbSerialPort {
+    public class FtdiSerialPort extends CommonUsbSerialPort {
 
-        public static final int USB_TYPE_STANDARD = 0x00 << 5;
-        public static final int USB_TYPE_CLASS = 0x00 << 5;
-        public static final int USB_TYPE_VENDOR = 0x00 << 5;
-        public static final int USB_TYPE_RESERVED = 0x00 << 5;
+        private static final int USB_TYPE_STANDARD = 0x00 << 5;
+        private static final int USB_TYPE_CLASS = 0x00 << 5;
+        private static final int USB_TYPE_VENDOR = 0x00 << 5;
+        private static final int USB_TYPE_RESERVED = 0x00 << 5;
 
-        public static final int USB_RECIP_DEVICE = 0x00;
-        public static final int USB_RECIP_INTERFACE = 0x01;
-        public static final int USB_RECIP_ENDPOINT = 0x02;
-        public static final int USB_RECIP_OTHER = 0x03;
+        private static final int USB_RECIP_DEVICE = 0x00;
+        private static final int USB_RECIP_INTERFACE = 0x01;
+        private static final int USB_RECIP_ENDPOINT = 0x02;
+        private static final int USB_RECIP_OTHER = 0x03;
 
-        public static final int USB_ENDPOINT_IN = 0x80;
-        public static final int USB_ENDPOINT_OUT = 0x00;
+        private static final int USB_ENDPOINT_IN = 0x80;
+        private static final int USB_ENDPOINT_OUT = 0x00;
 
-        public static final int USB_WRITE_TIMEOUT_MILLIS = 5000;
-        public static final int USB_READ_TIMEOUT_MILLIS = 5000;
+        private static final int USB_WRITE_TIMEOUT_MILLIS = 5000;
+        private static final int USB_READ_TIMEOUT_MILLIS = 5000;
 
         // From ftdi.h
         /**
@@ -175,10 +175,10 @@ public class FtdiSerialDriver implements UsbSerialDriver {
          */
         private static final int SIO_GET_MODEM_STATUS_REQUEST = 5;
 
-        public static final int SIO_MODEM_STATUS_CTS = 0x10;
-        public static final int SIO_MODEM_STATUS_DSR = 0x20;
-        public static final int SIO_MODEM_STATUS_RI = 0x40;
-        public static final int SIO_MODEM_STATUS_RLSD = 0x80;
+        private static final int SIO_MODEM_STATUS_CTS = 0x10;
+        private static final int SIO_MODEM_STATUS_DSR = 0x20;
+        private static final int SIO_MODEM_STATUS_RI = 0x40;
+        private static final int SIO_MODEM_STATUS_RLSD = 0x80;
 
         /**
          * Set the latency timer.
@@ -190,10 +190,10 @@ public class FtdiSerialDriver implements UsbSerialDriver {
          */
         private static final int SIO_GET_LATENCY_TIMER_REQUEST = 10;
 
-        public static final int FTDI_DEVICE_OUT_REQTYPE =
+        private static final int FTDI_DEVICE_OUT_REQTYPE =
                 UsbConstants.USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_OUT;
 
-        public static final int FTDI_DEVICE_IN_REQTYPE =
+        private static final int FTDI_DEVICE_IN_REQTYPE =
                 UsbConstants.USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN;
 
         /**
@@ -246,7 +246,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             return totalBytesRead - (packetsCount * 2);
         }
 
-        void reset() throws IOException {
+        private void reset() throws IOException {
             // TODO(mikey): autodetect.
             mType = DeviceType.TYPE_R;
             if(mDevice.getInterfaceCount() > 1) {
@@ -284,7 +284,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             return data[0];
         }
 
-        public int getModemStatus() throws IOException {
+        private int getModemStatus() throws IOException {
             byte[] data = new byte[2];
             int result = mConnection.controlTransfer(FTDI_DEVICE_IN_REQTYPE, SIO_GET_MODEM_STATUS_REQUEST,
                     0, mIndex, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
@@ -295,7 +295,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void openInt(UsbDeviceConnection connection) throws IOException {
+        protected void openInt(UsbDeviceConnection connection) throws IOException {
             if (connection.claimInterface(mDevice.getInterface(mPortNumber), true)) {
                 Log.d(TAG, "claimInterface " + mPortNumber + " SUCCESS");
             } else {
@@ -311,7 +311,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void closeInt() {
+        protected void closeInt() {
             try {
                 mConnection.releaseInterface(mDevice.getInterface(mPortNumber));
             } catch(Exception ignored) {}

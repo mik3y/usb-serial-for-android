@@ -21,6 +21,7 @@
 
 package com.hoho.android.usbserial.driver;
 
+import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 
@@ -86,7 +87,12 @@ public interface UsbSerialPort extends Closeable {
     public static final int STOPBITS_2 = 2;
 
     public UsbSerialDriver getDriver();
-    
+
+    /**
+     * Returns the currently-bound USB device.
+     */
+    public UsbDevice getDevice();
+
     /**
      * Port number within driver.
      */

@@ -79,7 +79,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         return mPorts;
     }
 
-    class CdcAcmSerialPort extends CommonUsbSerialPort {
+    public class CdcAcmSerialPort extends CommonUsbSerialPort {
 
         private UsbInterface mControlInterface;
         private UsbInterface mDataInterface;
@@ -109,7 +109,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void openInt(UsbDeviceConnection connection) throws IOException {
+        protected void openInt(UsbDeviceConnection connection) throws IOException {
             if (mPortNumber == -1) {
                 Log.d(TAG,"device might be castrated ACM device, trying single interface logic");
                 openSingleInterface();
@@ -210,7 +210,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void closeInt() {
+        protected void closeInt() {
             try {
                 mConnection.releaseInterface(mControlInterface);
                 mConnection.releaseInterface(mDataInterface);

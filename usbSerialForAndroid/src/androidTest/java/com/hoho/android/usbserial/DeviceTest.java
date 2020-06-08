@@ -65,6 +65,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -1674,5 +1675,58 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 fail("error expected");
         } catch (IOException ignored) {
         }
+    }
+
+    @Test
+    public void commonMethods() throws Exception {
+        String s;
+        assertNotNull(usbSerialPort.getDriver());
+        assertNotNull(usbSerialPort.getDevice());
+        assertEquals(test_device_port, usbSerialPort.getPortNumber());
+        s = usbSerialDriver.toString();
+        assertNotEquals(0, s.length());
+
+        assertFalse(usbSerialPort.isOpen());
+        usbOpen();
+        assertTrue(usbSerialPort.isOpen());
+
+        s = usbSerialPort.getSerial();
+        // with target sdk 29 can throw SecurityException before USB permission dialog is confirmed
+        // not all devices implement serial numbers. some observed values are:
+        // FT232         00000000, FTGH4NTX, ...
+        // FT2232        <null>
+        // CP2102        0001
+        // CP2105        0035E46E
+        // CH340         <null>
+        // PL2303        <null>
+        // CDC:Microbit  9900000037024e450034200b0000004a0000000097969901
+        // CDC:Digispark <null>
+    }
+
+    @Test
+    public void ftdiMethods() throws Exception {
+        if(!(usbSerialDriver instanceof FtdiSerialDriver))
+            return;
+        byte[] b;
+        usbOpen();
+        usbParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnetParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+
+        FtdiSerialDriver.FtdiSerialPort ftdiSerialPort = (FtdiSerialDriver.FtdiSerialPort) usbSerialPort;
+        int lt = ftdiSerialPort.getLatencyTimer();
+        ftdiSerialPort.setLatencyTimer(1);
+        telnetWrite("x".getBytes());
+        b = usbRead(1);
+        long t1 = System.currentTimeMillis();
+        telnetWrite("x".getBytes());
+        b = usbRead(1);
+        ftdiSerialPort.setLatencyTimer(100);
+        long t2 = System.currentTimeMillis();
+        telnetWrite("x".getBytes());
+        b = usbRead(1);
+        long t3 = System.currentTimeMillis();
+        ftdiSerialPort.setLatencyTimer(lt);
+        assertEquals("latency 1", 99, Math.max(t2-t1, 99)); // looks strange, but shows actual value
+        assertEquals("latency 100", 99, Math.min(t3-t2, 99));
     }
 }

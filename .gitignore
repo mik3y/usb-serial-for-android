@@ -33,6 +33,7 @@ build/
 # Gradle:
 .idea/gradle.xml
 .idea/libraries
+.idea/jarRepositories.xml
 
 # Eclipse/Android/Misc
 .metadata/
