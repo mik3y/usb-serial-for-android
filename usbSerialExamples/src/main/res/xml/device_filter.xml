@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 0x0403 FTDI -->
+    <!-- 0x0403 / 0x60??: FTDI -->
     <usb-device vendor-id="1027" product-id="24577" /> <!-- 0x6001: FT232R -->
     <usb-device vendor-id="1027" product-id="24592" /> <!-- 0x6010: FT2232H -->
     <usb-device vendor-id="1027" product-id="24593" /> <!-- 0x6011: FT4232H -->
     <usb-device vendor-id="1027" product-id="24596" /> <!-- 0x6014: FT232H -->
     <usb-device vendor-id="1027" product-id="24597" /> <!-- 0x6015: FT231X -->
 
-    <!-- 0x10C4 / 0xEAxx: Silabs CP210x -->
+    <!-- 0x10C4 / 0xEA??: Silabs CP210x -->
     <usb-device vendor-id="4292" product-id="60000" /> <!-- 0xea60: CP2102 -->
     <usb-device vendor-id="4292" product-id="60016" /> <!-- 0xea70: CP2105 -->
     <usb-device vendor-id="4292" product-id="60017" /> <!-- 0xea71: CP2108 -->
@@ -16,8 +16,9 @@
     <!-- 0x067B / 0x2303: Prolific PL2303 -->
     <usb-device vendor-id="1659" product-id="8963" />
 
-    <!-- 0x1a86 / 0x7523: Qinheng CH340 -->
-    <usb-device vendor-id="6790" product-id="29987" />
+    <!-- 0x1a86 / 0x?523: Qinheng CH34x -->
+    <usb-device vendor-id="6790" product-id="21795" /> <!-- 0x5523: CH341A -->
+    <usb-device vendor-id="6790" product-id="29987" /> <!-- 0x7523: CH340 -->
 
     <!-- CDC driver -->
     <usb-device vendor-id="9025" />                   <!-- 0x2341 / ......: Arduino -->

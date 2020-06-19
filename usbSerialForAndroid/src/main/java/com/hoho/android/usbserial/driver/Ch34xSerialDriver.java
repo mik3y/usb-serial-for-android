@@ -181,8 +181,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 				throw new IOException("Init failed: #5");
 			}
 
-			checkState("init #6", 0x95, 0x0706, new int[]{-1/*0xf?*/, 0xee});
-
+			checkState("init #6", 0x95, 0x0706, new int[]{-1/*0xf?*/, -1/*0xec,0xee*/});
 
 			if (controlOut(0xa1, 0x501f, 0xd90a) < 0) {
 				throw new IOException("Init failed: #7");
@@ -192,7 +191,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 			writeHandshakeByte();
 
-			checkState("init #10", 0x95, 0x0706, new int[]{-1/* 0x9f, 0xff*/, 0xee});
+			checkState("init #10", 0x95, 0x0706, new int[]{-1/* 0x9f, 0xff*/, -1/*0xec,0xee*/});
 		}
 
 
@@ -213,7 +212,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			}
 
 			factor = 0x10000 - factor;
-
+			divisor |= 0x0080; // else ch341a waits until buffer full
 			int ret = controlOut(0x9a, 0x1312, (int) ((factor & 0xff00) | divisor));
 			if (ret < 0) {
 				throw new IOException("Error setting baud rate: #1)");
@@ -335,7 +334,8 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 	public static Map<Integer, int[]> getSupportedDevices() {
 		final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
 		supportedDevices.put(UsbId.VENDOR_QINHENG, new int[]{
-				UsbId.QINHENG_HL340
+				UsbId.QINHENG_CH340,
+				UsbId.QINHENG_CH341A,
 		});
 		return supportedDevices;
 	}
