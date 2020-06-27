@@ -56,6 +56,13 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 	private static final int LCR_CS6         = 0x01;
 	private static final int LCR_CS5         = 0x00;
 
+	private static final int GCL_CTS = 0x01;
+	private static final int GCL_DSR = 0x02;
+	private static final int GCL_RI  = 0x04;
+	private static final int GCL_CD  = 0x08;
+	private static final int SCL_DTR = 0x20;
+	private static final int SCL_RTS = 0x40;
+
 	public Ch34xSerialDriver(UsbDevice device) {
 		mDevice = device;
 		mPort = new Ch340SerialPort(mDevice, 0);
@@ -160,10 +167,18 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			}
 		}
 
-		private void writeHandshakeByte() throws IOException {
-			if (controlOut(0xa4, ~((dtr ? 1 << 5 : 0) | (rts ? 1 << 6 : 0)), 0) < 0) {
-				throw new IOException("Failed to set handshake byte");
+		private void setControlLines() throws IOException {
+			if (controlOut(0xa4, ~((dtr ? SCL_DTR : 0) | (rts ? SCL_RTS : 0)), 0) < 0) {
+				throw new IOException("Failed to set control lines");
 			}
+		}
+
+		private byte getControlLines() throws IOException {
+			byte[] buffer = new byte[2];
+			int ret = controlIn(0x95, 0x0706, 0, buffer);
+			if (ret < 0)
+				throw new IOException("Error getting control lines");
+			return buffer[0];
 		}
 
 		private void initialize() throws IOException {
@@ -189,7 +204,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 			setBaudRate(DEFAULT_BAUD_RATE);
 
-			writeHandshakeByte();
+			setControlLines();
 
 			checkState("init #10", 0x95, 0x0706, new int[]{-1/* 0x9f, 0xff*/, -1/*0xec,0xee*/});
 		}
@@ -289,17 +304,17 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 		@Override
 		public boolean getCD() throws IOException {
-			return false;
+			return (getControlLines() & GCL_CD) == 0;
 		}
 
 		@Override
 		public boolean getCTS() throws IOException {
-			return false;
+			return (getControlLines() & GCL_CTS) == 0;
 		}
 
 		@Override
 		public boolean getDSR() throws IOException {
-			return false;
+			return (getControlLines() & GCL_DSR) == 0;
 		}
 
 		@Override
@@ -310,12 +325,12 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		@Override
 		public void setDTR(boolean value) throws IOException {
 			dtr = value;
-			writeHandshakeByte();
+			setControlLines();
 		}
 
 		@Override
 		public boolean getRI() throws IOException {
-			return false;
+			return (getControlLines() & GCL_RI) == 0;
 		}
 
 		@Override
@@ -326,7 +341,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		@Override
 		public void setRTS(boolean value) throws IOException {
 			rts = value;
-			writeHandshakeByte();
+			setControlLines();
 		}
 
 	}

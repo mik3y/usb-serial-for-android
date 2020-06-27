@@ -1560,6 +1560,9 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         } else if (usbSerialDriver instanceof ProlificSerialDriver) {
             inputLinesSupported = true;
             inputLinesConnected = true;
+        } else if (usbSerialDriver instanceof Ch34xSerialDriver) {
+            inputLinesSupported = true;
+            inputLinesConnected = true;
         }
 
         usbOpen(EnumSet.of(UsbOpenFlags.NO_CONTROL_LINE_INIT));
