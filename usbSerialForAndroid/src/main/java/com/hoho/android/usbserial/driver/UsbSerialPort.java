@@ -27,6 +27,7 @@ import android.hardware.usb.UsbManager;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.EnumSet;
 
 /**
  * Interface for a single serial port.
@@ -86,6 +87,12 @@ public interface UsbSerialPort extends Closeable {
     /** 2 stop bits. */
     public static final int STOPBITS_2 = 2;
 
+    /** values for get[Supported]ControlLines() */
+    public enum ControlLine { RTS, CTS,  DTR, DSR,  CD, RI };
+
+    /**
+     * Returns the driver used by this port.
+     */
     public UsbSerialDriver getDriver();
 
     /**
@@ -100,6 +107,9 @@ public interface UsbSerialPort extends Closeable {
     
     /**
      * The serial number of the underlying UsbDeviceConnection, or {@code null}.
+     *
+     * @return value from {@link UsbDeviceConnection#getSerial()}
+     * @throws SecurityException starting with target SDK 29 (Android 10) if permission for USB device is not granted
      */
     public String getSerial();
 
@@ -189,8 +199,7 @@ public interface UsbSerialPort extends Closeable {
     public boolean getDTR() throws IOException;
 
     /**
-     * Sets the DTR (Data Terminal Ready) bit on the underlying UART, if
-     * supported.
+     * Sets the DTR (Data Terminal Ready) bit on the underlying UART, if supported.
      *
      * @param value the value to set
      * @throws IOException if an error occurred during writing
@@ -214,13 +223,29 @@ public interface UsbSerialPort extends Closeable {
     public boolean getRTS() throws IOException;
 
     /**
-     * Sets the RTS (Request To Send) bit on the underlying UART, if
-     * supported.
+     * Sets the RTS (Request To Send) bit on the underlying UART, if supported.
      *
      * @param value the value to set
      * @throws IOException if an error occurred during writing
      */
     public void setRTS(boolean value) throws IOException;
+
+    /**
+     * Gets all control line values from the underlying UART, if supported.
+     * Requires less USB calls than calling getRTS() + ... + getRI() individually.
+     *
+     * @return EnumSet.contains(...) is {@code true} if set, else {@code false}
+     * @throws IOException
+     */
+    public EnumSet<ControlLine> getControlLines() throws IOException;
+
+    /**
+     * Gets all control line supported flags.
+     *
+     * @return EnumSet.contains(...) is {@code true} if supported, else {@code false}
+     * @throws IOException
+     */
+    public EnumSet<ControlLine> getSupportedControlLines() throws IOException;
 
     /**
      * purge non-transmitted output data and / or non-read input data

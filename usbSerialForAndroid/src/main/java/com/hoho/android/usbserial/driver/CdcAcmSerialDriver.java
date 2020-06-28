@@ -30,6 +30,7 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -300,6 +301,18 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             sendAcmControlMessage(SET_CONTROL_LINE_STATE, value, null);
         }
 
+        @Override
+        public EnumSet<ControlLine> getControlLines() throws IOException {
+            EnumSet<ControlLine> set = EnumSet.noneOf(ControlLine.class);
+            if(mRts) set.add(ControlLine.RTS);
+            if(mDtr) set.add(ControlLine.DTR);
+            return set;
+        }
+
+        @Override
+        public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
+            return EnumSet.of(ControlLine.RTS, ControlLine.DTR);
+        }
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {

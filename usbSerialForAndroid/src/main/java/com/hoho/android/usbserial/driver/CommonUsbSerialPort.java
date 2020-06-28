@@ -29,6 +29,7 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.EnumSet;
 
 /**
  * A base class shared by several driver implementations.
@@ -248,6 +249,12 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
     @Override
     public abstract void setRTS(boolean value) throws IOException;
+
+    @Override
+    public abstract EnumSet<ControlLine> getControlLines() throws IOException;
+
+    @Override
+    public abstract EnumSet<ControlLine> getSupportedControlLines() throws IOException;
 
     @Override
     public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {

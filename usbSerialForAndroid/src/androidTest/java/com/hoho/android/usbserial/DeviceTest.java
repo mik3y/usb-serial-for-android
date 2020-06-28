@@ -1564,12 +1564,20 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             inputLinesSupported = true;
             inputLinesConnected = true;
         }
+        EnumSet<UsbSerialPort.ControlLine> supportedControlLines = EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR);
+        if(inputLinesSupported) {
+            supportedControlLines.add(UsbSerialPort.ControlLine.CTS);
+            supportedControlLines.add(UsbSerialPort.ControlLine.DSR);
+            supportedControlLines.add(UsbSerialPort.ControlLine.CD);
+            supportedControlLines.add(UsbSerialPort.ControlLine.RI);
+        }
 
         usbOpen(EnumSet.of(UsbOpenFlags.NO_CONTROL_LINE_INIT));
         usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         Thread.sleep(sleep);
 
+        assertEquals(supportedControlLines, usbSerialPort.getSupportedControlLines());
         if(usbSerialDriver instanceof ProlificSerialDriver) {
             // the initial status is sometimes not available or wrong.
             // this is more likely if other tests have been executed before.
@@ -1579,6 +1587,10 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             assertTrue(usbSerialPort.getRI());
         }
         data = "none".getBytes();
+        assertEquals(inputLinesConnected
+                        ? EnumSet.of(UsbSerialPort.ControlLine.RI)
+                        : EnumSet.noneOf(UsbSerialPort.ControlLine.class),
+                usbSerialPort.getControlLines());
         assertFalse(usbSerialPort.getRTS());
         assertFalse(usbSerialPort.getCTS());
         assertFalse(usbSerialPort.getDTR());
@@ -1598,6 +1610,10 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         data = "rts ".getBytes();
         usbSerialPort.setRTS(true);
         Thread.sleep(sleep);
+        assertEquals(inputLinesConnected
+                        ? EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.CTS)
+                        : EnumSet.of(UsbSerialPort.ControlLine.RTS),
+                usbSerialPort.getControlLines());
         assertTrue(usbSerialPort.getRTS());
         assertEquals(usbSerialPort.getCTS(), inputLinesConnected);
         assertFalse(usbSerialPort.getDTR());
@@ -1612,6 +1628,10 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         data = "both".getBytes();
         usbSerialPort.setDTR(true);
         Thread.sleep(sleep);
+        assertEquals(inputLinesConnected
+                        ? EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR, UsbSerialPort.ControlLine.CD)
+                        : EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR),
+                usbSerialPort.getControlLines());
         assertTrue(usbSerialPort.getRTS());
         assertFalse(usbSerialPort.getCTS());
         assertTrue(usbSerialPort.getDTR());
@@ -1626,6 +1646,10 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         data = "dtr ".getBytes();
         usbSerialPort.setRTS(false);
         Thread.sleep(sleep);
+        assertEquals(inputLinesConnected
+                        ? EnumSet.of(UsbSerialPort.ControlLine.DTR, UsbSerialPort.ControlLine.DSR)
+                        : EnumSet.of(UsbSerialPort.ControlLine.DTR),
+                usbSerialPort.getControlLines());
         assertFalse(usbSerialPort.getRTS());
         assertFalse(usbSerialPort.getCTS());
         assertTrue(usbSerialPort.getDTR());
@@ -1646,6 +1670,10 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         usbOpen(EnumSet.of(UsbOpenFlags.NO_CONTROL_LINE_INIT, UsbOpenFlags.NO_IOMANAGER_THREAD));
         usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
 
+        EnumSet<UsbSerialPort.ControlLine> retainedControlLines = EnumSet.noneOf(UsbSerialPort.ControlLine.class);
+        if(outputRetained) retainedControlLines.add(UsbSerialPort.ControlLine.DTR);
+        if(inputRetained)  retainedControlLines.add(UsbSerialPort.ControlLine.DSR);
+        assertEquals(retainedControlLines, usbSerialPort.getControlLines());
         assertFalse(usbSerialPort.getRTS());
         assertFalse(usbSerialPort.getCTS());
         assertEquals(usbSerialPort.getDTR(), outputRetained);

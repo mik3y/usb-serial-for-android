@@ -29,6 +29,7 @@ import android.hardware.usb.UsbInterface;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -297,6 +298,19 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         public void setRTS(boolean value) throws IOException {
             rts = value;
             setConfigSingle(SILABSER_SET_DTR_RTS_REQUEST_CODE, rts ? RTS_ENABLE : RTS_DISABLE);
+        }
+
+        @Override
+        public EnumSet<ControlLine> getControlLines() throws IOException {
+            EnumSet<ControlLine> set = EnumSet.noneOf(ControlLine.class);
+            if(rts) set.add(ControlLine.RTS);
+            if(dtr) set.add(ControlLine.DTR);
+            return set;
+        }
+
+        @Override
+        public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
+            return EnumSet.of(ControlLine.RTS, ControlLine.DTR);
         }
 
         @Override

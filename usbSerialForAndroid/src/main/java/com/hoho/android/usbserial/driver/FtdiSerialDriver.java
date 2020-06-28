@@ -28,6 +28,7 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -525,6 +526,24 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                 throw new IOException("Set DTR failed: result=" + result);
             }
             mRtsState = value;
+        }
+
+        @Override
+        public EnumSet<ControlLine> getControlLines() throws IOException {
+            int status = getModemStatus();
+            EnumSet<ControlLine> set = EnumSet.noneOf(ControlLine.class);
+            if(mRtsState) set.add(ControlLine.RTS);
+            if((status & SIO_MODEM_STATUS_CTS) != 0) set.add(ControlLine.CTS);
+            if(mDtrState) set.add(ControlLine.DTR);
+            if((status & SIO_MODEM_STATUS_DSR) != 0) set.add(ControlLine.DSR);
+            if((status & SIO_MODEM_STATUS_RLSD) != 0) set.add(ControlLine.CD);
+            if((status & SIO_MODEM_STATUS_RI) != 0) set.add(ControlLine.RI);
+            return set;
+        }
+
+        @Override
+        public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
+            return EnumSet.allOf(ControlLine.class);
         }
 
         @Override

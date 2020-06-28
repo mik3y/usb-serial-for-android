@@ -11,7 +11,7 @@ android {
         
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments = [                    // Raspi   Windows   LinuxVM   ...
-                'rfc2217_server_host': '192.168.0.100',
+                'rfc2217_server_host': '192.168.0.110',
                 'rfc2217_server_nonstandard_baudrates': 'true',   // true    false     false
         ]
     }

@@ -37,6 +37,7 @@ import android.util.Log;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -426,7 +427,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         @Override
         public boolean getDTR() throws IOException {
-            return ((mControlLinesValue & CONTROL_DTR) == CONTROL_DTR);
+            return (mControlLinesValue & CONTROL_DTR) != 0;
         }
 
         @Override
@@ -447,7 +448,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         @Override
         public boolean getRTS() throws IOException {
-            return ((mControlLinesValue & CONTROL_RTS) == CONTROL_RTS);
+            return (mControlLinesValue & CONTROL_RTS) != 0;
         }
 
         @Override
@@ -459,6 +460,25 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                 newControlLinesValue = mControlLinesValue & ~CONTROL_RTS;
             }
             setControlLines(newControlLinesValue);
+        }
+
+
+        @Override
+        public EnumSet<ControlLine> getControlLines() throws IOException {
+            int status = getStatus();
+            EnumSet<ControlLine> set = EnumSet.noneOf(ControlLine.class);
+            if((mControlLinesValue & CONTROL_RTS) != 0) set.add(ControlLine.RTS);
+            if((status & STATUS_FLAG_CTS) != 0) set.add(ControlLine.CTS);
+            if((mControlLinesValue & CONTROL_DTR) != 0) set.add(ControlLine.DTR);
+            if((status & STATUS_FLAG_DSR) != 0) set.add(ControlLine.DSR);
+            if((status & STATUS_FLAG_CD) != 0) set.add(ControlLine.CD);
+            if((status & STATUS_FLAG_RI) != 0) set.add(ControlLine.RI);
+            return set;
+        }
+
+        @Override
+        public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
+            return EnumSet.allOf(ControlLine.class);
         }
 
         @Override

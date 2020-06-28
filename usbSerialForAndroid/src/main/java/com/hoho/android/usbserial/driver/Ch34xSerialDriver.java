@@ -28,6 +28,7 @@ import android.hardware.usb.UsbInterface;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -173,7 +174,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			}
 		}
 
-		private byte getControlLines() throws IOException {
+		private byte getStatus() throws IOException {
 			byte[] buffer = new byte[2];
 			int ret = controlIn(0x95, 0x0706, 0, buffer);
 			if (ret < 0)
@@ -304,17 +305,17 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 		@Override
 		public boolean getCD() throws IOException {
-			return (getControlLines() & GCL_CD) == 0;
+			return (getStatus() & GCL_CD) == 0;
 		}
 
 		@Override
 		public boolean getCTS() throws IOException {
-			return (getControlLines() & GCL_CTS) == 0;
+			return (getStatus() & GCL_CTS) == 0;
 		}
 
 		@Override
 		public boolean getDSR() throws IOException {
-			return (getControlLines() & GCL_DSR) == 0;
+			return (getStatus() & GCL_DSR) == 0;
 		}
 
 		@Override
@@ -330,7 +331,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 		@Override
 		public boolean getRI() throws IOException {
-			return (getControlLines() & GCL_RI) == 0;
+			return (getStatus() & GCL_RI) == 0;
 		}
 
 		@Override
@@ -344,6 +345,23 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 			setControlLines();
 		}
 
+		@Override
+		public EnumSet<ControlLine> getControlLines() throws IOException {
+			int status = getStatus();
+			EnumSet<ControlLine> set = EnumSet.noneOf(ControlLine.class);
+			if(rts) set.add(ControlLine.RTS);
+			if((status & GCL_CTS) == 0) set.add(ControlLine.CTS);
+			if(dtr) set.add(ControlLine.DTR);
+			if((status & GCL_DSR) == 0) set.add(ControlLine.DSR);
+			if((status & GCL_CD) == 0) set.add(ControlLine.CD);
+			if((status & GCL_RI) == 0) set.add(ControlLine.RI);
+			return set;
+		}
+
+		@Override
+		public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
+			return EnumSet.allOf(ControlLine.class);
+		}
 	}
 
 	public static Map<Integer, int[]> getSupportedDevices() {
