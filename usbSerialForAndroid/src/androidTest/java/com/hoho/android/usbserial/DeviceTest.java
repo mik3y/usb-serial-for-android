@@ -61,6 +61,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executors;
 
+import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1240,13 +1241,17 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         Thread.sleep(50);
         while(data.length()==0 || data.charAt(data.length()-1)!='d')
             data.append(new String(telnetRead()));
-        Log.i(TAG, "purgeHwBuffers " + purged + ": " + buf.length+1 + " -> " + data.length());
+        Log.i(TAG, "purgeHwBuffers " + purged + ": " + (buf.length+3) + " -> " + data.length());
 
         assertTrue(data.length() > 5);
-        if(purged)
-            assertTrue(data.length() < buf.length+1);
-        else
+        if(purged) {
+            if(usbSerialDriver instanceof Cp21xxSerialDriver && usbSerialDriver.getPorts().size() == 1) // only working on some devices/ports
+                assertTrue(data.length() < buf.length + 1 || data.length() == buf.length + 3);
+            else
+                assertTrue(data.length() < buf.length + 1);
+        } else {
             assertEquals(data.length(), buf.length + 3);
+        }
 
         // purge read buffer
         usbClose();
@@ -1266,7 +1271,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 } else if(usbSerialDriver.getPorts().size() > 1) {
                     assertThat(usbRead(1), equalTo("y".getBytes()));  // cp2105/0
                 } else {
-                    assertThat(usbRead(2), equalTo("xy".getBytes())); // cp2102
+                    assertThat(usbRead(2), anyOf(equalTo("xy".getBytes()), // cp2102
+                                                                equalTo("y".getBytes()))); // cp2102
                 }
             } else {
                 assertThat(usbRead(1), equalTo("y".getBytes()));
@@ -1408,6 +1414,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             usbClose();
             // date loss with high transfer rate and short read timeout !!!
             diffLen = readSpeedInt(5, shortTimeout);
+
             assertNotEquals(0, diffLen);
 
             // data loss observed with read timeout up to 200 msec, e.g.
@@ -1498,7 +1505,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
                 wrongSerialPort.open(wrongDeviceConnection);
                 if(usbSerialDriver instanceof Cp21xxSerialDriver)
                     wrongSerialPort.setParameters(115200, UsbSerialPort.DATABITS_8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE); // ch340 fails here
-                fail("error expected");
+                //fail("error expected"); // only fails on some devices
             } catch (IOException ignored) {
             }
             try {
@@ -1552,11 +1559,15 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         int sleep = 10;
 
         // output lines are supported by all drivers
+        // input lines are supported by all drivers except CDC
         boolean inputLinesSupported = false;
         boolean inputLinesConnected = false;
         if (usbSerialDriver instanceof FtdiSerialDriver) {
             inputLinesSupported = true;
-            inputLinesConnected = usbSerialDriver.getPorts().size()==2; // I only have 74LS138 connected at FT2232
+            inputLinesConnected = usbSerialDriver.getPorts().size() == 2; // I only have 74LS138 connected at FT2232
+        } else if (usbSerialDriver instanceof Cp21xxSerialDriver) {
+            inputLinesSupported = true;
+            inputLinesConnected = usbSerialDriver.getPorts().size()==1; // I only have 74LS138 connected at CP2102
         } else if (usbSerialDriver instanceof ProlificSerialDriver) {
             inputLinesSupported = true;
             inputLinesConnected = true;
@@ -1572,6 +1583,9 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             supportedControlLines.add(UsbSerialPort.ControlLine.RI);
         }
 
+        // UsbSerialProber creates new UsbSerialPort objects which resets control lines,
+        // so the initial open has the output control lines unset.
+        // On additional close+open the output control lines can be retained.
         usbOpen(EnumSet.of(UsbOpenFlags.NO_CONTROL_LINE_INIT));
         usbParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnetParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -1586,6 +1600,8 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
             Thread.sleep(sleep);
             assertTrue(usbSerialPort.getRI());
         }
+
+        // control lines reset on initial open
         data = "none".getBytes();
         assertEquals(inputLinesConnected
                         ? EnumSet.of(UsbSerialPort.ControlLine.RI)
@@ -1661,7 +1677,7 @@ public class DeviceTest implements SerialInputOutputManager.Listener {
         usbWrite(data);
         assertThat(Arrays.toString(data), telnetRead(4), equalTo(data));
 
-        // state retained over close/open
+        // control lines retained over close+open
         boolean inputRetained = inputLinesConnected;
         boolean outputRetained = true;
         if(usbSerialDriver instanceof FtdiSerialDriver)

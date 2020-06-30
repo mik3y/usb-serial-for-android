@@ -61,28 +61,26 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
     public class Cp21xxSerialPort extends CommonUsbSerialPort {
 
-        private static final int DEFAULT_BAUD_RATE = 9600;
-
         private static final int USB_WRITE_TIMEOUT_MILLIS = 5000;
 
         /*
          * Configuration Request Types
          */
         private static final int REQTYPE_HOST_TO_DEVICE = 0x41;
+        private static final int REQTYPE_DEVICE_TO_HOST = 0xc1;
 
         /*
          * Configuration Request Codes
          */
         private static final int SILABSER_IFC_ENABLE_REQUEST_CODE = 0x00;
-        private static final int SILABSER_SET_BAUDDIV_REQUEST_CODE = 0x01;
         private static final int SILABSER_SET_LINE_CTL_REQUEST_CODE = 0x03;
         private static final int SILABSER_SET_MHS_REQUEST_CODE = 0x07;
         private static final int SILABSER_SET_BAUDRATE = 0x1E;
         private static final int SILABSER_FLUSH_REQUEST_CODE = 0x12;
-        private static final int SILABSER_SET_DTR_RTS_REQUEST_CODE = 0x07;
+        private static final int SILABSER_GET_MDMSTS_REQUEST_CODE = 0x08;
 
-       private static final int FLUSH_READ_CODE = 0x0a;
-       private static final int FLUSH_WRITE_CODE = 0x05;
+        private static final int FLUSH_READ_CODE = 0x0a;
+        private static final int FLUSH_WRITE_CODE = 0x05;
 
         /*
          * SILABSER_IFC_ENABLE_REQUEST_CODE
@@ -91,27 +89,21 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         private static final int UART_DISABLE = 0x0000;
 
         /*
-         * SILABSER_SET_BAUDDIV_REQUEST_CODE
-         */
-        private static final int BAUD_RATE_GEN_FREQ = 0x384000;
-
-        /*
          * SILABSER_SET_MHS_REQUEST_CODE
-         */
-        private static final int MCR_DTR = 0x0001;
-        private static final int MCR_RTS = 0x0002;
-        private static final int MCR_ALL = 0x0003;
-
-        private static final int CONTROL_WRITE_DTR = 0x0100;
-        private static final int CONTROL_WRITE_RTS = 0x0200;
-
-        /*
-         * SILABSER_SET_DTR_RTS_REQUEST_CODE
          */
         private static final int DTR_ENABLE = 0x101;
         private static final int DTR_DISABLE = 0x100;
         private static final int RTS_ENABLE = 0x202;
         private static final int RTS_DISABLE = 0x200;
+
+        /*
+        * SILABSER_GET_MDMSTS_REQUEST_CODE
+         */
+        private static final int STATUS_CTS = 0x10;
+        private static final int STATUS_DSR = 0x20;
+        private static final int STATUS_RI = 0x40;
+        private static final int STATUS_CD = 0x80;
+
 
         private boolean dtr = false;
         private boolean rts = false;
@@ -137,6 +129,16 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             }
         }
 
+        private byte getStatus() throws IOException {
+            byte[] buffer = new byte[1];
+            int result = mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST, SILABSER_GET_MDMSTS_REQUEST_CODE, 0,
+                    mPortNumber, buffer, buffer.length, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 1) {
+                throw new IOException("Control transfer failed: " + SILABSER_GET_MDMSTS_REQUEST_CODE + " / " + 0 + " -> " + result);
+            }
+            return buffer[0];
+        }
+
         @Override
         protected void openInt(UsbDeviceConnection connection) throws IOException {
             mIsRestrictedPort = mDevice.getInterfaceCount() == 2 && mPortNumber == 1;
@@ -159,9 +161,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             }
 
             setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_ENABLE);
-            setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, MCR_ALL | CONTROL_WRITE_DTR | CONTROL_WRITE_RTS);
-//            setConfigSingle(SILABSER_SET_BAUDDIV_REQUEST_CODE, BAUD_RATE_GEN_FREQ / DEFAULT_BAUD_RATE);
-//            setParameters(DEFAULT_BAUD_RATE, DEFAULT_DATA_BITS, DEFAULT_STOP_BITS, DEFAULT_PARITY);
+            setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, (dtr ? DTR_ENABLE : DTR_DISABLE) | (rts ? RTS_ENABLE : RTS_DISABLE));
         }
 
         @Override
@@ -260,17 +260,17 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         public boolean getCD() throws IOException {
-            return false;
+            return (getStatus() & STATUS_CD) != 0;
         }
 
         @Override
         public boolean getCTS() throws IOException {
-            return false;
+            return (getStatus() & STATUS_CTS) != 0;
         }
 
         @Override
         public boolean getDSR() throws IOException {
-            return false;
+            return (getStatus() & STATUS_DSR) != 0;
         }
 
         @Override
@@ -281,12 +281,12 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         @Override
         public void setDTR(boolean value) throws IOException {
             dtr = value;
-            setConfigSingle(SILABSER_SET_DTR_RTS_REQUEST_CODE, dtr ? DTR_ENABLE : DTR_DISABLE);
+            setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, dtr ? DTR_ENABLE : DTR_DISABLE);
         }
 
         @Override
         public boolean getRI() throws IOException {
-            return false;
+            return (getStatus() & STATUS_RI) != 0;
         }
 
         @Override
@@ -297,23 +297,29 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         @Override
         public void setRTS(boolean value) throws IOException {
             rts = value;
-            setConfigSingle(SILABSER_SET_DTR_RTS_REQUEST_CODE, rts ? RTS_ENABLE : RTS_DISABLE);
+            setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, rts ? RTS_ENABLE : RTS_DISABLE);
         }
 
         @Override
         public EnumSet<ControlLine> getControlLines() throws IOException {
+            byte status = getStatus();
             EnumSet<ControlLine> set = EnumSet.noneOf(ControlLine.class);
             if(rts) set.add(ControlLine.RTS);
+            if((status & STATUS_CTS) != 0) set.add(ControlLine.CTS);
             if(dtr) set.add(ControlLine.DTR);
+            if((status & STATUS_DSR) != 0) set.add(ControlLine.DSR);
+            if((status & STATUS_CD) != 0) set.add(ControlLine.CD);
+            if((status & STATUS_RI) != 0) set.add(ControlLine.RI);
             return set;
         }
 
         @Override
         public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
-            return EnumSet.of(ControlLine.RTS, ControlLine.DTR);
+            return EnumSet.allOf(ControlLine.class);
         }
 
         @Override
+        // note: only working on some devices, on other devices ignored w/o error
         public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
             int value = (purgeReadBuffers ? FLUSH_READ_CODE : 0)
                     | (purgeWriteBuffers ? FLUSH_WRITE_CODE : 0);
