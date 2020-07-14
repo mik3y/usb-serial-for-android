@@ -383,6 +383,44 @@ public class DeviceTest {
                 assertThat("42000/8N1", data2, equalTo(buf2));
             }
         }
+        if (usbSerialDriver instanceof FtdiSerialDriver) {
+            try {
+                usbParameters(183, 8, 1, UsbSerialPort.PARITY_NONE);
+                fail("baud rate to low expected");
+            } catch (IOException ignored) {
+            }
+            usbParameters(184, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters( 960000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(1000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(1043478, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(1090909, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(1142857, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(1200000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(1263157, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(1333333, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(1411764, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(1500000, 8, 1, UsbSerialPort.PARITY_NONE);
+            try {
+                usbParameters((int)(2000000/1.04), 8, 1, UsbSerialPort.PARITY_NONE);
+                fail("baud rate error expected");
+            } catch (IOException ignored) {
+            }
+            usbParameters((int)(2000000/1.03), 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters((int)(2000000*1.03), 8, 1, UsbSerialPort.PARITY_NONE);
+            try {
+                usbParameters((int)(2000000*1.04), 8, 1, UsbSerialPort.PARITY_NONE);
+                fail("baud rate error expected");
+            } catch (IOException ignored) {
+            }
+            usbParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usbParameters(3000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            try {
+                usbParameters(4000000, 8, 1, UsbSerialPort.PARITY_NONE);
+                fail("baud rate to high expected");
+            } catch (IOException ignored) {
+            }
+        }
         { // non matching baud rate
             telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
             usb.setParameters(2400, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -1366,8 +1404,6 @@ public class DeviceTest {
         // control lines retained over close+open
         boolean inputRetained = inputLinesConnected;
         boolean outputRetained = true;
-        if(usb.serialDriver instanceof FtdiSerialDriver)
-            outputRetained = false; // todo
         usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);

@@ -158,9 +158,6 @@ complete license.
 
 Copyright 2011-2012, Google Inc. All Rights Reserved.
 
-Portions of this library are based on [libftdi](http://www.intra2net.com/en/developer/libftdi).
-Please see FtdiSerialDriver.java for more information.
-
 ## Help & Discussion
 
 For common problems, see the
