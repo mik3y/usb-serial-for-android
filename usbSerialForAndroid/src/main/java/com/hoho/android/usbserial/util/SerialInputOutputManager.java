@@ -130,8 +130,6 @@ public class SerialInputOutputManager implements Runnable {
     /**
      * Continuously services the read and write buffers until {@link #stop()} is
      * called, or until a driver exception is raised.
-     *
-     * NOTE(mikey): Uses inefficient read/write-with-timeout.
      */
     @Override
     public void run() {
