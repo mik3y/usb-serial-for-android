@@ -150,7 +150,6 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
             UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
             deviceConnection = usbManager.openDevice(serialDriver.getDevice());
         }
-        //serialPort = serialDriver.getPorts().get(devicePort);
         serialPort.open(deviceConnection);
         if(!flags.contains(OpenCloseFlags.NO_CONTROL_LINE_INIT)) {
             serialPort.setDTR(true);
@@ -250,7 +249,6 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
     @Override
     public void onRunError(Exception e) {
         readError = e;
-        //fail("usb connection lost");
     }
 
 }

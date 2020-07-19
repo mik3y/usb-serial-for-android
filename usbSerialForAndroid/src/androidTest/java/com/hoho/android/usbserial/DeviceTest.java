@@ -523,6 +523,8 @@ public class DeviceTest {
 
         if (usb.serialDriver instanceof CdcAcmSerialDriver) {
             // not supported by arduino_leonardo_bridge.ino, other devices might support it
+            usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
+            usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_SPACE);
         } else {
             usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
             usb.write(_8n1);
@@ -587,7 +589,7 @@ public class DeviceTest {
         }
 
         if (usb.serialDriver instanceof CdcAcmSerialDriver) {
-            usb.setParameters(19200, 8, UsbSerialPort.STOPBITS_2, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(19200, 8, UsbSerialPort.STOPBITS_1_5, UsbSerialPort.PARITY_NONE);
             // software based bridge in arduino_leonardo_bridge.ino is to slow for real test, other devices might support it
         } else {
             // shift stopbits into next byte, by using different databits
@@ -1413,6 +1415,7 @@ public class DeviceTest {
         byte buf[] = new byte[256];
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+
         usb.write("x".getBytes());
         usb.serialPort.read(buf, 1000);
         usb.serialPort.setRTS(true);
@@ -1422,7 +1425,8 @@ public class DeviceTest {
         usb.deviceConnection.close();
         try {
             usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
-            fail("setParameters error expected");
+            if(!(usb.serialDriver instanceof ProlificSerialDriver))
+                fail("setParameters error expected");
         } catch (IOException ignored) {
         }
         try {
@@ -1441,10 +1445,13 @@ public class DeviceTest {
             fail("setRts error expected");
         } catch (IOException ignored) {
         }
-        try {
-            usb.serialPort.getRI();
-            fail("setRts error expected");
-        } catch (IOException ignored) {
+        if(usb.serialPort.getSupportedControlLines().contains(UsbSerialPort.ControlLine.RI) ) {
+            try {
+                usb.serialPort.getRI();
+                if(!(usb.serialDriver instanceof ProlificSerialDriver))
+                    fail("getRI error expected");
+            } catch (IOException ignored) {
+            }
         }
         if(purged) {
             try {
@@ -1466,6 +1473,8 @@ public class DeviceTest {
         usb.write("x".getBytes());
         otherDeviceConnection.close();
         usb.write("x".getBytes());
+
+        // already queued read request is not interrupted by closing deviceConnection and test would hang
     }
 
     @Test
@@ -1492,6 +1501,17 @@ public class DeviceTest {
         // PL2303        <null>
         // CDC:Microbit  9900000037024e450034200b0000004a0000000097969901
         // CDC:Digispark <null>
+
+        try {
+            usb.open();
+            fail("already open error expected");
+        } catch (IOException ignored) {
+        }
+        try {
+            usb.ioManager.run();
+            fail("already running error expected");
+        } catch (IllegalStateException ignored) {
+        }
     }
 
     @Test
