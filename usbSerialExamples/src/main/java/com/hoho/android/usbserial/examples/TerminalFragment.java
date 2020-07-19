@@ -289,7 +289,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         private ToggleButton rtsBtn, ctsBtn, dtrBtn, dsrBtn, cdBtn, riBtn;
 
         ControlLines(View view) {
-            runnable = this::start; // w/o explicit Runnable, a new lambda would be created on each postDelayed, which would not be found again by removeCallbacks
+            runnable = this::run; // w/o explicit Runnable, a new lambda would be created on each postDelayed, which would not be found again by removeCallbacks
 
             rtsBtn = view.findViewById(R.id.controlLineRts);
             ctsBtn = view.findViewById(R.id.controlLineCts);
@@ -317,7 +317,9 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             }
         }
 
-        private boolean refresh() {
+        private void run() {
+            if (!connected)
+                return;
             try {
                 EnumSet<UsbSerialPort.ControlLine> controlLines = usbSerialPort.getControlLines();
                 rtsBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.RTS));
@@ -326,33 +328,37 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                 dsrBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.DSR));
                 cdBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.CD));
                 riBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.RI));
+                mainLooper.postDelayed(runnable, refreshInterval);
             } catch (IOException e) {
                 status("getControlLines() failed: " + e.getMessage() + " -> stopped control line refresh");
-                return false;
             }
-            return true;
         }
 
         void start() {
-            if (connected) {
-                try {
-                    EnumSet<UsbSerialPort.ControlLine> controlLines = usbSerialPort.getSupportedControlLines();
-                    if (!controlLines.contains(UsbSerialPort.ControlLine.RTS)) rtsBtn.setVisibility(View.INVISIBLE);
-                    if (!controlLines.contains(UsbSerialPort.ControlLine.CTS)) ctsBtn.setVisibility(View.INVISIBLE);
-                    if (!controlLines.contains(UsbSerialPort.ControlLine.DTR)) dtrBtn.setVisibility(View.INVISIBLE);
-                    if (!controlLines.contains(UsbSerialPort.ControlLine.DSR)) dsrBtn.setVisibility(View.INVISIBLE);
-                    if (!controlLines.contains(UsbSerialPort.ControlLine.CD))   cdBtn.setVisibility(View.INVISIBLE);
-                    if (!controlLines.contains(UsbSerialPort.ControlLine.RI))   riBtn.setVisibility(View.INVISIBLE);
-                } catch (IOException e) {
-                    Toast.makeText(getActivity(), "getSupportedControlLines() failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-                if (refresh())
-                    mainLooper.postDelayed(runnable, refreshInterval);
+            if (!connected)
+                return;
+            try {
+                EnumSet<UsbSerialPort.ControlLine> controlLines = usbSerialPort.getSupportedControlLines();
+                if (!controlLines.contains(UsbSerialPort.ControlLine.RTS)) rtsBtn.setVisibility(View.INVISIBLE);
+                if (!controlLines.contains(UsbSerialPort.ControlLine.CTS)) ctsBtn.setVisibility(View.INVISIBLE);
+                if (!controlLines.contains(UsbSerialPort.ControlLine.DTR)) dtrBtn.setVisibility(View.INVISIBLE);
+                if (!controlLines.contains(UsbSerialPort.ControlLine.DSR)) dsrBtn.setVisibility(View.INVISIBLE);
+                if (!controlLines.contains(UsbSerialPort.ControlLine.CD))   cdBtn.setVisibility(View.INVISIBLE);
+                if (!controlLines.contains(UsbSerialPort.ControlLine.RI))   riBtn.setVisibility(View.INVISIBLE);
+                run();
+            } catch (IOException e) {
+                Toast.makeText(getActivity(), "getSupportedControlLines() failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             }
         }
 
         void stop() {
             mainLooper.removeCallbacks(runnable);
+            rtsBtn.setChecked(false);
+            ctsBtn.setChecked(false);
+            dtrBtn.setChecked(false);
+            dsrBtn.setChecked(false);
+            cdBtn.setChecked(false);
+            riBtn.setChecked(false);
         }
     }
 }
