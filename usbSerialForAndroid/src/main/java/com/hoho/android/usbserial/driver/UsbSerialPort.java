@@ -118,13 +118,13 @@ public interface UsbSerialPort extends Closeable {
      * {@link #close()} is eventually called.
      *
      * @param connection an open device connection, acquired with
-     *            {@link UsbManager#openDevice(android.hardware.usb.UsbDevice)}
+     *                   {@link UsbManager#openDevice(android.hardware.usb.UsbDevice)}
      * @throws IOException on error opening or initializing the port.
      */
     public void open(UsbDeviceConnection connection) throws IOException;
 
     /**
-     * Closes the port.
+     * Closes the port and {@link UsbDeviceConnection}
      *
      * @throws IOException on error closing the port.
      */
@@ -155,14 +155,12 @@ public interface UsbSerialPort extends Closeable {
      *
      * @param baudRate baud rate as an integer, for example {@code 115200}.
      * @param dataBits one of {@link #DATABITS_5}, {@link #DATABITS_6},
-     *            {@link #DATABITS_7}, or {@link #DATABITS_8}.
-     * @param stopBits one of {@link #STOPBITS_1}, {@link #STOPBITS_1_5}, or
-     *            {@link #STOPBITS_2}.
+     *                 {@link #DATABITS_7}, or {@link #DATABITS_8}.
+     * @param stopBits one of {@link #STOPBITS_1}, {@link #STOPBITS_1_5}, or {@link #STOPBITS_2}.
      * @param parity one of {@link #PARITY_NONE}, {@link #PARITY_ODD},
-     *            {@link #PARITY_EVEN}, {@link #PARITY_MARK}, or
-     *            {@link #PARITY_SPACE}.
+     *               {@link #PARITY_EVEN}, {@link #PARITY_MARK}, or {@link #PARITY_SPACE}.
      * @throws IOException on error setting the port parameters
-     * @throws UnsupportedOperationException if not supported by a specific device
+     * @throws UnsupportedOperationException if values are not supported by a specific device
      */
     public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException;
 
@@ -235,7 +233,7 @@ public interface UsbSerialPort extends Closeable {
      * Requires less USB calls than calling getRTS() + ... + getRI() individually.
      *
      * @return EnumSet.contains(...) is {@code true} if set, else {@code false}
-     * @throws IOException
+     * @throws IOException if an error occurred during reading
      */
     public EnumSet<ControlLine> getControlLines() throws IOException;
 
@@ -243,22 +241,23 @@ public interface UsbSerialPort extends Closeable {
      * Gets all control line supported flags.
      *
      * @return EnumSet.contains(...) is {@code true} if supported, else {@code false}
-     * @throws IOException
+     * @throws IOException if an error occurred during reading
      */
     public EnumSet<ControlLine> getSupportedControlLines() throws IOException;
 
     /**
-     * purge non-transmitted output data and / or non-read input data
+     * Purge non-transmitted output data and / or non-read input data.
+     *
      * @param purgeWriteBuffers {@code true} to discard non-transmitted output data
      * @param purgeReadBuffers {@code true} to discard non-read input data
      * @return {@code true} if the operation was successful, or
-     * {@code false} if the operation is not supported by the driver or device
+     *         {@code false} if the operation is not supported by the driver or device
      * @throws IOException if an error occurred during flush
      */
     public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException;
 
     /**
-     * @return the current state of the connection
+     * Returns the current state of the connection.
      */
     public boolean isOpen();
 
