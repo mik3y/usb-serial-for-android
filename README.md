@@ -141,7 +141,7 @@ This library supports USB to serial converter chips:
 * FTDI FT232, FT2232, ...
 * Prolific PL2303
 * Silabs CP2102, CP2105, ...
-* Qinheng CH340
+* Qinheng CH340, CH341A
 
 and devices implementing the CDC/ACM protocol like
 * Arduino using ATmega32U4

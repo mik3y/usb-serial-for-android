@@ -33,12 +33,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Driver for CH340, maybe also working with CH341, but not tested
- * See http://wch-ic.com/product/usb/ch340.asp
- *
- * @author Andreas Butti
- */
 public class Ch34xSerialDriver implements UsbSerialDriver {
 
 	private static final String TAG = Ch34xSerialDriver.class.getSimpleName();
