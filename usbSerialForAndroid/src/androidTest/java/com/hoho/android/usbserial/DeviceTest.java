@@ -383,40 +383,40 @@ public class DeviceTest {
                 assertThat("42000/8N1", data2, equalTo(buf2));
             }
         }
-        if (usbSerialDriver instanceof FtdiSerialDriver) {
+        if (usb.serialDriver instanceof FtdiSerialDriver) {
             try {
-                usbParameters(183, 8, 1, UsbSerialPort.PARITY_NONE);
+                usb.setParameters(183, 8, 1, UsbSerialPort.PARITY_NONE);
                 fail("baud rate to low expected");
             } catch (IOException ignored) {
             }
-            usbParameters(184, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters( 960000, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(1000000, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(1043478, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(1090909, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(1142857, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(1200000, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(1263157, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(1333333, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(1411764, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(1500000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(184, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters( 960000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1043478, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1090909, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1142857, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1200000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1263157, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1333333, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1411764, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1500000, 8, 1, UsbSerialPort.PARITY_NONE);
             try {
-                usbParameters((int)(2000000/1.04), 8, 1, UsbSerialPort.PARITY_NONE);
+                usb.setParameters((int)(2000000/1.04), 8, 1, UsbSerialPort.PARITY_NONE);
                 fail("baud rate error expected");
             } catch (IOException ignored) {
             }
-            usbParameters((int)(2000000/1.03), 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters((int)(2000000*1.03), 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters((int)(2000000/1.03), 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters((int)(2000000*1.03), 8, 1, UsbSerialPort.PARITY_NONE);
             try {
-                usbParameters((int)(2000000*1.04), 8, 1, UsbSerialPort.PARITY_NONE);
+                usb.setParameters((int)(2000000*1.04), 8, 1, UsbSerialPort.PARITY_NONE);
                 fail("baud rate error expected");
             } catch (IOException ignored) {
             }
-            usbParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
-            usbParameters(3000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(3000000, 8, 1, UsbSerialPort.PARITY_NONE);
             try {
-                usbParameters(4000000, 8, 1, UsbSerialPort.PARITY_NONE);
+                usb.setParameters(4000000, 8, 1, UsbSerialPort.PARITY_NONE);
                 fail("baud rate to high expected");
             } catch (IOException ignored) {
             }
