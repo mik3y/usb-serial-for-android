@@ -152,32 +152,36 @@ public interface UsbSerialPort extends Closeable {
     /**
      * Gets the CD (Carrier Detect) bit from the underlying UART.
      *
-     * @return the current state, or {@code false} if not supported.
+     * @return the current state
      * @throws IOException if an error occurred during reading
+     * @throws UnsupportedOperationException if not supported
      */
     public boolean getCD() throws IOException;
 
     /**
      * Gets the CTS (Clear To Send) bit from the underlying UART.
      *
-     * @return the current state, or {@code false} if not supported.
+     * @return the current state
      * @throws IOException if an error occurred during reading
+     * @throws UnsupportedOperationException if not supported
      */
     public boolean getCTS() throws IOException;
 
     /**
      * Gets the DSR (Data Set Ready) bit from the underlying UART.
      *
-     * @return the current state, or {@code false} if not supported.
+     * @return the current state
      * @throws IOException if an error occurred during reading
+     * @throws UnsupportedOperationException if not supported
      */
     public boolean getDSR() throws IOException;
 
     /**
      * Gets the DTR (Data Terminal Ready) bit from the underlying UART.
      *
-     * @return the current state, or {@code false} if not supported.
+     * @return the current state
      * @throws IOException if an error occurred during reading
+     * @throws UnsupportedOperationException if not supported
      */
     public boolean getDTR() throws IOException;
 
@@ -186,22 +190,25 @@ public interface UsbSerialPort extends Closeable {
      *
      * @param value the value to set
      * @throws IOException if an error occurred during writing
+     * @throws UnsupportedOperationException if not supported
      */
     public void setDTR(boolean value) throws IOException;
 
     /**
      * Gets the RI (Ring Indicator) bit from the underlying UART.
      *
-     * @return the current state, or {@code false} if not supported.
+     * @return the current state
      * @throws IOException if an error occurred during reading
+     * @throws UnsupportedOperationException if not supported
      */
     public boolean getRI() throws IOException;
 
     /**
      * Gets the RTS (Request To Send) bit from the underlying UART.
      *
-     * @return the current state, or {@code false} if not supported.
+     * @return the current state
      * @throws IOException if an error occurred during reading
+     * @throws UnsupportedOperationException if not supported
      */
     public boolean getRTS() throws IOException;
 
@@ -210,6 +217,7 @@ public interface UsbSerialPort extends Closeable {
      *
      * @param value the value to set
      * @throws IOException if an error occurred during writing
+     * @throws UnsupportedOperationException if not supported
      */
     public void setRTS(boolean value) throws IOException;
 
@@ -235,11 +243,10 @@ public interface UsbSerialPort extends Closeable {
      *
      * @param purgeWriteBuffers {@code true} to discard non-transmitted output data
      * @param purgeReadBuffers {@code true} to discard non-read input data
-     * @return {@code true} if the operation was successful, or
-     *         {@code false} if the operation is not supported by the driver or device
      * @throws IOException if an error occurred during flush
+     * @throws UnsupportedOperationException if not supported
      */
-    public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException;
+    public void purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException;
 
     /**
      * Returns the current state of the connection.

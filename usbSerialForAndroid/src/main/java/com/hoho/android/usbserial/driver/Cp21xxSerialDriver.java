@@ -305,15 +305,13 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         // note: only working on some devices, on other devices ignored w/o error
-        public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
+        public void purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
             int value = (purgeReadBuffers ? FLUSH_READ_CODE : 0)
                     | (purgeWriteBuffers ? FLUSH_WRITE_CODE : 0);
 
             if (value != 0) {
                 setConfigSingle(SILABSER_FLUSH_REQUEST_CODE, value);
             }
-
-            return true;
         }
 
     }

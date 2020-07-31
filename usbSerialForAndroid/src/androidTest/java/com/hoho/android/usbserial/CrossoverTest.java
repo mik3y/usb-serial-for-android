@@ -32,6 +32,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 @RunWith(AndroidJUnit4.class)
 public class CrossoverTest {
@@ -51,6 +52,9 @@ public class CrossoverTest {
 
     @Before
     public void setUp() throws Exception {
+        assumeTrue("ignore test for device specific coverage report",
+                InstrumentationRegistry.getArguments().getString("test_device_driver") == null);
+
         context = InstrumentationRegistry.getContext();
         usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);

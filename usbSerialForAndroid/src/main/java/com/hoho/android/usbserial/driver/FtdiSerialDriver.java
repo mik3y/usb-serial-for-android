@@ -337,7 +337,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
+        public void purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
             if (purgeWriteBuffers) {
                 int result = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, RESET_REQUEST,
                         RESET_PURGE_RX, mPortNumber+1, null, 0, USB_WRITE_TIMEOUT_MILLIS);
@@ -353,7 +353,6 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                     throw new IOException("purge read buffer failed: result=" + result);
                 }
             }
-            return true;
         }
 
         public void setLatencyTimer(int latencyTime) throws IOException {

@@ -212,28 +212,28 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public abstract void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException;
 
     @Override
-    public abstract boolean getCD() throws IOException;
+    public boolean getCD() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract boolean getCTS() throws IOException;
+    public boolean getCTS() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract boolean getDSR() throws IOException;
+    public boolean getDSR() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract boolean getDTR() throws IOException;
+    public boolean getDTR() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract void setDTR(boolean value) throws IOException;
+    public void setDTR(boolean value) throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract boolean getRI() throws IOException;
+    public boolean getRI() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract boolean getRTS() throws IOException;
+    public boolean getRTS() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract void setRTS(boolean value) throws IOException;
+    public void setRTS(boolean value) throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
     public abstract EnumSet<ControlLine> getControlLines() throws IOException;
@@ -242,8 +242,8 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public abstract EnumSet<ControlLine> getSupportedControlLines() throws IOException;
 
     @Override
-    public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
-        return false;
+    public void purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
 }

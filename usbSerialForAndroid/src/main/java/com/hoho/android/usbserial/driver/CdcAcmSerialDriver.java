@@ -240,21 +240,6 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public boolean getCD() throws IOException {
-            return false;  // TODO
-        }
-
-        @Override
-        public boolean getCTS() throws IOException {
-            return false;  // TODO
-        }
-
-        @Override
-        public boolean getDSR() throws IOException {
-            return false;  // TODO
-        }
-
-        @Override
         public boolean getDTR() throws IOException {
             return mDtr;
         }
@@ -263,11 +248,6 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         public void setDTR(boolean value) throws IOException {
             mDtr = value;
             setDtrRts();
-        }
-
-        @Override
-        public boolean getRI() throws IOException {
-            return false;  // TODO
         }
 
         @Override

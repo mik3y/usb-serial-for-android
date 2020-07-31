@@ -464,7 +464,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
+        public void purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
             if (purgeWriteBuffers) {
                 vendorOut(FLUSH_RX_REQUEST, 0, null);
             }
@@ -472,8 +472,6 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             if (purgeReadBuffers) {
                 vendorOut(FLUSH_TX_REQUEST, 0, null);
             }
-
-            return true;
         }
     }
 
