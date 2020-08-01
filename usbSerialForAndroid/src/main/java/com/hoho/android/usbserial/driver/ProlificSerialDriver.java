@@ -1,28 +1,10 @@
-/* This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+/*
+ * Ported to usb-serial-for-android by Felix Hädicke <felixhaedicke@web.de>
  *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- * USA.
+ * Based on the pyprolific driver written by Emmanuel Blot <emmanuel.blot@free.fr>
+ * See https://github.com/eblot/pyftdi
  *
  * Project home page: https://github.com/mik3y/usb-serial-for-android
- */
-
-/*
- * Ported to usb-serial-for-android
- * by Felix Hädicke <felixhaedicke@web.de>
- *
- * Based on the pyprolific driver written
- * by Emmanuel Blot <emmanuel.blot@free.fr>
- * See https://github.com/eblot/pyftdi
  */
 
 package com.hoho.android.usbserial.driver;
@@ -482,7 +464,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
+        public void purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
             if (purgeWriteBuffers) {
                 vendorOut(FLUSH_RX_REQUEST, 0, null);
             }
@@ -490,8 +472,6 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             if (purgeReadBuffers) {
                 vendorOut(FLUSH_TX_REQUEST, 0, null);
             }
-
-            return true;
         }
     }
 

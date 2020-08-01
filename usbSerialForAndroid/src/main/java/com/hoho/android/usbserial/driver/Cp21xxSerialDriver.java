@@ -1,21 +1,6 @@
 /* Copyright 2011-2013 Google Inc.
  * Copyright 2013 mike wakerly <opensource@hoho.com>
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- * USA.
- *
  * Project home page: https://github.com/mik3y/usb-serial-for-android
  */
 
@@ -320,15 +305,13 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         // note: only working on some devices, on other devices ignored w/o error
-        public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
+        public void purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
             int value = (purgeReadBuffers ? FLUSH_READ_CODE : 0)
                     | (purgeWriteBuffers ? FLUSH_WRITE_CODE : 0);
 
             if (value != 0) {
                 setConfigSingle(SILABSER_FLUSH_REQUEST_CODE, value);
             }
-
-            return true;
         }
 
     }

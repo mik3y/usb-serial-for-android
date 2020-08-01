@@ -1,21 +1,6 @@
 /* Copyright 2011-2013 Google Inc.
  * Copyright 2013 mike wakerly <opensource@hoho.com>
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- * USA.
- *
  * Project home page: https://github.com/mik3y/usb-serial-for-android
  */
 
@@ -36,7 +21,6 @@ public final class UsbId {
     public static final int FTDI_FT2232H = 0x6010;
     public static final int FTDI_FT4232H = 0x6011;
     public static final int FTDI_FT232H = 0x6014;
-    public static final int FTDI_FT231X = 0x6015;
 
     public static final int VENDOR_ATMEL = 0x03EB;
     public static final int ATMEL_LUFA_CDC_DEMO_APP = 0x2044;

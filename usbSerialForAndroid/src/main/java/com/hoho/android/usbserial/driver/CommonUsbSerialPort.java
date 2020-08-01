@@ -1,21 +1,6 @@
 /* Copyright 2011-2013 Google Inc.
  * Copyright 2013 mike wakerly <opensource@hoho.com>
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- * USA.
- *
  * Project home page: https://github.com/mik3y/usb-serial-for-android
  */
 
@@ -227,28 +212,28 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public abstract void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException;
 
     @Override
-    public abstract boolean getCD() throws IOException;
+    public boolean getCD() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract boolean getCTS() throws IOException;
+    public boolean getCTS() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract boolean getDSR() throws IOException;
+    public boolean getDSR() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract boolean getDTR() throws IOException;
+    public boolean getDTR() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract void setDTR(boolean value) throws IOException;
+    public void setDTR(boolean value) throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract boolean getRI() throws IOException;
+    public boolean getRI() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract boolean getRTS() throws IOException;
+    public boolean getRTS() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract void setRTS(boolean value) throws IOException;
+    public void setRTS(boolean value) throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
     public abstract EnumSet<ControlLine> getControlLines() throws IOException;
@@ -257,8 +242,8 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public abstract EnumSet<ControlLine> getSupportedControlLines() throws IOException;
 
     @Override
-    public boolean purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
-        return false;
+    public void purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
 }

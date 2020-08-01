@@ -20,6 +20,7 @@ import java.nio.ByteBuffer;
 import java.util.Deque;
 import java.util.EnumSet;
 import java.util.LinkedList;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
 import static org.junit.Assert.assertEquals;
@@ -221,6 +222,15 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
             Thread.sleep(10); // arduino_leonardeo_bridge.ini needs some time
         else
             Thread.sleep(1);
+    }
+
+    /* return TRUE/FALSE/null instead of true/false/<throw UnsupportedOperationException> */
+    public Boolean getControlLine(Callable<?> callable) throws Exception {
+        try {
+            return (Boolean)callable.call();
+        } catch (UnsupportedOperationException t) {
+            return null;
+        }
     }
 
     @Override

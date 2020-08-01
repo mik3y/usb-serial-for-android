@@ -383,6 +383,44 @@ public class DeviceTest {
                 assertThat("42000/8N1", data2, equalTo(buf2));
             }
         }
+        if (usb.serialDriver instanceof FtdiSerialDriver) {
+            try {
+                usb.setParameters(183, 8, 1, UsbSerialPort.PARITY_NONE);
+                fail("baud rate to low expected");
+            } catch (IOException ignored) {
+            }
+            usb.setParameters(184, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters( 960000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1043478, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1090909, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1142857, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1200000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1263157, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1333333, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1411764, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1500000, 8, 1, UsbSerialPort.PARITY_NONE);
+            try {
+                usb.setParameters((int)(2000000/1.04), 8, 1, UsbSerialPort.PARITY_NONE);
+                fail("baud rate error expected");
+            } catch (IOException ignored) {
+            }
+            usb.setParameters((int)(2000000/1.03), 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters((int)(2000000*1.03), 8, 1, UsbSerialPort.PARITY_NONE);
+            try {
+                usb.setParameters((int)(2000000*1.04), 8, 1, UsbSerialPort.PARITY_NONE);
+                fail("baud rate error expected");
+            } catch (IOException ignored) {
+            }
+            usb.setParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(3000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            try {
+                usb.setParameters(4000000, 8, 1, UsbSerialPort.PARITY_NONE);
+                fail("baud rate to high expected");
+            } catch (IOException ignored) {
+            }
+        }
         { // non matching baud rate
             telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
             usb.setParameters(2400, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -922,7 +960,13 @@ public class DeviceTest {
 
         usb.write(buf);
         Thread.sleep(50); // ~ 12 bytes
-        boolean purged = usb.serialPort.purgeHwBuffers(true, false);
+        boolean purged;
+        try {
+            usb.serialPort.purgeHwBuffers(true, false);
+            purged = true;
+        } catch (UnsupportedOperationException ex) {
+            purged = false;
+        }
         usb.write("bcd".getBytes());
         Thread.sleep(50);
         while(data.length()==0 || data.charAt(data.length()-1)!='d')
@@ -946,7 +990,8 @@ public class DeviceTest {
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.write("x".getBytes());
         Thread.sleep(10); // ~ 20 bytes
-        purged = usb.serialPort.purgeHwBuffers(false, true);
+        if(purged)
+            usb.serialPort.purgeHwBuffers(false, true);
         Log.d(TAG, "purged = " + purged);
         telnet.write("y".getBytes());
         Thread.sleep(10); // ~ 20 bytes
@@ -1261,6 +1306,9 @@ public class DeviceTest {
             inputLinesSupported = true;
             inputLinesConnected = true;
         }
+        Boolean inputLineFalse = inputLinesSupported ? Boolean.FALSE : null;
+        Boolean inputLineTrue = inputLinesConnected ? Boolean.TRUE : inputLineFalse;
+
         EnumSet<UsbSerialPort.ControlLine> supportedControlLines = EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR);
         if(inputLinesSupported) {
             supportedControlLines.add(UsbSerialPort.ControlLine.CTS);
@@ -1293,12 +1341,12 @@ public class DeviceTest {
                         ? EnumSet.of(UsbSerialPort.ControlLine.RI)
                         : EnumSet.noneOf(UsbSerialPort.ControlLine.class),
                 usb.serialPort.getControlLines());
-        assertFalse(usb.serialPort.getRTS());
-        assertFalse(usb.serialPort.getCTS());
-        assertFalse(usb.serialPort.getDTR());
-        assertFalse(usb.serialPort.getDSR());
-        assertFalse(usb.serialPort.getCD());
-        assertEquals(usb.serialPort.getRI(), inputLinesConnected);
+        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.FALSE));
+        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.FALSE));
+        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(inputLineTrue));
         telnet.write(data);
         if(usb.serialDriver instanceof CdcAcmSerialDriver)
             // arduino: control line feedback as serial_state notification is not implemented.
@@ -1316,12 +1364,12 @@ public class DeviceTest {
                         ? EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.CTS)
                         : EnumSet.of(UsbSerialPort.ControlLine.RTS),
                 usb.serialPort.getControlLines());
-        assertTrue(usb.serialPort.getRTS());
-        assertEquals(usb.serialPort.getCTS(), inputLinesConnected);
-        assertFalse(usb.serialPort.getDTR());
-        assertFalse(usb.serialPort.getDSR());
-        assertFalse(usb.serialPort.getCD());
-        assertFalse(usb.serialPort.getRI());
+        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.TRUE));
+        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(inputLineTrue));
+        assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.FALSE));
+        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(inputLineFalse));
         telnet.write(data);
         assertThat(Arrays.toString(data), usb.read(4), equalTo(data));
         usb.write(data);
@@ -1334,12 +1382,12 @@ public class DeviceTest {
                         ? EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR, UsbSerialPort.ControlLine.CD)
                         : EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR),
                 usb.serialPort.getControlLines());
-        assertTrue(usb.serialPort.getRTS());
-        assertFalse(usb.serialPort.getCTS());
-        assertTrue(usb.serialPort.getDTR());
-        assertFalse(usb.serialPort.getDSR());
-        assertEquals(usb.serialPort.getCD(), inputLinesConnected);
-        assertFalse(usb.serialPort.getRI());
+        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.TRUE));
+        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.TRUE));
+        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineTrue));
+        assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(inputLineFalse));
         telnet.write(data);
         assertThat(Arrays.toString(data), usb.read(4), equalTo(data));
         usb.write(data);
@@ -1352,12 +1400,12 @@ public class DeviceTest {
                         ? EnumSet.of(UsbSerialPort.ControlLine.DTR, UsbSerialPort.ControlLine.DSR)
                         : EnumSet.of(UsbSerialPort.ControlLine.DTR),
                 usb.serialPort.getControlLines());
-        assertFalse(usb.serialPort.getRTS());
-        assertFalse(usb.serialPort.getCTS());
-        assertTrue(usb.serialPort.getDTR());
-        assertEquals(usb.serialPort.getDSR(), inputLinesConnected);
-        assertFalse(usb.serialPort.getCD());
-        assertFalse(usb.serialPort.getRI());
+        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.FALSE));
+        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.TRUE));
+        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(inputLineTrue));
+        assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(inputLineFalse));
         telnet.write(data);
         assertThat(Arrays.toString(data), usb.read(4), equalTo(data));
         usb.write(data);
@@ -1366,8 +1414,6 @@ public class DeviceTest {
         // control lines retained over close+open
         boolean inputRetained = inputLinesConnected;
         boolean outputRetained = true;
-        if(usb.serialDriver instanceof FtdiSerialDriver)
-            outputRetained = false; // todo
         usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -1376,12 +1422,12 @@ public class DeviceTest {
         if(outputRetained) retainedControlLines.add(UsbSerialPort.ControlLine.DTR);
         if(inputRetained)  retainedControlLines.add(UsbSerialPort.ControlLine.DSR);
         assertEquals(retainedControlLines, usb.serialPort.getControlLines());
-        assertFalse(usb.serialPort.getRTS());
-        assertFalse(usb.serialPort.getCTS());
-        assertEquals(usb.serialPort.getDTR(), outputRetained);
-        assertEquals(usb.serialPort.getDSR(), inputRetained);
-        assertFalse(usb.serialPort.getCD());
-        assertFalse(usb.serialPort.getRI());
+        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.FALSE));
+        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(outputRetained));
+        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(inputRetained ? inputLineTrue : inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(inputLineFalse));
 
         usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
@@ -1400,28 +1446,35 @@ public class DeviceTest {
         // get... error
         try {
             usb.serialPort.getRI();
-            if (!inputLinesSupported)
-                ;
-            else if (usb.serialDriver instanceof ProlificSerialDriver)
+            if (usb.serialDriver instanceof ProlificSerialDriver)
                 ; // todo: currently not possible to detect, as bulkTransfer in background thread does not distinguish timeout and error
             else
                 fail("error expected");
         } catch (IOException ignored) {
+        } catch (UnsupportedOperationException ignored) {
         }
     }
 
     @Test
     public void deviceConnection() throws Exception {
-        byte buf[] = new byte[256];
+        byte[] buf = new byte[256];
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
 
         usb.write("x".getBytes());
         usb.serialPort.read(buf, 1000);
         usb.serialPort.setRTS(true);
-        usb.serialPort.getRI();
-        boolean purged = usb.serialPort.purgeHwBuffers(true, true);
-
+        try {
+            usb.serialPort.getRI();
+        } catch (UnsupportedOperationException ignored) {
+        }
+        boolean purged;
+        try {
+            usb.serialPort.purgeHwBuffers(true, true);
+            purged = true;
+        } catch (UnsupportedOperationException ex) {
+            purged = false;
+        }
         usb.deviceConnection.close();
         try {
             usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -1445,13 +1498,12 @@ public class DeviceTest {
             fail("setRts error expected");
         } catch (IOException ignored) {
         }
-        if(usb.serialPort.getSupportedControlLines().contains(UsbSerialPort.ControlLine.RI) ) {
-            try {
-                usb.serialPort.getRI();
-                if(!(usb.serialDriver instanceof ProlificSerialDriver))
-                    fail("getRI error expected");
-            } catch (IOException ignored) {
-            }
+        try {
+            usb.serialPort.getRI();
+            if(!(usb.serialDriver instanceof ProlificSerialDriver))
+                fail("getRI error expected");
+        } catch (IOException ignored) {
+        } catch (UnsupportedOperationException ignored) {
         }
         if(purged) {
             try {
