@@ -1,4 +1,7 @@
-Current Version (in development)
+For recent changelog look here:
+  * https://github.com/mik3y/usb-serial-for-android/releases
+
+v0.2.0 (unreleased)
   * Gradle, Android Studio support.
   * New driver: CP2102 (thanks Ducky).
   * New prober support: LUFA Virtual Serial, Leaflabs Maple, Teensyduino.
