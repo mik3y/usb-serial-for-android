@@ -25,6 +25,7 @@ import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
 import com.hoho.android.usbserial.driver.FtdiSerialDriver;
 import com.hoho.android.usbserial.driver.ProbeTable;
 import com.hoho.android.usbserial.driver.ProlificSerialDriver;
+import com.hoho.android.usbserial.driver.UsbId;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
@@ -1284,6 +1285,7 @@ public class DeviceTest {
             RTS  -> CTS
             DTR  -> DTS/DSR
             both -> CD
+       for onlyRtsCts devices these two lines are connected directly
      */
     public void controlLines() throws Exception {
         byte[] data;
@@ -1293,18 +1295,26 @@ public class DeviceTest {
         // input lines are supported by all drivers except CDC
         boolean inputLinesSupported = false;
         boolean inputLinesConnected = false;
+        boolean onlyRtsCts = false;
         if (usb.serialDriver instanceof FtdiSerialDriver) {
             inputLinesSupported = true;
-            inputLinesConnected = usb.serialDriver.getPorts().size() == 2; // I only have 74LS138 connected at FT2232
+            if(usb.serialDriver.getDevice().getProductId() == UsbId.FTDI_FT2232H)
+                inputLinesConnected = true; // I only have 74LS138 connected at FT2232, not at FT232
+            if(usb.serialDriver.getDevice().getProductId() == UsbId.FTDI_FT231X) {
+                inputLinesConnected = true;
+                onlyRtsCts = true; // I only test with FT230X that has only these 2 control lines. DTR is silently ignored
+            }
         } else if (usb.serialDriver instanceof Cp21xxSerialDriver) {
             inputLinesSupported = true;
-            inputLinesConnected = usb.serialDriver.getPorts().size()==1; // I only have 74LS138 connected at CP2102
+            if(usb.serialDriver.getPorts().size() == 1)
+                inputLinesConnected = true; // I only have 74LS138 connected at CP2102, not at CP2105
         } else if (usb.serialDriver instanceof ProlificSerialDriver) {
             inputLinesSupported = true;
             inputLinesConnected = true;
         } else if (usb.serialDriver instanceof Ch34xSerialDriver) {
             inputLinesSupported = true;
-            inputLinesConnected = true;
+            if(usb.serialDriver.getDevice().getProductId() == UsbId.QINHENG_CH340)
+                inputLinesConnected = true;  // I only have 74LS138 connected at CH230, not connected at CH341A
         }
         Boolean inputLineFalse = inputLinesSupported ? Boolean.FALSE : null;
         Boolean inputLineTrue = inputLinesConnected ? Boolean.TRUE : inputLineFalse;
@@ -1337,7 +1347,7 @@ public class DeviceTest {
 
         // control lines reset on initial open
         data = "none".getBytes();
-        assertEquals(inputLinesConnected
+        assertEquals(inputLinesConnected && !onlyRtsCts
                         ? EnumSet.of(UsbSerialPort.ControlLine.RI)
                         : EnumSet.noneOf(UsbSerialPort.ControlLine.class),
                 usb.serialPort.getControlLines());
@@ -1346,7 +1356,7 @@ public class DeviceTest {
         assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.FALSE));
         assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(inputLineFalse));
         assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineFalse));
-        assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(inputLineTrue));
+        assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(onlyRtsCts ? Boolean.FALSE : inputLineTrue));
         telnet.write(data);
         if(usb.serialDriver instanceof CdcAcmSerialDriver)
             // arduino: control line feedback as serial_state notification is not implemented.
@@ -1378,15 +1388,17 @@ public class DeviceTest {
         data = "both".getBytes();
         usb.serialPort.setDTR(true);
         Thread.sleep(sleep);
-        assertEquals(inputLinesConnected
-                        ? EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR, UsbSerialPort.ControlLine.CD)
-                        : EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR),
+        assertEquals(onlyRtsCts
+                ? EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR, UsbSerialPort.ControlLine.CTS)
+                : inputLinesConnected
+                ? EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR, UsbSerialPort.ControlLine.CD)
+                : EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR),
                 usb.serialPort.getControlLines());
         assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.TRUE));
-        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(onlyRtsCts ? Boolean.TRUE : inputLineFalse));
         assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.TRUE));
         assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(inputLineFalse));
-        assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineTrue));
+        assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(onlyRtsCts ? Boolean.FALSE : inputLineTrue));
         assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(inputLineFalse));
         telnet.write(data);
         assertThat(Arrays.toString(data), usb.read(4), equalTo(data));
@@ -1396,14 +1408,14 @@ public class DeviceTest {
         data = "dtr ".getBytes();
         usb.serialPort.setRTS(false);
         Thread.sleep(sleep);
-        assertEquals(inputLinesConnected
+        assertEquals(inputLinesConnected && !onlyRtsCts
                         ? EnumSet.of(UsbSerialPort.ControlLine.DTR, UsbSerialPort.ControlLine.DSR)
                         : EnumSet.of(UsbSerialPort.ControlLine.DTR),
                 usb.serialPort.getControlLines());
         assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.FALSE));
         assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(inputLineFalse));
         assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.TRUE));
-        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(inputLineTrue));
+        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(onlyRtsCts ? Boolean.FALSE : inputLineTrue));
         assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineFalse));
         assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(inputLineFalse));
         telnet.write(data);
@@ -1414,18 +1426,20 @@ public class DeviceTest {
         // control lines retained over close+open
         boolean inputRetained = inputLinesConnected;
         boolean outputRetained = true;
+        usb.serialPort.setRTS(true);
+        usb.serialPort.setDTR(false);
         usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
 
         EnumSet<UsbSerialPort.ControlLine> retainedControlLines = EnumSet.noneOf(UsbSerialPort.ControlLine.class);
-        if(outputRetained) retainedControlLines.add(UsbSerialPort.ControlLine.DTR);
-        if(inputRetained)  retainedControlLines.add(UsbSerialPort.ControlLine.DSR);
+        if(outputRetained) retainedControlLines.add(UsbSerialPort.ControlLine.RTS);
+        if(inputRetained)  retainedControlLines.add(UsbSerialPort.ControlLine.CTS);
         assertEquals(retainedControlLines, usb.serialPort.getControlLines());
-        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.FALSE));
-        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(inputLineFalse));
-        assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(outputRetained));
-        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(inputRetained ? inputLineTrue : inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(outputRetained));
+        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(inputRetained ? inputLineTrue : inputLineFalse));
+        assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.FALSE));
+        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(inputLineFalse));
         assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineFalse));
         assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(inputLineFalse));
 

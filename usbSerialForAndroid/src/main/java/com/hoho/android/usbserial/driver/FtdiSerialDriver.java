@@ -383,6 +383,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                     UsbId.FTDI_FT232H,
                     UsbId.FTDI_FT2232H,
                     UsbId.FTDI_FT4232H,
+                    UsbId.FTDI_FT231X,  // same ID for FT230X, FT231X, FT234XD
                 });
         return supportedDevices;
     }
