@@ -138,7 +138,7 @@ a compatible UsbDevice.
 ## Compatible Devices
 
 This library supports USB to serial converter chips:
-* FTDI FT232, FT2232, ...
+* FTDI FT232R, FT232H, FT2232H, FT4232H, FT230X, FT231X, FT234XD
 * Prolific PL2303
 * Silabs CP2102, CP2105, ...
 * Qinheng CH340, CH341A
