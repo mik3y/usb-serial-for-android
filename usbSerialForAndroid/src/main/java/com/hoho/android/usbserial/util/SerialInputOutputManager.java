@@ -30,8 +30,11 @@ public class SerialInputOutputManager implements Runnable {
     private int mReadTimeout = 0;
     private int mWriteTimeout = 0;
 
-    private final ByteBuffer mReadBuffer = ByteBuffer.allocate(BUFSIZ);
-    private final ByteBuffer mWriteBuffer = ByteBuffer.allocate(BUFSIZ); // Synchronized by 'mWriteBuffer'
+    private final Object mReadBufferLock = new Object();
+    private final Object mWriteBufferLock = new Object();
+
+    private ByteBuffer mReadBuffer = ByteBuffer.allocate(BUFSIZ);
+    private ByteBuffer mWriteBuffer = ByteBuffer.allocate(BUFSIZ);
 
     public enum State {
         STOPPED,
@@ -72,10 +75,13 @@ public class SerialInputOutputManager implements Runnable {
         return mListener;
     }
 
+    /**
+     * read/write timeout
+     */
     public void setReadTimeout(int timeout) {
         // when set if already running, read already blocks and the new value will not become effective now
         if(mReadTimeout == 0 && timeout != 0 && mState != State.STOPPED)
-            throw new IllegalStateException("Set readTimeout before SerialInputOutputManager is started");
+            throw new IllegalStateException("readTimeout only configurable before SerialInputOutputManager is started");
         mReadTimeout = timeout;
     }
 
@@ -91,12 +97,42 @@ public class SerialInputOutputManager implements Runnable {
         return mWriteTimeout;
     }
 
+    /**
+     * read/write buffer size
+     */
+    public void setReadBufferSize(int bufferSize) {
+        if (getReadBufferSize() == bufferSize)
+            return;
+        synchronized (mReadBufferLock) {
+            mReadBuffer = ByteBuffer.allocate(bufferSize);
+        }
+    }
+
+    public int getReadBufferSize() {
+        return mReadBuffer.capacity();
+    }
+
+    public void setWriteBufferSize(int bufferSize) {
+        if(getWriteBufferSize() == bufferSize)
+            return;
+        synchronized (mWriteBufferLock) {
+            ByteBuffer newWriteBuffer = ByteBuffer.allocate(bufferSize);
+            if(mWriteBuffer.position() > 0)
+                newWriteBuffer.put(mWriteBuffer.array(), 0, mWriteBuffer.position());
+            mWriteBuffer = newWriteBuffer;
+        }
+    }
+
+    public int getWriteBufferSize() {
+        return mWriteBuffer.capacity();
+    }
+
     /*
      * when writeAsync is used, it is recommended to use readTimeout != 0,
      * else the write will be delayed until read data is available
      */
     public void writeAsync(byte[] data) {
-        synchronized (mWriteBuffer) {
+        synchronized (mWriteBufferLock) {
             mWriteBuffer.put(data);
         }
     }
@@ -150,34 +186,37 @@ public class SerialInputOutputManager implements Runnable {
 
     private void step() throws IOException {
         // Handle incoming data.
-        int len = mSerialPort.read(mReadBuffer.array(), mReadTimeout);
+        byte[] buffer = null;
+        synchronized (mReadBufferLock) {
+            buffer = mReadBuffer.array();
+        }
+        int len = mSerialPort.read(buffer, mReadTimeout);
         if (len > 0) {
             if (DEBUG) Log.d(TAG, "Read data len=" + len);
             final Listener listener = getListener();
             if (listener != null) {
                 final byte[] data = new byte[len];
-                mReadBuffer.get(data, 0, len);
+                System.arraycopy(buffer, 0, data, 0, len);
                 listener.onNewData(data);
             }
-            mReadBuffer.clear();
         }
 
         // Handle outgoing data.
-        byte[] outBuff = null;
-        synchronized (mWriteBuffer) {
+        buffer = null;
+        synchronized (mWriteBufferLock) {
             len = mWriteBuffer.position();
             if (len > 0) {
-                outBuff = new byte[len];
+                buffer = new byte[len];
                 mWriteBuffer.rewind();
-                mWriteBuffer.get(outBuff, 0, len);
+                mWriteBuffer.get(buffer, 0, len);
                 mWriteBuffer.clear();
             }
         }
-        if (outBuff != null) {
+        if (buffer != null) {
             if (DEBUG) {
                 Log.d(TAG, "Writing data len=" + len);
             }
-            mSerialPort.write(outBuff, mWriteTimeout);
+            mSerialPort.write(buffer, mWriteTimeout);
         }
     }
 

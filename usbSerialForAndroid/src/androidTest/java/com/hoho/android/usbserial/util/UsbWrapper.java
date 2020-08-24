@@ -175,6 +175,18 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         readError = null;
     }
 
+    public void waitForIoManagerStarted() throws IOException {
+        for (int i = 0; i < 100; i++) {
+            if (SerialInputOutputManager.State.STOPPED != ioManager.getState()) return;
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        throw new IOException("IoManager not started");
+    }
+
     // wait full time
     public byte[] read() throws Exception {
         return read(-1);

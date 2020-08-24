@@ -45,6 +45,7 @@ import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 
 import java.io.IOException;
+import java.nio.BufferOverflowException;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -56,6 +57,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -1015,24 +1017,87 @@ public class DeviceTest {
     }
 
     @Test
+    public void IoManager() throws Exception {
+        usb.ioManager = new SerialInputOutputManager(null);
+        assertNull(usb.ioManager.getListener());
+        usb.ioManager.setListener(usb);
+        assertEquals(usb, usb.ioManager.getListener());
+        usb.ioManager = new SerialInputOutputManager(usb.serialPort, usb);
+        assertEquals(usb, usb.ioManager.getListener());
+
+        assertEquals(0, usb.ioManager.getReadTimeout());
+        usb.ioManager.setReadTimeout(10);
+        assertEquals(10, usb.ioManager.getReadTimeout());
+        assertEquals(0, usb.ioManager.getWriteTimeout());
+        usb.ioManager.setWriteTimeout(11);
+        assertEquals(11, usb.ioManager.getWriteTimeout());
+
+        assertEquals(4096, usb.ioManager.getReadBufferSize());
+        usb.ioManager.setReadBufferSize(12);
+        assertEquals(12, usb.ioManager.getReadBufferSize());
+        assertEquals(4096, usb.ioManager.getWriteBufferSize());
+        usb.ioManager.setWriteBufferSize(13);
+        assertEquals(13, usb.ioManager.getWriteBufferSize());
+
+        usb.open(); // creates new IoManager
+        usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.waitForIoManagerStarted();
+        try {
+            usb.ioManager.setReadTimeout(20);
+            fail("setReadTimeout IllegalStateException expected");
+        } catch (IllegalStateException ignored) {}
+        assertEquals(0, usb.ioManager.getReadTimeout());
+        usb.ioManager.setWriteTimeout(21);
+        assertEquals(21, usb.ioManager.getWriteTimeout());
+        usb.ioManager.setReadBufferSize(22);
+        assertEquals(22, usb.ioManager.getReadBufferSize());
+        usb.ioManager.setWriteBufferSize(23);
+        assertEquals(23, usb.ioManager.getWriteBufferSize());
+
+        // readbuffer resize
+        telnet.write(new byte[1]);
+        usb.ioManager.setReadBufferSize(64);
+        Log.d(TAG, "setReadBufferSize(64)");
+        telnet.write(new byte[1]); // still uses old buffer as infinite waiting step() holds reference to buffer
+        telnet.write(new byte[1]); // now uses 8 byte buffer
+        usb.read(3);
+
+        // writebuffer resize
+        try {
+            usb.ioManager.writeAsync(new byte[8192]);
+            fail("expected BufferOverflowException");
+        } catch (BufferOverflowException ignored) {}
+
+        usb.ioManager.setWriteBufferSize(16);
+        usb.ioManager.writeAsync("1234567890AB".getBytes());
+        try {
+            usb.ioManager.setWriteBufferSize(8);
+            fail("expected BufferOverflowException");
+        } catch (BufferOverflowException ignored) {}
+        usb.ioManager.setWriteBufferSize(24); // pending date copied to new buffer
+        telnet.write("a".getBytes());
+        assertThat(usb.read(1), equalTo("a".getBytes()));
+        assertThat(telnet.read(12), equalTo("1234567890AB".getBytes()));
+
+        // small readbuffer
+        usb.ioManager.setReadBufferSize(8);
+        Log.d(TAG, "setReadBufferSize(8)");
+        telnet.write("b".getBytes());
+        assertThat(usb.read(1), equalTo("b".getBytes()));
+        // now new buffer is used
+        telnet.write("c".getBytes());
+        assertThat(usb.read(1), equalTo("c".getBytes()));
+        telnet.write("d".getBytes());
+        assertThat(usb.read(1), equalTo("d".getBytes()));
+    }
+
+    @Test
     public void writeAsync() throws Exception {
         if (usb.serialDriver instanceof FtdiSerialDriver)
             return; // periodically sends status messages, so does not block here
 
         byte[] data, buf = new byte[]{1};
-
-        usb.ioManager = new SerialInputOutputManager(null);
-        assertEquals(null, usb.ioManager.getListener());
-        usb.ioManager.setListener(usb);
-        assertEquals(usb, usb.ioManager.getListener());
-        usb.ioManager = new SerialInputOutputManager(usb.serialPort, usb);
-        assertEquals(usb, usb.ioManager.getListener());
-        assertEquals(0, usb.ioManager.getReadTimeout());
-        usb.ioManager.setReadTimeout(100);
-        assertEquals(100, usb.ioManager.getReadTimeout());
-        assertEquals(0, usb.ioManager.getWriteTimeout());
-        usb.ioManager.setWriteTimeout(200);
-        assertEquals(200, usb.ioManager.getWriteTimeout());
 
         // w/o timeout: write delayed until something is read
         usb.open();
@@ -1047,10 +1112,6 @@ public class DeviceTest {
         assertEquals(1, data.length);
         data = telnet.read(2);
         assertEquals(2, data.length);
-        try {
-            usb.ioManager.setReadTimeout(100);
-            fail("IllegalStateException expected");
-        } catch (IllegalStateException ignored) {}
         usb.close();
 
         // with timeout: write after timeout
