@@ -6,6 +6,7 @@
 
 package com.hoho.android.usbserial.util;
 
+import android.os.Process;
 import android.util.Log;
 
 import com.hoho.android.usbserial.driver.UsbSerialPort;
@@ -42,6 +43,7 @@ public class SerialInputOutputManager implements Runnable {
         STOPPING
     }
 
+    private int mThreadPriority = Process.THREAD_PRIORITY_URGENT_AUDIO;
     private State mState = State.STOPPED; // Synchronized by 'this'
     private Listener mListener; // Synchronized by 'this'
     private final UsbSerialPort mSerialPort;
@@ -73,6 +75,17 @@ public class SerialInputOutputManager implements Runnable {
 
     public synchronized Listener getListener() {
         return mListener;
+    }
+
+    /**
+     * setThreadPriority. By default use higher priority than UI thread to prevent data loss
+     *
+     * @param threadPriority  see {@link Process#setThreadPriority(int)}
+     * */
+    public void setThreadPriority(int threadPriority) {
+        if (mState != State.STOPPED)
+            throw new IllegalStateException("threadPriority only configurable before SerialInputOutputManager is started");
+        mThreadPriority = threadPriority;
     }
 
     /**
@@ -154,6 +167,9 @@ public class SerialInputOutputManager implements Runnable {
      */
     @Override
     public void run() {
+        if(mThreadPriority != Process.THREAD_PRIORITY_DEFAULT)
+            setThreadPriority(mThreadPriority);
+
         synchronized (this) {
             if (getState() != State.STOPPED) {
                 throw new IllegalStateException("Already running");

@@ -14,6 +14,7 @@ import android.content.Context;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.os.Process;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
 import android.util.Log;
@@ -1025,6 +1026,8 @@ public class DeviceTest {
         usb.ioManager = new SerialInputOutputManager(usb.serialPort, usb);
         assertEquals(usb, usb.ioManager.getListener());
 
+        usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
+
         assertEquals(0, usb.ioManager.getReadTimeout());
         usb.ioManager.setReadTimeout(10);
         assertEquals(10, usb.ioManager.getReadTimeout());
@@ -1043,6 +1046,10 @@ public class DeviceTest {
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.waitForIoManagerStarted();
+        try {
+            usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_LOWEST);
+            fail("setThreadPriority IllegalStateException expected");
+        } catch (IllegalStateException ignored) {}
         try {
             usb.ioManager.setReadTimeout(20);
             fail("setReadTimeout IllegalStateException expected");

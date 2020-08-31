@@ -35,7 +35,6 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
 
     private final static int     USB_READ_WAIT = 500;
     private final static int     USB_WRITE_WAIT = 500;
-    private final static Integer SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY = Process.THREAD_PRIORITY_URGENT_AUDIO;
     private static final String TAG = UsbWrapper.class.getSimpleName();
 
     public enum OpenCloseFlags { NO_IOMANAGER_THREAD, NO_CONTROL_LINE_INIT, NO_DEVICE_CONNECTION };
@@ -157,14 +156,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
             serialPort.setRTS(true);
         }
         if(!flags.contains(OpenCloseFlags.NO_IOMANAGER_THREAD)) {
-            ioManager = new SerialInputOutputManager(serialPort, this) {
-                @Override
-                public void run() {
-                    if (SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY != null)
-                        Process.setThreadPriority(SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY);
-                    super.run();
-                }
-            };
+            ioManager = new SerialInputOutputManager(serialPort, this);
             ioManager.setReadTimeout(ioManagerTimeout);
             ioManager.setWriteTimeout(ioManagerTimeout);
             Executors.newSingleThreadExecutor().submit(ioManager);
