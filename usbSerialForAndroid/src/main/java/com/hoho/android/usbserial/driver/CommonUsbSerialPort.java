@@ -158,14 +158,11 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             }
             nread = buf.position();
         }
-        if (nread > 0) {
-            return readFilter(dest, nread);
-        } else {
+        if (nread > 0)
+            return nread;
+        else
             return 0;
-        }
     }
-
-    protected int readFilter(final byte[] buffer, int len) throws IOException { return len; }
 
     @Override
     public int write(final byte[] src, final int timeout) throws IOException {

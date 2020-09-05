@@ -1101,9 +1101,6 @@ public class DeviceTest {
 
     @Test
     public void writeAsync() throws Exception {
-        if (usb.serialDriver instanceof FtdiSerialDriver)
-            return; // periodically sends status messages, so does not block here
-
         byte[] data, buf = new byte[]{1};
 
         // w/o timeout: write delayed until something is read
@@ -1134,20 +1131,18 @@ public class DeviceTest {
 
     @Test
     public void readTimeout() throws Exception {
-        if (usb.serialDriver instanceof FtdiSerialDriver)
-            return; // periodically sends status messages, so does not block here
         final Boolean[] closed = {Boolean.FALSE};
 
         Runnable closeThread = new Runnable() {
             @Override
             public void run() {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                usb.close();
-                closed[0] = true;
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            usb.close();
+            closed[0] = true;
             }
         };
 
@@ -1155,19 +1150,22 @@ public class DeviceTest {
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
 
-        byte[] buf = new byte[]{1};
+        byte[] writeBuf = new byte[]{1};
+        byte[] readBuf = new byte[1];
+        if (usb.serialDriver instanceof FtdiSerialDriver)
+            readBuf = new byte[3]; // include space for 2 header bytes
         int len,i,j;
         long time;
 
         // w/o timeout
-        telnet.write(buf);
-        len = usb.serialPort.read(buf, 0); // not blocking because data is available
+        telnet.write(writeBuf);
+        len = usb.serialPort.read(readBuf, 0); // not blocking because data is available
         assertEquals(1, len);
 
         time = System.currentTimeMillis();
         closed[0] = false;
         Executors.newSingleThreadExecutor().submit(closeThread);
-        len = usb.serialPort.read(buf, 0); // blocking until close()
+        len = usb.serialPort.read(readBuf, 0); // blocking until close()
         assertEquals(0, len);
         assertTrue(System.currentTimeMillis()-time >= 100);
         // wait for usbClose
@@ -1185,7 +1183,7 @@ public class DeviceTest {
         int longTimeout = 1000;
         int shortTimeout = 10;
         time = System.currentTimeMillis();
-        len = usb.serialPort.read(buf, shortTimeout);
+        len = usb.serialPort.read(readBuf, shortTimeout);
         assertEquals(0, len);
         assertTrue(System.currentTimeMillis()-time < 100);
 
@@ -1193,9 +1191,10 @@ public class DeviceTest {
         time = System.currentTimeMillis();
         for(i=0; i<50; i++) {
             Thread.sleep(10);
-            telnet.write(buf);
+            telnet.write(writeBuf);
+            Log.d(TAG,"telnet write 1");
             for(j=0; j<20; j++) {
-                len = usb.serialPort.read(buf, shortTimeout);
+                len = usb.serialPort.read(readBuf, shortTimeout);
                 if (len > 0)
                     break;
             }

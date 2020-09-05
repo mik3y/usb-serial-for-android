@@ -136,7 +136,22 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        protected int readFilter(byte[] buffer, int totalBytesRead) throws IOException {
+        public int read(final byte[] dest, final int timeout) throws IOException {
+            int nread;
+            if (timeout != 0) {
+                long endTime = System.currentTimeMillis() + timeout;
+                do {
+                    nread = super.read(dest, Math.max(1, (int)(endTime - System.currentTimeMillis())));
+                } while (nread == READ_HEADER_LENGTH && System.currentTimeMillis() < endTime);
+            } else {
+                do {
+                    nread = super.read(dest, timeout);
+                } while (nread == READ_HEADER_LENGTH);
+            }
+            return readFilter(dest, nread);
+        }
+
+        private int readFilter(byte[] buffer, int totalBytesRead) throws IOException {
             final int maxPacketSize = mReadEndpoint.getMaxPacketSize();
             int destPos = 0;
             for(int srcPos = 0; srcPos < totalBytesRead; srcPos += maxPacketSize) {
@@ -146,6 +161,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                 System.arraycopy(buffer, srcPos + READ_HEADER_LENGTH, buffer, destPos, length);
                 destPos += length;
             }
+            //Log.d(TAG, "read filter " + totalBytesRead + " -> " + destPos);
             return destPos;
         }
 
