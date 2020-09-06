@@ -137,6 +137,12 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
         @Override
         public int read(final byte[] dest, final int timeout) throws IOException {
+            if(dest.length <= READ_HEADER_LENGTH) {
+                throw new IllegalArgumentException("read buffer to small");
+                // could allocate larger buffer, including space for 2 header bytes, but this would
+                // result in buffers not being 64 byte aligned any more, causing data loss at continuous
+                // data transfer at high baud rates when buffers are fully filled.
+            }
             int nread;
             if (timeout != 0) {
                 long endTime = System.currentTimeMillis() + timeout;

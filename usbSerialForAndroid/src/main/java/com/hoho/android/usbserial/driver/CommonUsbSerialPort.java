@@ -134,6 +134,9 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         if(mConnection == null) {
             throw new IOException("Connection closed");
         }
+        if(dest.length <= 0) {
+            throw new IllegalArgumentException("read buffer to small");
+        }
         final int nread;
         if (timeout != 0) {
             // bulkTransfer will cause data loss with short timeout + high baud rates + continuous transfer

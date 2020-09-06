@@ -37,7 +37,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
     private final static int     USB_WRITE_WAIT = 500;
     private static final String TAG = UsbWrapper.class.getSimpleName();
 
-    public enum OpenCloseFlags { NO_IOMANAGER_THREAD, NO_CONTROL_LINE_INIT, NO_DEVICE_CONNECTION };
+    public enum OpenCloseFlags { NO_IOMANAGER_THREAD, NO_IOMANAGER_START, NO_CONTROL_LINE_INIT, NO_DEVICE_CONNECTION };
 
     // constructor
     final Context context;
@@ -138,14 +138,10 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
     }
 
     public void open() throws Exception {
-        open(EnumSet.noneOf(OpenCloseFlags.class), 0);
+        open(EnumSet.noneOf(OpenCloseFlags.class));
     }
 
     public void open(EnumSet<OpenCloseFlags> flags) throws Exception {
-        open(flags, 0);
-    }
-
-    public void open(EnumSet<OpenCloseFlags> flags, int ioManagerTimeout) throws Exception {
         if(!flags.contains(OpenCloseFlags.NO_DEVICE_CONNECTION)) {
             UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
             deviceConnection = usbManager.openDevice(serialDriver.getDevice());
@@ -157,14 +153,17 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         }
         if(!flags.contains(OpenCloseFlags.NO_IOMANAGER_THREAD)) {
             ioManager = new SerialInputOutputManager(serialPort, this);
-            ioManager.setReadTimeout(ioManagerTimeout);
-            ioManager.setWriteTimeout(ioManagerTimeout);
-            Executors.newSingleThreadExecutor().submit(ioManager);
+            if(!flags.contains(OpenCloseFlags.NO_IOMANAGER_START))
+                Executors.newSingleThreadExecutor().submit(ioManager);
         }
         synchronized (readBuffer) {
             readBuffer.clear();
         }
         readError = null;
+    }
+
+    public void startIoManager() {
+        Executors.newSingleThreadExecutor().submit(ioManager);
     }
 
     public void waitForIoManagerStarted() throws IOException {
@@ -180,11 +179,10 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
     }
 
     // wait full time
-    public byte[] read() throws Exception {
-        return read(-1);
-    }
+    public byte[] read() throws Exception { return read(-1, -1); }
+    public byte[] read(int expectedLength) throws Exception { return read(expectedLength, -1); }
 
-    public byte[] read(int expectedLength) throws Exception {
+    public byte[] read(int expectedLength, int readBufferSize) throws Exception {
         long end = System.currentTimeMillis() + USB_READ_WAIT;
         ByteBuffer buf = ByteBuffer.allocate(16*1024);
         if(ioManager != null) {
@@ -201,7 +199,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
             }
 
         } else {
-            byte[] b1 = new byte[256];
+            byte[] b1 = new byte[readBufferSize > 0 ? readBufferSize : 256];
             while (System.currentTimeMillis() < end) {
                 int len = serialPort.read(b1, USB_READ_WAIT);
                 if (len > 0)

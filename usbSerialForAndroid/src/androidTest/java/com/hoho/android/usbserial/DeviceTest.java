@@ -36,6 +36,7 @@ import com.hoho.android.usbserial.util.UsbWrapper;
 
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -776,6 +777,102 @@ public class DeviceTest {
     }
 
     @Test
+    public void readBufferSize() throws Exception {
+        // looks like most devices perform USB read with full mReadEndpoint.getMaxPacketSize() size (= 64)
+        // if the Java byte[] is shorter than the received result, it is silently lost!
+        //
+        // with infinite timeout, one can see that UsbSerialPort.read() returns byte[] of length 0
+        // but there might be other reasons for [] return, so unclear if this should be returned as
+        // error exception.
+        //
+        // for buffer > 64 byte, but not multiple of 64 byte, the same issue happens, but typically
+        // only the last (partly filled) 64 byte fragment is lost.
+        if(usb.serialDriver instanceof CdcAcmSerialDriver)
+            return; // arduino sends each byte individually, so not testable here
+        byte[] data;
+        boolean purge = true;
+
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
+        usb.ioManager.setReadBufferSize(8);
+        usb.startIoManager();
+        usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        try { usb.serialPort.purgeHwBuffers(true, true); } catch(Exception ignored) { purge = false; }
+
+        telnet.write("1aaa".getBytes());
+        data = usb.read(4);
+        Assert.assertThat(data, equalTo("1aaa".getBytes()));
+        telnet.write(new byte[16]);
+        data = usb.read(16);
+        if (usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() == 1)
+            Assert.assertNotEquals(0, data.length); // can be shorter or full length
+        else if (usb.serialDriver instanceof ProlificSerialDriver)
+            Assert.assertTrue("expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
+        else // ftdi, ch340, cp2105
+            Assert.assertEquals(0, data.length);
+        telnet.write("1ccc".getBytes());
+        data = usb.read(4);
+        // Assert.assertThat(data, equalTo("1ccc".getBytes())); // unpredictable here. typically '1ccc' but sometimes '' or byte[16]
+        if(data.length != 4) {
+            if (purge) {
+                usb.serialPort.purgeHwBuffers(true, true);
+            } else {
+                usb.close();
+                usb.open();
+                Thread.sleep(500); // try to read missing value by iomanager to avoid garbage in next test
+            }
+        }
+
+        usb.close();
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
+        usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+
+        try {
+            usb.serialPort.read(new byte[0], 0);
+            fail("IllegalArgumentException expected");
+        } catch (IllegalArgumentException ignored) {}
+        try {
+            usb.serialPort.read(new byte[0], 100);
+            fail("IllegalArgumentException expected");
+        } catch (IllegalArgumentException ignored) {}
+        if (usb.serialDriver instanceof FtdiSerialDriver) {
+            try {
+                usb.serialPort.read(new byte[2], 0);
+                fail("IllegalArgumentException expected");
+            } catch (IllegalArgumentException ignored) {}
+            try {
+                usb.serialPort.read(new byte[2], 100);
+                fail("IllegalArgumentException expected");
+            } catch (IllegalArgumentException ignored) {}
+        }
+        
+        telnet.write("2aaa".getBytes());
+        data = usb.read(4, 8);
+        Assert.assertThat(data, equalTo("2aaa".getBytes()));
+        telnet.write(new byte[16]);
+        data = usb.read(16, 8);
+        if (usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() == 1)
+            Assert.assertNotEquals(0, data.length); // can be shorter or full length
+        else if (usb.serialDriver instanceof ProlificSerialDriver)
+            Assert.assertTrue("expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
+        else // ftdi, ch340, cp2105
+            Assert.assertEquals(0, data.length);
+        telnet.write("2ccc".getBytes());
+        data = usb.read(4);
+        // Assert.assertThat(data, equalTo("1ccc".getBytes())); // unpredictable here. typically '2ccc' but sometimes '' or byte[16]
+        if(data.length != 4) {
+            if (purge) {
+                usb.serialPort.purgeHwBuffers(true, true);
+            } else {
+                usb.close();
+                usb.open();
+                Thread.sleep(500); // try to read missing value by iomanager to avoid garbage in next test
+            }
+        }
+    }
+
+    @Test
     // provoke data loss, when data is not read fast enough
     public void readBufferOverflow() throws Exception {
         if(usb.serialDriver instanceof CdcAcmSerialDriver)
@@ -841,13 +938,13 @@ public class DeviceTest {
         // Android is not a real time OS, so there is no guarantee that the USB thread is scheduled, or it might be blocked by Java garbage collection.
         // Using SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY=THREAD_PRIORITY_URGENT_AUDIO sometimes reduced errors by factor 10, sometimes not at all!
         //
-        int diffLen = readSpeedInt(5, 0);
+        int diffLen = readSpeedInt(5, -1, 0);
         if(usb.serialDriver instanceof Ch34xSerialDriver && diffLen == -1)
              diffLen = 0; // todo: investigate last packet loss
         assertEquals(0, diffLen);
     }
 
-    private int readSpeedInt(int writeSeconds, int readTimeout) throws Exception {
+    private int readSpeedInt(int writeSeconds, int readBufferSize, int readTimeout) throws Exception {
         int baudrate = 115200;
         if(usb.serialDriver instanceof Ch34xSerialDriver)
             baudrate = 38400;
@@ -855,7 +952,11 @@ public class DeviceTest {
         if(usb.serialDriver instanceof CdcAcmSerialDriver)
             writeAhead = 50;
 
-        usb.open(EnumSet.noneOf(UsbWrapper.OpenCloseFlags.class), readTimeout);
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
+        usb.ioManager.setReadTimeout(readTimeout);
+        if(readBufferSize > 0)
+            usb.ioManager.setReadBufferSize(readBufferSize);
+        usb.startIoManager();
         usb.setParameters(baudrate, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(baudrate, 8, 1, UsbSerialPort.PARITY_NONE);
 
@@ -1119,7 +1220,9 @@ public class DeviceTest {
         usb.close();
 
         // with timeout: write after timeout
-        usb.open(EnumSet.noneOf(UsbWrapper.OpenCloseFlags.class), 100);
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
+        usb.ioManager.setReadTimeout(100);
+        usb.startIoManager();
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.ioManager.writeAsync(buf);
@@ -1206,13 +1309,13 @@ public class DeviceTest {
             int diffLen;
             usb.close();
             // no issue with high transfer rate and long read timeout
-            diffLen = readSpeedInt(5, longTimeout);
+            diffLen = readSpeedInt(5, -1, longTimeout);
             if(usb.serialDriver instanceof Ch34xSerialDriver && diffLen == -1)
                 diffLen = 0; // todo: investigate last packet loss
             assertEquals(0, diffLen);
             usb.close();
             // date loss with high transfer rate and short read timeout !!!
-            diffLen = readSpeedInt(5, shortTimeout);
+            diffLen = readSpeedInt(5, -1, shortTimeout);
 
             assertNotEquals(0, diffLen);
 
