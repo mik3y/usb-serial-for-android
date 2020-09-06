@@ -1660,10 +1660,15 @@ public class DeviceTest {
             purged = false;
         }
         usb.deviceConnection.close();
-        try {
+        try { // only Prolific driver has early exit if nothing changed
             usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
             if(!(usb.serialDriver instanceof ProlificSerialDriver))
                 fail("setParameters error expected");
+        } catch (IOException ignored) {
+        }
+        try {
+            usb.setParameters(57600, 8, 1, UsbSerialPort.PARITY_NONE);
+            fail("setParameters error expected");
         } catch (IOException ignored) {
         }
         try {
@@ -1671,7 +1676,11 @@ public class DeviceTest {
             fail("write error expected");
         } catch (IOException ignored) {
         }
-        usb.serialPort.read(buf, 1000); // bulkTransfer returns -1 on timeout and error, so no exception thrown here
+        try {
+            usb.serialPort.read(buf, 1000);
+            fail("read error expected");
+        } catch (IOException ignored) {
+        }
         try {
             usb.serialPort.read(buf, 0);
             fail("read error expected");
@@ -1683,16 +1692,17 @@ public class DeviceTest {
         } catch (IOException ignored) {
         }
         try {
+            if(usb.serialDriver instanceof ProlificSerialDriver)
+                Thread.sleep(600); // wait for background thread
             usb.serialPort.getRI();
-            if(!(usb.serialDriver instanceof ProlificSerialDriver))
-                fail("getRI error expected");
+            fail("getRI error expected");
         } catch (IOException ignored) {
         } catch (UnsupportedOperationException ignored) {
         }
         if(purged) {
             try {
                 usb.serialPort.purgeHwBuffers(true, true);
-                fail("setRts error expected");
+                fail("purgeHwBuffers error expected");
             } catch (IOException ignored) {
             }
         }

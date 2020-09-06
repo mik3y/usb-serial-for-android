@@ -129,13 +129,27 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
     protected abstract void closeInt();
 
+    /**
+     * use simple USB request supported by all devices to test if connection is still valid
+     */
+    protected void testConnection() throws IOException {
+        byte[] buf = new byte[2];
+        int len = mConnection.controlTransfer(0x80 /*DEVICE*/, 0 /*GET_STATUS*/, 0, 0, buf, buf.length, 200);
+        if(len < 0)
+            throw new IOException("USB get_status request failed");
+    }
+
     @Override
     public int read(final byte[] dest, final int timeout) throws IOException {
+        return read(dest, timeout, true);
+    }
+
+    protected int read(final byte[] dest, final int timeout, boolean testConnection) throws IOException {
         if(mConnection == null) {
             throw new IOException("Connection closed");
         }
         if(dest.length <= 0) {
-            throw new IllegalArgumentException("read buffer to small");
+            throw new IllegalArgumentException("Read buffer to small");
         }
         final int nread;
         if (timeout != 0) {
@@ -147,8 +161,12 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             //     /system/lib64/libusbhost.so (usb_request_wait+192)
             //     /system/lib64/libandroid_runtime.so (android_hardware_UsbDeviceConnection_request_wait(_JNIEnv*, _jobject*, long)+84)
             // data loss / crashes were observed with timeout up to 200 msec
+            long endTime = testConnection ? System.currentTimeMillis() + timeout : 0;
             int readMax = Math.min(dest.length, MAX_READ_SIZE);
             nread = mConnection.bulkTransfer(mReadEndpoint, dest, readMax, timeout);
+            // Android error propagation is improvable, nread == -1 can be: timeout, connection lost, buffer undersized, ...
+            if(nread == -1 && testConnection && System.currentTimeMillis() < endTime)
+                testConnection();
 
         } else {
             final ByteBuffer buf = ByteBuffer.wrap(dest);

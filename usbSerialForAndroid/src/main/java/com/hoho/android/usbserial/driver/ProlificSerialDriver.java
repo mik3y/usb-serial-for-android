@@ -184,10 +184,10 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             try {
                 while (!mStopReadStatusThread) {
                     byte[] buffer = new byte[STATUS_BUFFER_SIZE];
-                    int readBytesCount = mConnection.bulkTransfer(mInterruptEndpoint,
-                            buffer,
-                            STATUS_BUFFER_SIZE,
-                            500);
+                    long endTime = System.currentTimeMillis() + 500;
+                    int readBytesCount = mConnection.bulkTransfer(mInterruptEndpoint, buffer, STATUS_BUFFER_SIZE, 500);
+                    if(readBytesCount == -1 && System.currentTimeMillis() < endTime)
+                        testConnection();
                     if (readBytesCount > 0) {
                         if (readBytesCount == STATUS_BUFFER_SIZE) {
                             mStatus = buffer[STATUS_BYTE_IDX] & 0xff;
