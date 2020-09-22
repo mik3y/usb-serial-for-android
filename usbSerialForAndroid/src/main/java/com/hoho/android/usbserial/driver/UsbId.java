@@ -45,10 +45,9 @@ public final class UsbId {
     public static final int LEAFLABS_MAPLE = 0x0004;
 
     public static final int VENDOR_SILABS = 0x10c4;
-    public static final int SILABS_CP2102 = 0xea60;
+    public static final int SILABS_CP2102 = 0xea60; // same ID for CP2101, CP2103, CP2104, CP2109
     public static final int SILABS_CP2105 = 0xea70;
     public static final int SILABS_CP2108 = 0xea71;
-    public static final int SILABS_CP2110 = 0xea80;
 
     public static final int VENDOR_PROLIFIC = 0x067b;
     public static final int PROLIFIC_PL2303 = 0x2303;
