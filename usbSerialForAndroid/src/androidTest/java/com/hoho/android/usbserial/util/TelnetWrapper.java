@@ -92,11 +92,15 @@ public class TelnetWrapper {
 
     // wait full time
     public byte[] read() throws Exception {
-        return read(-1);
+        return read(-1, -1);
     }
-
     public byte[] read(int expectedLength) throws Exception {
-        long end = System.currentTimeMillis() + TELNET_READ_WAIT;
+        return read(expectedLength, -1);
+    }
+    public byte[] read(int expectedLength, int readWait) throws Exception {
+        if(readWait == -1)
+            readWait = TELNET_READ_WAIT;
+        long end = System.currentTimeMillis() + readWait;
         ByteBuffer buf = ByteBuffer.allocate(65536);
         while(System.currentTimeMillis() < end) {
             if(readStream.available() > 0) {

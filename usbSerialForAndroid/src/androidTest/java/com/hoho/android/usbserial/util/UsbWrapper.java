@@ -179,11 +179,19 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
     }
 
     // wait full time
-    public byte[] read() throws Exception { return read(-1, -1); }
-    public byte[] read(int expectedLength) throws Exception { return read(expectedLength, -1); }
-
+    public byte[] read() throws Exception {
+        return read(-1, -1, -1);
+    }
+    public byte[] read(int expectedLength) throws Exception {
+        return read(expectedLength, -1, -1);
+    }
     public byte[] read(int expectedLength, int readBufferSize) throws Exception {
-        long end = System.currentTimeMillis() + USB_READ_WAIT;
+        return read(expectedLength, readBufferSize, -1);
+    }
+    public byte[] read(int expectedLength, int readBufferSize, int readWait) throws Exception {
+        if(readWait == -1)
+            readWait = USB_READ_WAIT;
+        long end = System.currentTimeMillis() + readWait;
         ByteBuffer buf = ByteBuffer.allocate(16*1024);
         if(ioManager != null) {
             while (System.currentTimeMillis() < end) {

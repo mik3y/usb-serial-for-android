@@ -220,16 +220,19 @@ public class DeviceTest {
     }
 
     private void doReadWrite(String reason) throws Exception {
+        doReadWrite(reason, -1);
+    }
+    private void doReadWrite(String reason, int readWait) throws Exception {
         byte[] buf1 = new byte[]{ 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
         byte[] buf2 = new byte[]{ 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26};
         byte[] data;
 
         telnet.write(buf1);
-        data = usb.read(buf1.length);
+        data = usb.read(buf1.length, -1, readWait);
         assertThat(reason, data, equalTo(buf1)); // includes array content in output
         //assertArrayEquals("net2usb".getBytes(), data); // only includes array length in output
         usb.write(buf2);
-        data = telnet.read(buf2.length);
+        data = telnet.read(buf2.length, readWait);
         assertThat(reason, data, equalTo(buf2));
     }
 
@@ -290,6 +293,105 @@ public class DeviceTest {
     }
 
     @Test
+    public void prolificBaudRate() throws Exception {
+        if(!(usb.serialDriver instanceof ProlificSerialDriver))
+            return;
+
+        int[] baudRates = {
+                75, 150, 300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600, 14400, 19200,
+                28800, 38400, 57600, 115200, 128000, 134400, 161280, 201600, 230400, 268800,
+                403200, 460800, 614400, 806400, 921600, 1228800, 2457600, 3000000, /*6000000*/
+        };
+        for(int baudRate : baudRates) {
+            usb.open();
+            int readWait = 500;
+            if(baudRate < 300) readWait = 1000;
+            if(baudRate < 150) readWait = 2000;
+            telnet.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
+            doReadWrite(String.valueOf(baudRate), readWait);
+
+            try {
+                usb.setParameters(baudRate + 1, 8, 1, UsbSerialPort.PARITY_NONE);
+                fail("unsupported baud rate error expected "+baudRate);
+            } catch(UnsupportedOperationException ignored) {}
+
+            usb.setParameters(baudRate + (1<<29), 8, 1, UsbSerialPort.PARITY_NONE);
+            doReadWrite(String.valueOf(baudRate) + " + 1<<29", readWait);
+
+            // silent fallback to 9600 for unsupported baud rates
+            telnet.setParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(baudRate + 1 + (1<<29), 8, 1, UsbSerialPort.PARITY_NONE);
+            doReadWrite(String.valueOf(baudRate + 1) + " + 1<<29", readWait);
+            usb.close();
+        }
+
+        // some PL2303... data sheets mention additional baud rates, others don't
+        // they do not work with my devices and linux driver also excludes them
+        usb.open();
+        telnet.setParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
+        baudRates = new int[]{110, 56000, 256000};
+        for(int baudRate : baudRates) {
+            int readWait = 500;
+            if(baudRate < 300) readWait = 1000;
+            if(baudRate < 150) readWait = 2000;
+            try {
+                usb.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
+                fail("unsupported baud rate error expected "+baudRate);
+            } catch(UnsupportedOperationException ignored) {}
+
+            // silent fallback to 9600 for unsupported baud rates
+            usb.setParameters(baudRate + (1<<29), 8, 1, UsbSerialPort.PARITY_NONE);
+            doReadWrite(String.valueOf(baudRate ) + " + 1<<29", readWait);
+        }
+        usb.close();
+    }
+
+    @Test
+    public void ftdiBaudRate() throws Exception {
+        if (!(usb.serialDriver instanceof FtdiSerialDriver))
+            return;
+
+        usb.open();
+        try {
+            usb.setParameters(183, 8, 1, UsbSerialPort.PARITY_NONE);
+            fail("baud rate to low expected");
+        } catch (IOException ignored) {
+        }
+        usb.setParameters(184, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters( 960000, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(1000000, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(1043478, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(1090909, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(1142857, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(1200000, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(1263157, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(1333333, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(1411764, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(1500000, 8, 1, UsbSerialPort.PARITY_NONE);
+        try {
+            usb.setParameters((int)(2000000/1.04), 8, 1, UsbSerialPort.PARITY_NONE);
+            fail("baud rate error expected");
+        } catch (IOException ignored) {
+        }
+        usb.setParameters((int)(2000000/1.03), 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters((int)(2000000*1.03), 8, 1, UsbSerialPort.PARITY_NONE);
+        try {
+            usb.setParameters((int)(2000000*1.04), 8, 1, UsbSerialPort.PARITY_NONE);
+            fail("baud rate error expected");
+        } catch (IOException ignored) {
+        }
+        usb.setParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(3000000, 8, 1, UsbSerialPort.PARITY_NONE);
+        try {
+            usb.setParameters(4000000, 8, 1, UsbSerialPort.PARITY_NONE);
+            fail("baud rate to high expected");
+        } catch (IOException ignored) {
+        }
+    }
+
+    @Test
     public void baudRate() throws Exception {
         usb.open();
 
@@ -329,7 +431,7 @@ public class DeviceTest {
         } catch (IllegalArgumentException ignored) {
         }
         try {
-            usb.setParameters(2<<31, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(1<<31, 8, 1, UsbSerialPort.PARITY_NONE);
             if (usb.serialDriver instanceof ProlificSerialDriver)
                 ;
             else if (usb.serialDriver instanceof Cp21xxSerialDriver)
@@ -358,72 +460,36 @@ public class DeviceTest {
             doReadWrite(baudRate+"/8N1");
         }
         if(rfc2217_server_nonstandard_baudrates && !isCp21xxRestrictedPort) {
-            // usbParameters does not fail on devices that do not support nonstandard baud rates
-            usb.setParameters(42000, 8, 1, UsbSerialPort.PARITY_NONE);
-            telnet.setParameters(42000, 8, 1, UsbSerialPort.PARITY_NONE);
-
-            byte[] buf1 = "abc".getBytes();
-            byte[] buf2 = "ABC".getBytes();
-            byte[] data1, data2;
-            usb.write(buf1);
-            data1 = telnet.read();
-            telnet.write(buf2);
-            data2 = usb.read();
             if (usb.serialDriver instanceof ProlificSerialDriver) {
-                // not supported
-                assertNotEquals(data1, buf2);
-                assertNotEquals(data2, buf2);
-            } else if (usb.serialDriver instanceof Cp21xxSerialDriver) {
-                if (usb.serialDriver.getPorts().size() > 1) {
-                    // supported on cp2105 first port
+                try {
+                    usb.setParameters(42000, 8, 1, UsbSerialPort.PARITY_NONE);
+                    fail("unsupported baud rate error expected");
+                } catch (UnsupportedOperationException ignored) {}
+            } else {
+                usb.setParameters(42000, 8, 1, UsbSerialPort.PARITY_NONE);
+                telnet.setParameters(42000, 8, 1, UsbSerialPort.PARITY_NONE);
+
+                byte[] buf1 = "abc".getBytes();
+                byte[] buf2 = "ABC".getBytes();
+                byte[] data1, data2;
+                usb.write(buf1);
+                data1 = telnet.read();
+                telnet.write(buf2);
+                data2 = usb.read();
+                if (usb.serialDriver instanceof Cp21xxSerialDriver) {
+                    if (usb.serialDriver.getPorts().size() > 1) {
+                        // supported on cp2105 first port
+                        assertThat("42000/8N1", data1, equalTo(buf1));
+                        assertThat("42000/8N1", data2, equalTo(buf2));
+                    } else {
+                        // not supported on cp2102
+                        assertNotEquals(data1, buf1);
+                        assertNotEquals(data2, buf2);
+                    }
+                } else {
                     assertThat("42000/8N1", data1, equalTo(buf1));
                     assertThat("42000/8N1", data2, equalTo(buf2));
-                } else {
-                    // not supported on cp2102
-                    assertNotEquals(data1, buf1);
-                    assertNotEquals(data2, buf2);
                 }
-            } else {
-                assertThat("42000/8N1", data1, equalTo(buf1));
-                assertThat("42000/8N1", data2, equalTo(buf2));
-            }
-        }
-        if (usb.serialDriver instanceof FtdiSerialDriver) {
-            try {
-                usb.setParameters(183, 8, 1, UsbSerialPort.PARITY_NONE);
-                fail("baud rate to low expected");
-            } catch (IOException ignored) {
-            }
-            usb.setParameters(184, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters( 960000, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(1000000, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(1043478, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(1090909, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(1142857, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(1200000, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(1263157, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(1333333, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(1411764, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(1500000, 8, 1, UsbSerialPort.PARITY_NONE);
-            try {
-                usb.setParameters((int)(2000000/1.04), 8, 1, UsbSerialPort.PARITY_NONE);
-                fail("baud rate error expected");
-            } catch (IOException ignored) {
-            }
-            usb.setParameters((int)(2000000/1.03), 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters((int)(2000000*1.03), 8, 1, UsbSerialPort.PARITY_NONE);
-            try {
-                usb.setParameters((int)(2000000*1.04), 8, 1, UsbSerialPort.PARITY_NONE);
-                fail("baud rate error expected");
-            } catch (IOException ignored) {
-            }
-            usb.setParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
-            usb.setParameters(3000000, 8, 1, UsbSerialPort.PARITY_NONE);
-            try {
-                usb.setParameters(4000000, 8, 1, UsbSerialPort.PARITY_NONE);
-                fail("baud rate to high expected");
-            } catch (IOException ignored) {
             }
         }
         { // non matching baud rate
