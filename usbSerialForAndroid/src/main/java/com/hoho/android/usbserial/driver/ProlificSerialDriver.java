@@ -19,6 +19,7 @@ import android.util.Log;
 import com.hoho.android.usbserial.BuildConfig;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -34,7 +35,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             28800, 38400, 57600, 115200, 128000, 134400, 161280, 201600, 230400, 268800,
             403200, 460800, 614400, 806400, 921600, 1228800, 2457600, 3000000, 6000000
     };
-
+    private enum DeviceType { DEVICE_TYPE_01, DEVICE_TYPE_HX};
 
     private final UsbDevice mDevice;
     private final UsbSerialPort mPort;
@@ -89,11 +90,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         private static final int STATUS_BUFFER_SIZE = 10;
         private static final int STATUS_BYTE_IDX = 8;
 
-        private static final int DEVICE_TYPE_HX = 0;
-        private static final int DEVICE_TYPE_0 = 1;
-        private static final int DEVICE_TYPE_1 = 2;
-
-        private int mDeviceType = DEVICE_TYPE_HX;
+        private DeviceType mDeviceType = DeviceType.DEVICE_TYPE_HX;
         private UsbEndpoint mInterruptEndpoint;
         private int mControlLinesValue = 0;
         private int mBaudRate = -1, mDataBits = -1, mStopBits = -1, mParity = -1;
@@ -172,7 +169,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             vendorIn(0x8383, 0, 1);
             vendorOut(0, 1, null);
             vendorOut(1, 0, null);
-            vendorOut(2, (mDeviceType == DEVICE_TYPE_HX) ? 0x44 : 0x24, null);
+            vendorOut(2, (mDeviceType == DeviceType.DEVICE_TYPE_HX) ? 0x44 : 0x24, null);
         }
 
         private void setControlLines(int newControlLinesValue) throws IOException {
@@ -272,22 +269,22 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             }
 
             if (mDevice.getDeviceClass() == 0x02) {
-                mDeviceType = DEVICE_TYPE_0;
+                mDeviceType = DeviceType.DEVICE_TYPE_01;
             } else {
                 byte[] rawDescriptors = connection.getRawDescriptors();
                 if(rawDescriptors == null || rawDescriptors.length <8) {
                     Log.w(TAG, "Could not get device descriptors, Assuming that it is a HX device");
-                    mDeviceType = DEVICE_TYPE_HX;
+                    mDeviceType = DeviceType.DEVICE_TYPE_HX;
                 } else {
                     byte maxPacketSize0 = rawDescriptors[7];
                     if (maxPacketSize0 == 64) {
-                        mDeviceType = DEVICE_TYPE_HX;
+                        mDeviceType = DeviceType.DEVICE_TYPE_HX;
                     } else if ((mDevice.getDeviceClass() == 0x00)
                             || (mDevice.getDeviceClass() == 0xff)) {
-                        mDeviceType = DEVICE_TYPE_1;
+                        mDeviceType = DeviceType.DEVICE_TYPE_01;
                     } else {
                         Log.w(TAG, "Could not detect PL2303 subtype, Assuming that it is a HX device");
-                        mDeviceType = DEVICE_TYPE_HX;
+                        mDeviceType = DeviceType.DEVICE_TYPE_HX;
                     }
                 }
             }
@@ -328,7 +325,40 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                     return baudRate;
                 }
             }
-            throw new UnsupportedOperationException("Unsupported baud rate: " + baudRate);
+            /*
+             * Formula taken from Linux + FreeBSD.
+             *   baudrate = baseline / (mantissa * 4^exponent)
+             * where
+             *   mantissa = buf[8:0]
+             *   exponent = buf[11:9]
+             *
+             * Note: The formula does not work for all PL2303 variants.
+             *       Ok for PL2303HX. Not ok for PL2303TA. Other variants unknown.
+             */
+            int baseline, mantissa, exponent;
+            baseline = 12000000 * 32;
+            mantissa = baseline / baudRate;
+            if (mantissa == 0) { // > unrealistic 384 MBaud
+                throw new UnsupportedOperationException("Baud rate to high");
+            }
+            exponent = 0;
+            while (mantissa >= 512) {
+                if (exponent < 7) {
+                    mantissa >>= 2;	/* divide by 4 */
+                    exponent++;
+                } else { // < 45.8 baud
+                    throw new UnsupportedOperationException("Baud rate to low");
+                }
+            }
+            int effectiveBaudRate = (baseline / mantissa) >> (exponent << 1);
+            double baudRateError = Math.abs(1.0 - (effectiveBaudRate / (double)baudRate));
+            if(baudRateError >= 0.031) // > unrealistic 11.6 Mbaud
+                throw new UnsupportedOperationException(String.format("Baud rate deviation %.1f%% is higher than allowed 3%%", baudRateError*100));
+            int buf = mantissa + (exponent<<9) + (1<<31);
+
+            Log.d(TAG, String.format("baud rate=%d, effective=%d, error=%.1f%%, value=0x%08x, mantissa=%d, exponent=%d",
+                    baudRate, effectiveBaudRate, baudRateError*100, buf, mantissa, exponent));
+            return buf;
         }
 
         @Override

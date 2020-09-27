@@ -176,7 +176,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         private void setBaudrate(int baudRate) throws IOException {
             int divisor, subdivisor, effectiveBaudRate;
             if (baudRate > 3500000) {
-                throw new IOException("Baud rate to high");
+                throw new UnsupportedOperationException("Baud rate to high");
             } else if(baudRate >= 2500000) {
                 divisor = 0;
                 subdivisor = 0;
@@ -191,13 +191,13 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                 subdivisor = divisor & 0x07;
                 divisor >>= 3;
                 if (divisor > 0x3fff) // exceeds bit 13 at 183 baud
-                    throw new IOException("Baud rate to low");
+                    throw new UnsupportedOperationException("Baud rate to low");
                 effectiveBaudRate = (24000000 << 1) / ((divisor << 3) + subdivisor);
                 effectiveBaudRate = (effectiveBaudRate +1) >> 1;
             }
             double baudRateError = Math.abs(1.0 - (effectiveBaudRate / (double)baudRate));
             if(baudRateError >= 0.031) // can happen only > 1.5Mbaud
-                throw new IOException(String.format("baud rate deviation %.1f%% is higher than allowed 3%%", baudRateError*100));
+                throw new UnsupportedOperationException(String.format("Baud rate deviation %.1f%% is higher than allowed 3%%", baudRateError*100));
             int value = divisor;
             int index = 0;
             switch(subdivisor) {
