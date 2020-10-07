@@ -19,7 +19,6 @@ import android.util.Log;
 import com.hoho.android.usbserial.BuildConfig;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -76,11 +75,18 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         private static final int FLUSH_RX_REQUEST = 0x08; // RX @ Prolific device = write @ usb-serial-for-android library
         private static final int FLUSH_TX_REQUEST = 0x09;
 
-        private static final int SET_LINE_REQUEST = 0x20;
-        private static final int SET_CONTROL_REQUEST = 0x22;
+        private static final int SET_LINE_REQUEST = 0x20; // same as CDC SET_LINE_CODING
+        private static final int SET_CONTROL_REQUEST = 0x22; // same as CDC SET_CONTROL_LINE_STATE
+        private static final int GET_CONTROL_REQUEST = 0x87;
+        private static final int STATUS_NOTIFICATION = 0xa1; // similar to CDC SERIAL_STATE but different length
 
         private static final int CONTROL_DTR = 0x01;
         private static final int CONTROL_RTS = 0x02;
+
+        private static final int GET_CONTROL_FLAG_CD = 0x02;
+        private static final int GET_CONTROL_FLAG_DSR = 0x04;
+        private static final int GET_CONTROL_FLAG_RI = 0x01;
+        private static final int GET_CONTROL_FLAG_CTS = 0x08;
 
         private static final int STATUS_FLAG_CD = 0x01;
         private static final int STATUS_FLAG_DSR = 0x02;
@@ -98,7 +104,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         private int mStatus = 0;
         private volatile Thread mReadStatusThread = null;
         private final Object mReadStatusThreadLock = new Object();
-        boolean mStopReadStatusThread = false;
+        private boolean mStopReadStatusThread = false;
         private IOException mReadStatusException = null;
 
 
@@ -111,51 +117,37 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             return ProlificSerialDriver.this;
         }
 
-        private final byte[] inControlTransfer(int requestType, int request,
-                int value, int index, int length) throws IOException {
+        private byte[] inControlTransfer(int requestType, int request, int value, int index, int length) throws IOException {
             byte[] buffer = new byte[length];
-            int result = mConnection.controlTransfer(requestType, request, value,
-                    index, buffer, length, USB_READ_TIMEOUT_MILLIS);
+            int result = mConnection.controlTransfer(requestType, request, value, index, buffer, length, USB_READ_TIMEOUT_MILLIS);
             if (result != length) {
-                throw new IOException(
-                        String.format("ControlTransfer with value 0x%x failed: %d",
-                                value, result));
+                throw new IOException(String.format("ControlTransfer 0x%x failed: %d",value, result));
             }
             return buffer;
         }
 
-        private final void outControlTransfer(int requestType, int request,
-                int value, int index, byte[] data) throws IOException {
+        private void outControlTransfer(int requestType, int request, int value, int index, byte[] data) throws IOException {
             int length = (data == null) ? 0 : data.length;
-            int result = mConnection.controlTransfer(requestType, request, value,
-                    index, data, length, USB_WRITE_TIMEOUT_MILLIS);
+            int result = mConnection.controlTransfer(requestType, request, value, index, data, length, USB_WRITE_TIMEOUT_MILLIS);
             if (result != length) {
-                throw new IOException(
-                        String.format("ControlTransfer with value 0x%x failed: %d",
-                                value, result));
+                throw new IOException( String.format("ControlTransfer 0x%x failed: %d", value, result));
             }
         }
 
-        private final byte[] vendorIn(int value, int index, int length)
-                throws IOException {
-            return inControlTransfer(PROLIFIC_VENDOR_IN_REQTYPE,
-                    PROLIFIC_VENDOR_READ_REQUEST, value, index, length);
+        private byte[] vendorIn(int value, int index, int length) throws IOException {
+            return inControlTransfer(PROLIFIC_VENDOR_IN_REQTYPE, PROLIFIC_VENDOR_READ_REQUEST, value, index, length);
         }
 
-        private final void vendorOut(int value, int index, byte[] data)
-                throws IOException {
-            outControlTransfer(PROLIFIC_VENDOR_OUT_REQTYPE,
-                    PROLIFIC_VENDOR_WRITE_REQUEST, value, index, data);
+        private void vendorOut(int value, int index, byte[] data) throws IOException {
+            outControlTransfer(PROLIFIC_VENDOR_OUT_REQTYPE, PROLIFIC_VENDOR_WRITE_REQUEST, value, index, data);
         }
 
         private void resetDevice() throws IOException {
             purgeHwBuffers(true, true);
         }
 
-        private final void ctrlOut(int request, int value, int index, byte[] data)
-                throws IOException {
-            outControlTransfer(PROLIFIC_CTRL_OUT_REQTYPE, request, value, index,
-                    data);
+        private void ctrlOut(int request, int value, int index, byte[] data) throws IOException {
+            outControlTransfer(PROLIFIC_CTRL_OUT_REQTYPE, request, value, index, data);
         }
 
         private void doBlackMagic() throws IOException {
@@ -177,7 +169,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             mControlLinesValue = newControlLinesValue;
         }
 
-        private final void readStatusThreadFunction() {
+        private void readStatusThreadFunction() {
             try {
                 while (!mStopReadStatusThread) {
                     byte[] buffer = new byte[STATUS_BUFFER_SIZE];
@@ -186,42 +178,33 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                     if(readBytesCount == -1 && System.currentTimeMillis() < endTime)
                         testConnection();
                     if (readBytesCount > 0) {
-                        if (readBytesCount == STATUS_BUFFER_SIZE) {
-                            mStatus = buffer[STATUS_BYTE_IDX] & 0xff;
+                        if (readBytesCount != STATUS_BUFFER_SIZE) {
+                            throw new IOException("Invalid status notification, expected " + STATUS_BUFFER_SIZE + " bytes, got " + readBytesCount);
+                        } else if(buffer[0] != (byte)STATUS_NOTIFICATION ) {
+                            throw new IOException("Invalid status notification, expected " + STATUS_NOTIFICATION + " request, got " + buffer[0]);
                         } else {
-                            throw new IOException(
-                                    String.format("Invalid CTS / DSR / CD / RI status buffer received, expected %d bytes, but received %d",
-                                            STATUS_BUFFER_SIZE,
-                                            readBytesCount));
+                            mStatus = buffer[STATUS_BYTE_IDX] & 0xff;
                         }
                     }
                 }
             } catch (IOException e) {
                 mReadStatusException = e;
             }
+            //Log.d(TAG, "end control line status thread " + mStopReadStatusThread + " " + (mReadStatusException == null ? "-" : mReadStatusException.getMessage()));
         }
 
-        private final int getStatus() throws IOException {
+        private int getStatus() throws IOException {
             if ((mReadStatusThread == null) && (mReadStatusException == null)) {
                 synchronized (mReadStatusThreadLock) {
                     if (mReadStatusThread == null) {
-                        byte[] buffer = new byte[STATUS_BUFFER_SIZE];
-                        int readBytes = mConnection.bulkTransfer(mInterruptEndpoint,
-                                buffer,
-                                STATUS_BUFFER_SIZE,
-                                100);
-                        if (readBytes != STATUS_BUFFER_SIZE) {
-                            Log.w(TAG, "Could not read initial CTS / DSR / CD / RI status");
-                        } else {
-                            mStatus = buffer[STATUS_BYTE_IDX] & 0xff;
-                        }
-
-                        mReadStatusThread = new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                readStatusThreadFunction();
-                            }
-                        });
+                        byte[] data = vendorIn(GET_CONTROL_REQUEST, 0, 1);
+                        mStatus = 0;
+                        if((data[0] & GET_CONTROL_FLAG_CTS) == 0) mStatus |= STATUS_FLAG_CTS;
+                        if((data[0] & GET_CONTROL_FLAG_DSR) == 0) mStatus |= STATUS_FLAG_DSR;
+                        if((data[0] & GET_CONTROL_FLAG_CD) == 0) mStatus |= STATUS_FLAG_CD;
+                        if((data[0] & GET_CONTROL_FLAG_RI) == 0) mStatus |= STATUS_FLAG_RI;
+                        //Log.d(TAG, "start control line status thread " + mStatus);
+                        mReadStatusThread = new Thread(this::readStatusThreadFunction);
                         mReadStatusThread.setDaemon(true);
                         mReadStatusThread.start();
                     }
@@ -238,7 +221,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             return mStatus;
         }
 
-        private final boolean testStatusFlag(int flag) throws IOException {
+        private boolean testStatusFlag(int flag) throws IOException {
             return ((getStatus() & flag) == flag);
         }
 
@@ -296,14 +279,17 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         @Override
         public void closeInt() {
             try {
-                mStopReadStatusThread = true;
                 synchronized (mReadStatusThreadLock) {
                     if (mReadStatusThread != null) {
                         try {
+                            mStopReadStatusThread = true;
                             mReadStatusThread.join();
                         } catch (Exception e) {
                             Log.w(TAG, "An error occured while waiting for status read thread", e);
                         }
+                        mStopReadStatusThread = false;
+                        mReadStatusThread = null;
+                        mReadStatusException = null;
                     }
                 }
                 resetDevice();

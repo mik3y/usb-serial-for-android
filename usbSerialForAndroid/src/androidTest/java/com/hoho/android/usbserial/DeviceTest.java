@@ -1573,14 +1573,6 @@ public class DeviceTest {
         Thread.sleep(sleep);
 
         assertEquals(supportedControlLines, usb.serialPort.getSupportedControlLines());
-        if(usb.serialDriver instanceof ProlificSerialDriver) {
-            // the initial status is sometimes not available or wrong.
-            // this is more likely if other tests have been executed before.
-            // start thread and wait until status hopefully updated.
-            usb.serialPort.getRI(); // todo
-            Thread.sleep(sleep);
-            assertTrue(usb.serialPort.getRI());
-        }
 
         // control lines reset on initial open
         data = "none".getBytes();
@@ -1680,27 +1672,59 @@ public class DeviceTest {
         assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineFalse));
         assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(inputLineFalse));
 
+        if (usb.serialDriver instanceof ProlificSerialDriver) { // check different control line mapping in GET_CONTROL_REQUEST
+            usb.serialPort.setRTS(false);
+            usb.serialPort.setDTR(false);
+            usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
+            usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
+            assertEquals(EnumSet.of(UsbSerialPort.ControlLine.RI), usb.serialPort.getControlLines());
+
+            usb.serialPort.setRTS(true);
+            usb.serialPort.setDTR(false);
+            usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
+            usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
+            assertEquals(EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.CTS), usb.serialPort.getControlLines());
+
+            usb.serialPort.setRTS(false);
+            usb.serialPort.setDTR(true);
+            usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
+            usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
+            assertEquals(EnumSet.of(UsbSerialPort.ControlLine.DTR, UsbSerialPort.ControlLine.DSR), usb.serialPort.getControlLines());
+
+            usb.serialPort.setRTS(true);
+            usb.serialPort.setDTR(true);
+            usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
+            usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
+            assertEquals(EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.DTR, UsbSerialPort.ControlLine.CD), usb.serialPort.getControlLines());
+        }
+
+        // force error
         usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
+        if (usb.serialDriver instanceof ProlificSerialDriver) {
+            usb.serialPort.getRI(); // start background thread
+        }
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         for (int i = 0; i < usb.serialDriver.getDevice().getInterfaceCount(); i++)
             usb.deviceConnection.releaseInterface(usb.serialDriver.getDevice().getInterface(i));
         usb.deviceConnection.close();
 
-        // set... error
         try {
             usb.serialPort.setRTS(true);
             fail("error expected");
         } catch (IOException ignored) {
         }
 
-        // get... error
         try {
-            usb.serialPort.getRI();
-            if (usb.serialDriver instanceof ProlificSerialDriver)
-                ; // todo: currently not possible to detect, as bulkTransfer in background thread does not distinguish timeout and error
-            else
-                fail("error expected");
+            if (usb.serialDriver instanceof ProlificSerialDriver) {
+                for(int i = 0; i < 10; i++) { // can take some time until background thread fails
+                    usb.serialPort.getRI();
+                    Thread.sleep(100);
+                }
+            } else {
+                usb.serialPort.getRI();
+            }
+            fail("error expected");
         } catch (IOException ignored) {
         } catch (UnsupportedOperationException ignored) {
         }
