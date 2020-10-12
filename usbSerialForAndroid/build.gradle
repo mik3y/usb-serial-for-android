@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         minSdkVersion 17
-        targetSdkVersion 28
+        targetSdkVersion 29
         consumerProguardFiles 'proguard-rules.pro'
         
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
@@ -26,7 +26,7 @@ dependencies {
     androidTestImplementation 'com.android.support:support-annotations:28.0.0'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'commons-net:commons-net:3.6'
-    androidTestImplementation 'org.apache.commons:commons-lang3:3.8.1' // starting with 3.9 requires min-api 26
+    androidTestImplementation 'org.apache.commons:commons-lang3:3.11'
 }
 
 //apply from: 'publishToMavenLocal.gradle'

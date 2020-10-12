@@ -364,7 +364,7 @@ public class DeviceTest {
         try {
             usb.setParameters(183, 8, 1, UsbSerialPort.PARITY_NONE);
             fail("baud rate to low expected");
-        } catch (IOException ignored) {
+        } catch (UnsupportedOperationException ignored) {
         }
         usb.setParameters(184, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.setParameters( 960000, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -380,7 +380,7 @@ public class DeviceTest {
         try {
             usb.setParameters((int)(2000000/1.04), 8, 1, UsbSerialPort.PARITY_NONE);
             fail("baud rate error expected");
-        } catch (IOException ignored) {
+        } catch (UnsupportedOperationException ignored) {
         }
         usb.setParameters((int)(2000000/1.03), 8, 1, UsbSerialPort.PARITY_NONE);
         usb.setParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -388,14 +388,14 @@ public class DeviceTest {
         try {
             usb.setParameters((int)(2000000*1.04), 8, 1, UsbSerialPort.PARITY_NONE);
             fail("baud rate error expected");
-        } catch (IOException ignored) {
+        } catch (UnsupportedOperationException ignored) {
         }
         usb.setParameters(2000000, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.setParameters(3000000, 8, 1, UsbSerialPort.PARITY_NONE);
         try {
             usb.setParameters(4000000, 8, 1, UsbSerialPort.PARITY_NONE);
             fail("baud rate to high expected");
-        } catch (IOException ignored) {
+        } catch (UnsupportedOperationException ignored) {
         }
     }
 
@@ -922,7 +922,7 @@ public class DeviceTest {
         if (usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() == 1)
             Assert.assertNotEquals(0, data.length); // can be shorter or full length
         else if (usb.serialDriver instanceof ProlificSerialDriver)
-            Assert.assertTrue("expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
+            Assert.assertTrue("sporadic issue! expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
         else // ftdi, ch340, cp2105
             Assert.assertEquals(0, data.length);
         telnet.write("2ccc".getBytes());
@@ -998,7 +998,7 @@ public class DeviceTest {
     public void readSpeed() throws Exception {
         // see logcat for performance results
         //
-        // CDC arduino_leonardo_bridge.ini has transfer speed ~ 100 byte/sec
+        // CDC arduino_leonardo_bridge.ino has transfer speed ~ 100 byte/sec
         // all other devices are near physical limit with ~ 10-12k/sec
         //
         // readBufferOverflow provokes read errors, but they can also happen here where the data is actually read fast enough.
@@ -1068,7 +1068,7 @@ public class DeviceTest {
     public void writeSpeed() throws Exception {
         // see logcat for performance results
         //
-        // CDC arduino_leonardo_bridge.ini has transfer speed ~ 100 byte/sec
+        // CDC arduino_leonardo_bridge.ino has transfer speed ~ 100 byte/sec
         // all other devices can get near physical limit:
         // longlines=true:, speed is near physical limit at 11.5k
         // longlines=false: speed is 3-4k for all devices, as more USB packets are required
@@ -1194,8 +1194,6 @@ public class DeviceTest {
         usb.ioManager = new SerialInputOutputManager(usb.serialPort, usb);
         assertEquals(usb, usb.ioManager.getListener());
 
-        usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
-
         assertEquals(0, usb.ioManager.getReadTimeout());
         usb.ioManager.setReadTimeout(10);
         assertEquals(10, usb.ioManager.getReadTimeout());
@@ -1210,10 +1208,22 @@ public class DeviceTest {
         usb.ioManager.setWriteBufferSize(13);
         assertEquals(13, usb.ioManager.getWriteBufferSize());
 
-        usb.open(); // creates new IoManager
+        usb.ioManager.setReadBufferSize(usb.ioManager.getReadBufferSize());
+        usb.ioManager.setWriteBufferSize(usb.ioManager.getWriteBufferSize());
+        usb.ioManager.setReadTimeout(usb.ioManager.getReadTimeout());
+        usb.ioManager.setWriteTimeout(usb.ioManager.getWriteTimeout());
+
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START)); // creates new IoManager
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);
+        usb.startIoManager();
         usb.waitForIoManagerStarted();
+        try {
+            usb.ioManager.run();
+            fail("already running error expected");
+        } catch (IllegalStateException ignored) {
+        }
         try {
             usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_LOWEST);
             fail("setThreadPriority IllegalStateException expected");
@@ -1384,7 +1394,7 @@ public class DeviceTest {
             // date loss with high transfer rate and short read timeout !!!
             diffLen = readSpeedInt(5, -1, shortTimeout);
 
-            assertNotEquals(0, diffLen);
+            assertNotEquals("sporadic issue!", 0, diffLen);
 
             // data loss observed with read timeout up to 200 msec, e.g.
             //  difference at 181 len 64
@@ -1791,9 +1801,15 @@ public class DeviceTest {
         } catch (UnsupportedOperationException ignored) {
         }
         if(purged) {
+            usb.serialPort.purgeHwBuffers(false, false);
             try {
-                usb.serialPort.purgeHwBuffers(true, true);
-                fail("purgeHwBuffers error expected");
+                usb.serialPort.purgeHwBuffers(true, false);
+                fail("purgeHwBuffers(write) error expected");
+            } catch (IOException ignored) {
+            }
+            try {
+                usb.serialPort.purgeHwBuffers(false, true);
+                fail("purgeHwBuffers(read) error expected");
             } catch (IOException ignored) {
             }
         }
@@ -1845,10 +1861,10 @@ public class DeviceTest {
         } catch (IOException ignored) {
         }
         try {
-            usb.ioManager.run();
-            fail("already running error expected");
-        } catch (IllegalStateException ignored) {
-        }
+            byte[] buffer = new byte[0];
+            usb.serialPort.read(buffer, UsbWrapper.USB_READ_WAIT);
+            fail("read buffer to small expected");
+        } catch(IllegalArgumentException ignored) {}
     }
 
     @Test
@@ -1876,5 +1892,16 @@ public class DeviceTest {
         ftdiSerialPort.setLatencyTimer(lt);
         assertEquals("latency 1", 99, Math.max(t2-t1, 99)); // looks strange, but shows actual value
         assertEquals("latency 100", 99, Math.min(t3-t2, 99));
+
+        usb.deviceConnection.close();
+        try {
+            ftdiSerialPort.getLatencyTimer();
+            fail("getLatencyTimer error expected");
+        } catch (IOException ignored) {}
+        usb.deviceConnection.close();
+        try {
+            ftdiSerialPort.setLatencyTimer(1);
+            fail("setLatencyTimer error expected");
+        } catch (IOException ignored) {}
     }
 }

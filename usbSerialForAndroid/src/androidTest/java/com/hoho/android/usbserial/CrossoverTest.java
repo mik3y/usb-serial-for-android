@@ -62,12 +62,12 @@ public class CrossoverTest {
         if (availableDrivers.size() == 0) {
             fail("no USB device found");
         } else if (availableDrivers.size() == 1) {
-            assertEquals(2, availableDrivers.get(0).getPorts().size());
+            assertEquals("expected device with 2 ports.", 2, availableDrivers.get(0).getPorts().size());
             usb1 = new UsbWrapper(context, availableDrivers.get(0), 0);
             usb2 = new UsbWrapper(context, availableDrivers.get(0), 1);
         } else {
-            assertEquals(1, availableDrivers.get(0).getPorts().size());
-            assertEquals(1, availableDrivers.get(1).getPorts().size());
+            assertEquals("expected 2 devices with 1 port.", 1, availableDrivers.get(0).getPorts().size());
+            assertEquals("expected 2 devices with 1 port.", 1, availableDrivers.get(1).getPorts().size());
             usb1 = new UsbWrapper(context, availableDrivers.get(0), 0);
             usb2 = new UsbWrapper(context, availableDrivers.get(1), 0);
         }

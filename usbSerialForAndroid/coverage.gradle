@@ -1,3 +1,4 @@
+// see https://github.com/mik3y/usb-serial-for-android/wiki/Device-Tests-&-Coverage-Report for instructions
 apply plugin: 'jacoco'
 
 android {
@@ -43,9 +44,27 @@ android {
         }
     }
 }
+
 // create report even if tests fail
 project.gradle.taskGraph.whenReady {
     -> project.tasks.findAll { it.name =~ /connected.+AndroidTest/ }.each {
         it.ignoreFailures = true
     }
+}
+
+task jacocoTestReport(type: JacocoReport /*, dependsOn: ['testDebugUnitTest', 'createAnyDeviceDebugCoverageReport']*/) {
+    reports {
+        xml.enabled = false
+        html.enabled = true
+    }
+
+    def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*.*']
+    def debugTree = fileTree(dir: "$project.buildDir/intermediates/javac/debug", excludes: fileFilter)
+    def mainSrc = "$project.projectDir/src/main/java"
+
+    sourceDirectories.from files([mainSrc])
+    classDirectories.from files([debugTree])
+    executionData.from fileTree(dir: project.buildDir, includes: [
+            'jacoco/testDebugUnitTest.exec', 'outputs/code_coverage/*AndroidTest/connected/*.ec'
+    ])
 }

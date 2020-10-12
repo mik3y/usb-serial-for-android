@@ -33,8 +33,8 @@ import static org.junit.Assert.fail;
 
 public class UsbWrapper implements SerialInputOutputManager.Listener {
 
-    private final static int     USB_READ_WAIT = 500;
-    private final static int     USB_WRITE_WAIT = 500;
+    public final static int     USB_READ_WAIT = 500;
+    public final static int     USB_WRITE_WAIT = 500;
     private static final String TAG = UsbWrapper.class.getSimpleName();
 
     public enum OpenCloseFlags { NO_IOMANAGER_THREAD, NO_IOMANAGER_START, NO_CONTROL_LINE_INIT, NO_DEVICE_CONNECTION };
