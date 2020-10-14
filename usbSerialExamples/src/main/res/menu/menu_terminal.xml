@@ -6,4 +6,8 @@
         android:icon="@drawable/ic_delete_white_24dp"
         android:title="Clear"
         app:showAsAction="always" />
+    <item
+        android:id="@+id/send_break"
+        android:title="Send BREAK"
+        app:showAsAction="never" />
 </menu>

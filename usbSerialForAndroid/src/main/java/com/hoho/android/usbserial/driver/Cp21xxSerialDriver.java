@@ -59,6 +59,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
          */
         private static final int SILABSER_IFC_ENABLE_REQUEST_CODE = 0x00;
         private static final int SILABSER_SET_LINE_CTL_REQUEST_CODE = 0x03;
+        private static final int SILABSER_SET_BREAK_REQUEST_CODE = 0x05;
         private static final int SILABSER_SET_MHS_REQUEST_CODE = 0x07;
         private static final int SILABSER_SET_BAUDRATE = 0x1E;
         private static final int SILABSER_FLUSH_REQUEST_CODE = 0x12;
@@ -314,6 +315,10 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             }
         }
 
+        @Override
+        public void setBreak(boolean value) throws IOException {
+            setConfigSingle(SILABSER_SET_BREAK_REQUEST_CODE, value ? 1 : 0);
+        }
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {

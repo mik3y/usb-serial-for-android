@@ -84,6 +84,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         private boolean baudRateWithPort = false;
         private boolean dtr = false;
         private boolean rts = false;
+        private int breakConfig = 0;
 
         public FtdiSerialPort(UsbDevice device, int portNumber) {
             super(device, portNumber);
@@ -280,6 +281,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             if (result != 0) {
                 throw new IOException("Setting parameters failed: result=" + result);
             }
+            breakConfig = config;
         }
 
         private int getStatus() throws IOException {
@@ -366,7 +368,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                 int result = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, RESET_REQUEST,
                         RESET_PURGE_RX, mPortNumber+1, null, 0, USB_WRITE_TIMEOUT_MILLIS);
                 if (result != 0) {
-                    throw new IOException("purge write buffer failed: result=" + result);
+                    throw new IOException("Purge write buffer failed: result=" + result);
                 }
             }
 
@@ -374,8 +376,19 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                 int result = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, RESET_REQUEST,
                         RESET_PURGE_TX, mPortNumber+1, null, 0, USB_WRITE_TIMEOUT_MILLIS);
                 if (result != 0) {
-                    throw new IOException("purge read buffer failed: result=" + result);
+                    throw new IOException("Purge read buffer failed: result=" + result);
                 }
+            }
+        }
+
+        @Override
+        public void setBreak(boolean value) throws IOException {
+            int config = breakConfig;
+            if(value) config |= 0x4000;
+            int result = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SET_DATA_REQUEST,
+                    config, mPortNumber+1,null, 0, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 0) {
+                throw new IOException("Setting BREAK failed: result=" + result);
             }
         }
 

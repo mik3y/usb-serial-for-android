@@ -341,6 +341,25 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
 			return EnumSet.allOf(ControlLine.class);
 		}
+
+		@Override
+		public void setBreak(boolean value) throws IOException {
+			byte[] req = new byte[2];
+			if(controlIn(0x95, 0x1805, 0, req) < 0) {
+				throw new IOException("Error getting BREAK condition");
+			}
+			if(value) {
+				req[0] &= ~1;
+				req[1] &= ~0x40;
+			} else {
+				req[0] |= 1;
+				req[1] |= 0x40;
+			}
+			int val = (req[1] & 0xff) << 8 | (req[0] & 0xff);
+			if(controlOut(0x9a, 0x1805, val) < 0) {
+				throw new IOException("Error setting BREAK condition");
+			}
+		}
 	}
 
 	public static Map<Integer, int[]> getSupportedDevices() {

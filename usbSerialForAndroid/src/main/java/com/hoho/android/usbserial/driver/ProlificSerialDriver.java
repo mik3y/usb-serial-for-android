@@ -77,6 +77,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         private static final int SET_LINE_REQUEST = 0x20; // same as CDC SET_LINE_CODING
         private static final int SET_CONTROL_REQUEST = 0x22; // same as CDC SET_CONTROL_LINE_STATE
+        private static final int SEND_BREAK_REQUEST = 0x23; // same as CDC SEND_BREAK
         private static final int GET_CONTROL_REQUEST = 0x87;
         private static final int STATUS_NOTIFICATION = 0xa1; // similar to CDC SERIAL_STATE but different length
 
@@ -491,6 +492,11 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             if (purgeReadBuffers) {
                 vendorOut(FLUSH_TX_REQUEST, 0, null);
             }
+        }
+
+        @Override
+        public void setBreak(boolean value) throws IOException {
+            ctrlOut(SEND_BREAK_REQUEST, value ? 0xffff : 0, 0, null);
         }
     }
 

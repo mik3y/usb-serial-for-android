@@ -1741,6 +1741,30 @@ public class DeviceTest {
     }
 
     @Test
+    public void setBreak() throws Exception {
+        usb.open();
+        telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        doReadWrite("");
+        usb.serialPort.setBreak(true);
+        Thread.sleep(100);
+        usb.serialPort.setBreak(false);
+        // RFC2217 has SET_CONTROL + REQ_BREAK_STATE request, but this is not supported by pyserial
+        // as there is no easy notification on <break> condition. By default break is returned as
+        // 0 byte on Linux, see https://man7.org/linux/man-pages/man3/termios.3.html -> BRKINT
+        byte[] data = telnet.read(1);
+        if (usb.serialDriver instanceof CdcAcmSerialDriver) {
+            // BREAK forwarding not implemented by arduino_leonardo_bridge.ino
+            assertThat("<break>", data, equalTo(new byte[]{}));
+        } else if(isCp21xxRestrictedPort) {
+            assertThat("<break>", data, equalTo(new byte[]{0x26})); // send the last byte again?
+        } else {
+            assertThat("<break>", data, equalTo(new byte[]{0}));
+        }
+        doReadWrite("");
+    }
+
+    @Test
     public void deviceConnection() throws Exception {
         byte[] buf = new byte[256];
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
@@ -1812,6 +1836,11 @@ public class DeviceTest {
                 fail("purgeHwBuffers(read) error expected");
             } catch (IOException ignored) {
             }
+        }
+        try {
+            usb.serialPort.setBreak(true);
+            fail("setBreak error expected");
+        } catch (IOException ignored) {
         }
         usb.close();
         try {

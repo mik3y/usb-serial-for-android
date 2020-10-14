@@ -141,6 +141,25 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         if (id == R.id.clear) {
             receiveText.setText("");
             return true;
+        } else if( id == R.id.send_break) {
+            if(!connected) {
+                Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
+            } else {
+                try {
+                    usbSerialPort.setBreak(true);
+                    Thread.sleep(100); // should show progress bar instead of blocking UI thread
+                    usbSerialPort.setBreak(false);
+                    SpannableStringBuilder spn = new SpannableStringBuilder();
+                    spn.append("send <break>\n");
+                    spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    receiveText.append(spn);
+                } catch(UnsupportedOperationException ignored) {
+                    Toast.makeText(getActivity(), "BREAK not supported", Toast.LENGTH_SHORT).show();
+                } catch(Exception e) {
+                    Toast.makeText(getActivity(), "BREAK failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            }
+            return true;
         } else {
             return super.onOptionsItemSelected(item);
         }

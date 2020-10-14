@@ -278,6 +278,12 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
             return EnumSet.of(ControlLine.RTS, ControlLine.DTR);
         }
+
+        @Override
+        public void setBreak(boolean value) throws IOException {
+            sendAcmControlMessage(SEND_BREAK, value ? 0xffff : 0, null);
+        }
+
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {
