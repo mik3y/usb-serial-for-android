@@ -52,19 +52,20 @@ project.gradle.taskGraph.whenReady {
     }
 }
 
-task jacocoTestReport(type: JacocoReport /*, dependsOn: ['testDebugUnitTest', 'createAnyDeviceDebugCoverageReport']*/) {
+task jacocoTestReport(type: JacocoReport ,
+        dependsOn: ['compileAnyDeviceDebugSources' /*'testDebugUnitTest', 'createAnyDeviceDebugCoverageReport'*/]) {
     reports {
         xml.enabled = false
         html.enabled = true
     }
 
     def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*.*']
-    def debugTree = fileTree(dir: "$project.buildDir/intermediates/javac/debug", excludes: fileFilter)
+    def debugTree = fileTree(dir: "$project.buildDir/intermediates/javac/anyDeviceDebug", excludes: fileFilter)
     def mainSrc = "$project.projectDir/src/main/java"
 
     sourceDirectories.from files([mainSrc])
     classDirectories.from files([debugTree])
     executionData.from fileTree(dir: project.buildDir, includes: [
-            'jacoco/testDebugUnitTest.exec', 'outputs/code_coverage/*AndroidTest/connected/*.ec'
+            /*'jacoco/testDebugUnitTest.exec',*/ 'outputs/code_coverage/*AndroidTest/connected/*.ec'
     ])
 }
