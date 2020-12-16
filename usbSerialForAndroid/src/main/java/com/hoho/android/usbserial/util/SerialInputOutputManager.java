@@ -22,7 +22,7 @@ import java.nio.ByteBuffer;
 public class SerialInputOutputManager implements Runnable {
 
     private static final String TAG = SerialInputOutputManager.class.getSimpleName();
-    private static final boolean DEBUG = true;
+    public static boolean DEBUG = false;
     private static final int BUFSIZ = 4096;
 
     /**
