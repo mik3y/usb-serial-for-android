@@ -1,5 +1,7 @@
 package com.hoho.android.usbserial.util;
 
+import com.hoho.android.usbserial.driver.UsbSerialPort;
+
 import org.apache.commons.net.telnet.InvalidTelnetOptionException;
 import org.apache.commons.net.telnet.TelnetClient;
 import org.apache.commons.net.telnet.TelnetCommand;
@@ -140,7 +142,7 @@ public class TelnetWrapper {
         }
     }
 
-    public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException, InterruptedException, InvalidTelnetOptionException {
+    public void setParameters(int baudRate, int dataBits, int stopBits, @UsbSerialPort.Parity int parity) throws IOException, InterruptedException, InvalidTelnetOptionException {
         doCommand("set-baudrate", new byte[] {RFC2217_COM_PORT_OPTION, RFC2217_SET_BAUDRATE, (byte)(baudRate>>24), (byte)(baudRate>>16), (byte)(baudRate>>8), (byte)baudRate});
         doCommand("set-datasize", new byte[] {RFC2217_COM_PORT_OPTION, RFC2217_SET_DATASIZE, (byte)dataBits});
         doCommand("set-stopsize", new byte[] {RFC2217_COM_PORT_OPTION, RFC2217_SET_STOPSIZE, (byte)stopBits});

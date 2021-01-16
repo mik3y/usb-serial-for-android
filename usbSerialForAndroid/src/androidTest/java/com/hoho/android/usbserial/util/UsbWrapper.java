@@ -226,7 +226,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         serialPort.write(data, USB_WRITE_WAIT);
     }
 
-    public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException, InterruptedException {
+    public void setParameters(int baudRate, int dataBits, int stopBits, @UsbSerialPort.Parity int parity) throws IOException, InterruptedException {
         serialPort.setParameters(baudRate, dataBits, stopBits, parity);
         if(serialDriver instanceof CdcAcmSerialDriver)
             Thread.sleep(10); // arduino_leonardeo_bridge.ini needs some time

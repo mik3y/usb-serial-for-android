@@ -226,7 +226,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
         try {
             usbSerialPort.open(usbConnection);
-            usbSerialPort.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+            usbSerialPort.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
             if(withIoManager) {
                 usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
                 Executors.newSingleThreadExecutor().submit(usbIoManager);

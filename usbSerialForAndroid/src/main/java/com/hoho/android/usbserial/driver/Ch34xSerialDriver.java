@@ -220,7 +220,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		}
 
 		@Override
-		public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
+		public void setParameters(int baudRate, int dataBits, int stopBits, @Parity int parity) throws IOException {
 			if(baudRate <= 0) {
 				throw new IllegalArgumentException("Invalid baud rate: " + baudRate);
 			}

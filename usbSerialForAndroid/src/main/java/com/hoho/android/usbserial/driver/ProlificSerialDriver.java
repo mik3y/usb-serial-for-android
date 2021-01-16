@@ -349,7 +349,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
+        public void setParameters(int baudRate, int dataBits, int stopBits, @Parity int parity) throws IOException {
             baudRate = filterBaudRate(baudRate);
             if ((mBaudRate == baudRate) && (mDataBits == dataBits)
                     && (mStopBits == stopBits) && (mParity == parity)) {
