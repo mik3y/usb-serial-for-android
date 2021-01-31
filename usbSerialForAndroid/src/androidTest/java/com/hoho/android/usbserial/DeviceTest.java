@@ -1846,7 +1846,7 @@ public class DeviceTest {
         try {
             usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD, UsbWrapper.OpenCloseFlags.NO_DEVICE_CONNECTION));
             fail("open error expected");
-        } catch (IOException ignored) {
+        } catch (Exception ignored) {
         }
 
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));

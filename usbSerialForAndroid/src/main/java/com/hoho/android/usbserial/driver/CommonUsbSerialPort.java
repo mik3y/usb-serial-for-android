@@ -93,6 +93,9 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         if (mConnection != null) {
             throw new IOException("Already open");
         }
+        if(connection == null) {
+            throw new IllegalArgumentException("Connection is null");
+        }
         mConnection = connection;
         try {
             openInt(connection);
