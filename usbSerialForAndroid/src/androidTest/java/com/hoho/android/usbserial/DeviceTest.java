@@ -26,6 +26,7 @@ import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
 import com.hoho.android.usbserial.driver.FtdiSerialDriver;
 import com.hoho.android.usbserial.driver.ProbeTable;
 import com.hoho.android.usbserial.driver.ProlificSerialDriver;
+import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbId;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
@@ -37,6 +38,7 @@ import com.hoho.android.usbserial.util.UsbWrapper;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -236,6 +238,21 @@ public class DeviceTest {
         assertThat(reason, data, equalTo(buf2));
     }
 
+    private void purgeWriteBuffer(int timeout) throws Exception {
+        try {
+            Log.d(TAG, " purge begin");
+            usb.serialPort.purgeHwBuffers(true, false);
+        } catch(UnsupportedOperationException ignored) {}
+        byte[] data = telnet.read(-1, timeout);
+        int len = 0;
+        while(data.length != 0) {
+            len += data.length;
+            Log.d(TAG, " purge read " + data.length);
+            data = telnet.read(-1, timeout);
+        }
+        Log.d(TAG, " purge end " + len);
+    }
+
     @Test
     public void openClose() throws Exception {
         usb.open();
@@ -294,8 +311,7 @@ public class DeviceTest {
 
     @Test
     public void prolificBaudRate() throws Exception {
-        if(!(usb.serialDriver instanceof ProlificSerialDriver))
-            return;
+        Assume.assumeTrue("only for Prolific", usb.serialDriver instanceof ProlificSerialDriver);
 
         int[] baudRates = {
                 75, 150, 300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600, 14400, 19200,
@@ -357,8 +373,7 @@ public class DeviceTest {
 
     @Test
     public void ftdiBaudRate() throws Exception {
-        if (!(usb.serialDriver instanceof FtdiSerialDriver))
-            return;
+        Assume.assumeTrue("only for FTDI", usb.serialDriver instanceof FtdiSerialDriver);
 
         usb.open();
         try {
@@ -768,65 +783,129 @@ public class DeviceTest {
     @Test
     public void writeTimeout() throws Exception {
         usb.open();
-        usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
-        telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        int baudRate = 300;
+        if(usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() > 1)
+            baudRate = 2400;
+        usb.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
+        int purgeTimeout = 250;
+        if(usb.serialDriver instanceof CdcAcmSerialDriver)
+            purgeTimeout = 500;
+        purgeWriteBuffer(purgeTimeout);
 
-        // Basically all devices have a UsbEndpoint.getMaxPacketSize() 64. When the timeout
-        // in usb.serialPort.write() is reached, some packets have been written and the rest
-        // is discarded. bulkTransfer() does not return the number written so far, but -1.
-        // With 115200 baud and 1/2 second timeout, typical values are:
-        //   ch340    6080 of 6144
-        //   pl2302   5952 of 6144
-        //   cp2102   6400 of 7168
-        //   cp2105   6272 of 7168
-        //   ft232    5952 of 6144
-        //   ft2232   9728 of 10240
-        //   arduino   128 of 144
-        int timeout = 500;
-        int len = 0;
-        int startLen = 1024;
-        int step = 1024;
-        int minLen = 4069;
-        int maxLen = 12288;
-        int bufferSize = 511;
-        TestBuffer buf = new TestBuffer(len);
-        if(usb.serialDriver instanceof CdcAcmSerialDriver) {
-            startLen = 16;
-            step = 16;
-            minLen = 128;
-            maxLen = 256;
-            bufferSize = 31;
-        }
-
+        // determine write buffer size
+        int writePacketSize = ((CommonUsbSerialPort)usb.serialPort).getWriteEndpoint().getMaxPacketSize();
+        byte[] pbuf = new byte[writePacketSize];
+        int writePackets = 0;
         try {
-            for (len = startLen; len < maxLen; len += step) {
-                buf = new TestBuffer(len);
-                Log.d(TAG, "write buffer size " + len);
-                usb.serialPort.write(buf.buf, timeout);
-                while (!buf.testRead(telnet.read(-1)))
-                    ;
+            for (writePackets = 0; writePackets < 64; writePackets++)
+                usb.serialPort.write(pbuf, 1);
+            fail("write error expected");
+        } catch(IOException ignored) {}
+        purgeWriteBuffer(purgeTimeout);
+
+        int writeBufferSize = writePacketSize * writePackets;
+        Log.d(TAG, "write packet size = " + writePacketSize + ", write buffer size = " + writeBufferSize);
+        if(usb.serialDriver instanceof Cp21xxSerialDriver) {
+            switch(usb.serialDriver.getPorts().size()*0x10 + usb.serialPort.getPortNumber()) {
+                case 0x10: assertEquals("write packet size", 64, writePacketSize); assertEquals("write buffer size", 576, writeBufferSize); break;
+                case 0x20: assertEquals("write packet size", 64, writePacketSize); assertEquals("write buffer size", 320, writeBufferSize); break;
+                case 0x21: assertEquals("write packet size", 32, writePacketSize); assertTrue("write buffer size", writeBufferSize == 128 || writeBufferSize == 160); break;
+                default: fail("unknown port number");
             }
-            fail("write timeout expected between " + minLen + " and " + maxLen + ", is " + len);
-        } catch (IOException e) {
-            Log.d(TAG, "usbWrite failed", e);
-            while (true) {
-                byte[] data = telnet.read(-1);
-                if (data.length == 0) break;
-                if (buf.testRead(data)) break;
+        } else if(usb.serialDriver instanceof Ch34xSerialDriver) {
+            assertEquals("write packet size", 32, writePacketSize); assertEquals("write buffer size", 64, writeBufferSize);
+        } else if(usb.serialDriver instanceof ProlificSerialDriver) {
+            assertEquals("write packet size", 64, writePacketSize); assertEquals("write buffer size", 256, writeBufferSize);
+        } else if(usb.serialDriver instanceof FtdiSerialDriver) {
+            switch(usb.serialDriver.getPorts().size()) {
+                case 1: assertEquals("write packet size", 64, writePacketSize);  assertEquals("write buffer size", 128, writeBufferSize); break;
+                case 2: assertEquals("write packet size", 512, writePacketSize); assertEquals("write buffer size", 4096, writeBufferSize); break;
+                case 4: assertEquals("write packet size", 512, writePacketSize); assertEquals( "write buffer size", 2048, writeBufferSize); break;
+                default: fail("unknown port number");
             }
-            Log.d(TAG, "received " + buf.len + " of " + len + " bytes of failing usbWrite");
-            assertTrue("write timeout expected between " + minLen + " and " + maxLen + ", is " + len, len > minLen);
+        } else if(usb.serialDriver instanceof CdcAcmSerialDriver) {
+            assertEquals(64, writePacketSize); assertEquals(128, writeBufferSize); // values for ATMega32U4
+        } else {
+            fail("unknown driver " + usb.serialDriver.getClass().getSimpleName());
+        }
+        purgeWriteBuffer(purgeTimeout);
+        if(usb.serialDriver instanceof CdcAcmSerialDriver)
+            return; // serial processing to slow for tests below, but they anyway only check shared code in CommonUsbSerialPort
+        if(usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() > 1)
+            return; // write buffer size detection unreliable as baud rate to high
+
+        usb.setParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
+        TestBuffer tbuf;
+
+        // compare write time
+        //   full write @ 1-2 msec
+        //   packet write @ 5-10 msec
+        if(false) {
+            tbuf = new TestBuffer(writeBufferSize);
+            ((CommonUsbSerialPort) usb.serialPort).setWriteBufferSize(tbuf.buf.length);
+            Log.d(TAG, "full write begin");
+            long begin = System.currentTimeMillis();
+            usb.serialPort.write(tbuf.buf, 0);
+            Log.d(TAG, "full write end, duration=" + (System.currentTimeMillis() - begin));
+            purgeWriteBuffer(purgeTimeout);
+            ((CommonUsbSerialPort) usb.serialPort).setWriteBufferSize(writePacketSize);
+            Log.d(TAG, "packet write begin");
+            begin = System.currentTimeMillis();
+            usb.serialPort.write(tbuf.buf, 0);
+            Log.d(TAG, "packet write end, duration=" + (System.currentTimeMillis() - begin));
+            purgeWriteBuffer(purgeTimeout);
+            Assume.assumeTrue(false);
         }
 
-        // With smaller writebuffer, the timeout is used per bulkTransfer and each call 'fits'
-        // into this timout, but shouldn't further calls only use the remaining timeout?
-        ((CommonUsbSerialPort) usb.serialPort).setWriteBufferSize(bufferSize);
-        len = maxLen;
-        buf = new TestBuffer(len);
-        Log.d(TAG, "write buffer size " + len);
-        usb.serialPort.write(buf.buf, timeout);
-        while (!buf.testRead(telnet.read(-1)))
-            ;
+        // total write timeout
+        tbuf = new TestBuffer(writeBufferSize + writePacketSize);
+        int timeout = writePacketSize / 32 * 50; // time for 1.5 packets. write 48 byte in 50 msec at 9600 baud
+        ((CommonUsbSerialPort)usb.serialPort).setWriteBufferSize(writePacketSize);
+        usb.serialPort.write(tbuf.buf, timeout);
+        purgeWriteBuffer(purgeTimeout);
+        tbuf = new TestBuffer(writeBufferSize + 2*writePacketSize);
+        try {
+            usb.serialPort.write(tbuf.buf, timeout); // would not fail if each block has own timeout
+            fail("write error expected");
+        } catch(SerialTimeoutException ignored) {}
+        purgeWriteBuffer(purgeTimeout);
+
+        // infinite wait
+        //((CommonUsbSerialPort)usb.serialPort).setWriteBufferSize(writePacketSize);
+        usb.serialPort.write(tbuf.buf, 0);
+        purgeWriteBuffer(purgeTimeout);
+
+        // SerialTimeoutException.bytesTransferred
+        int readWait = writePacketSize > 64 ? 250 : 50;
+        ((CommonUsbSerialPort)usb.serialPort).setWriteBufferSize(tbuf.buf.length);
+        try {
+            usb.serialPort.write(tbuf.buf, timeout);
+            fail("write error expected");
+        } catch(SerialTimeoutException ex) {
+            for(byte[] data = telnet.read(-1, readWait); data.length != 0;
+                       data = telnet.read(-1, readWait)) {
+                tbuf.testRead(data);
+            }
+            assertEquals(0, ex.bytesTransferred);
+            assertEquals(writeBufferSize + writePacketSize, tbuf.len);
+        }
+        purgeWriteBuffer(purgeTimeout);
+        ((CommonUsbSerialPort)usb.serialPort).setWriteBufferSize(writePacketSize);
+        tbuf.len = 0;
+        try {
+            usb.serialPort.write(tbuf.buf, timeout);
+            fail("write error expected");
+        } catch(SerialTimeoutException ex) {
+            for(byte[] data = telnet.read(-1, readWait); data.length != 0;
+                       data = telnet.read(-1, readWait)) {
+                tbuf.testRead(data);
+            }
+            assertEquals(writeBufferSize + writePacketSize, ex.bytesTransferred);
+            assertEquals(writeBufferSize + writePacketSize, tbuf.len);
+        }
+        purgeWriteBuffer(purgeTimeout);
     }
 
     @Test
@@ -1872,6 +1951,8 @@ public class DeviceTest {
         usb.open();
         assertTrue(usb.serialPort.isOpen());
 
+        assertEquals(((CommonUsbSerialPort)usb.serialPort).getWriteEndpoint().getMaxPacketSize(),
+                     ((CommonUsbSerialPort)usb.serialPort).getReadEndpoint().getMaxPacketSize());
         s = usb.serialPort.getSerial();
         // with target sdk 29 can throw SecurityException before USB permission dialog is confirmed
         // not all devices implement serial numbers. some observed values are:
@@ -1898,8 +1979,8 @@ public class DeviceTest {
 
     @Test
     public void ftdiMethods() throws Exception {
-        if(!(usb.serialDriver instanceof FtdiSerialDriver))
-            return;
+        Assume.assumeTrue("only for FTDI", usb.serialDriver instanceof FtdiSerialDriver);
+
         byte[] b;
         usb.open();
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);

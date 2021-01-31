@@ -114,10 +114,11 @@ public interface UsbSerialPort extends Closeable {
      *
      * @param src the source byte buffer
      * @param timeout the timeout for writing in milliseconds, 0 is infinite
-     * @return the actual number of bytes written
+     * @throws SerialTimeoutException if timeout reached before sending all data.
+     *                                ex.bytesTransferred may contain bytes transferred
      * @throws IOException if an error occurred during writing
      */
-    int write(final byte[] src, final int timeout) throws IOException;
+    void write(final byte[] src, final int timeout) throws IOException;
 
     /**
      * Sets various serial port parameters.

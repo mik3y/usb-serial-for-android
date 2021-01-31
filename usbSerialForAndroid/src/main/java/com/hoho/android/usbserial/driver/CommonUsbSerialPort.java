@@ -63,7 +63,19 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public int getPortNumber() {
         return mPortNumber;
     }
-    
+
+    /**
+     * Returns the write endpoint.
+     * @return write endpoint
+     */
+    public UsbEndpoint getWriteEndpoint() { return mWriteEndpoint; }
+
+    /**
+     * Returns the read endpoint.
+     * @return read endpoint
+     */
+    public UsbEndpoint getReadEndpoint() { return mReadEndpoint; }
+
     /**
      * Returns the device serial number
      *  @return serial number
@@ -191,39 +203,55 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     }
 
     @Override
-    public int write(final byte[] src, final int timeout) throws IOException {
+    public void write(final byte[] src, final int timeout) throws IOException {
         int offset = 0;
+        int requestTimeout = timeout;
 
         if(mConnection == null) {
             throw new IOException("Connection closed");
         }
         while (offset < src.length) {
-            final int writeLength;
-            final int amtWritten;
+            final int requestLength;
+            final int actualLength;
+            final int requestDuration;
 
             synchronized (mWriteBufferLock) {
                 final byte[] writeBuffer;
 
-                writeLength = Math.min(src.length - offset, mWriteBuffer.length);
+                requestLength = Math.min(src.length - offset, mWriteBuffer.length);
                 if (offset == 0) {
                     writeBuffer = src;
                 } else {
                     // bulkTransfer does not support offsets, make a copy.
-                    System.arraycopy(src, offset, mWriteBuffer, 0, writeLength);
+                    System.arraycopy(src, offset, mWriteBuffer, 0, requestLength);
                     writeBuffer = mWriteBuffer;
                 }
-
-                amtWritten = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, writeLength, timeout);
+                if (requestTimeout < 0) {
+                    actualLength = -2;
+                    requestDuration = 0;
+                } else {
+                    final long startTime = System.currentTimeMillis();
+                    actualLength = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, requestLength, requestTimeout);
+                    requestDuration = (int) (System.currentTimeMillis() - startTime);
+                }
             }
-            if (amtWritten <= 0) {
-                throw new IOException("Error writing " + writeLength
-                        + " bytes at offset " + offset + " length=" + src.length);
+            Log.d(TAG, "Wrote " + actualLength + "/" + requestLength + " offset " + offset + "/" + src.length + " timeout " + requestTimeout);
+            if (requestTimeout > 0) {
+                requestTimeout -= requestDuration;
+                if (requestTimeout == 0)
+                    requestTimeout = -1;
             }
-
-            Log.d(TAG, "Wrote amt=" + amtWritten + " attempted=" + writeLength);
-            offset += amtWritten;
+            if (actualLength <= 0) {
+                if(requestTimeout < 0) {
+                    SerialTimeoutException ex = new SerialTimeoutException("Error writing " + requestLength + " bytes at offset " + offset + " of total " + src.length);
+                    ex.bytesTransferred = offset;
+                    throw ex;
+                } else {
+                    throw new IOException("Error writing " + requestLength + " bytes at offset " + offset + " of total " + src.length);
+                }
+            }
+            offset += actualLength;
         }
-        return offset;
     }
 
     @Override
