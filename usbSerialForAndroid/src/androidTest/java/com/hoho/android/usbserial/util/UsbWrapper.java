@@ -5,10 +5,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
-import android.os.Process;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.util.Log;
 
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
@@ -24,12 +24,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-
 
 public class UsbWrapper implements SerialInputOutputManager.Listener {
 
@@ -64,6 +59,9 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
     public void setUp() throws Exception {
         UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         if (!usbManager.hasPermission(serialDriver.getDevice())) {
+            Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            RingtoneManager.getRingtone(context, notification).play();
+
             Log.d(TAG,"USB permission ...");
             final Boolean[] granted = {null};
             BroadcastReceiver usbReceiver = new BroadcastReceiver() {

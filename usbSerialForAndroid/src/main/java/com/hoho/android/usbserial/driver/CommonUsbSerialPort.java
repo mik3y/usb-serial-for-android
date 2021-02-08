@@ -205,15 +205,15 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     @Override
     public void write(final byte[] src, final int timeout) throws IOException {
         int offset = 0;
-        int requestTimeout = timeout;
+        final long endTime = (timeout == 0) ? 0 : (System.currentTimeMillis() + timeout);
 
         if(mConnection == null) {
             throw new IOException("Connection closed");
         }
         while (offset < src.length) {
+            final int requestTimeout;
             final int requestLength;
             final int actualLength;
-            final int requestDuration;
 
             synchronized (mWriteBufferLock) {
                 final byte[] writeBuffer;
@@ -226,24 +226,21 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                     System.arraycopy(src, offset, mWriteBuffer, 0, requestLength);
                     writeBuffer = mWriteBuffer;
                 }
+                if (timeout == 0 || offset == 0) {
+                    requestTimeout = timeout;
+                } else {
+                    requestTimeout = (int)(endTime - System.currentTimeMillis());
+                }
                 if (requestTimeout < 0) {
                     actualLength = -2;
-                    requestDuration = 0;
                 } else {
-                    final long startTime = System.currentTimeMillis();
                     actualLength = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, requestLength, requestTimeout);
-                    requestDuration = (int) (System.currentTimeMillis() - startTime);
                 }
             }
             Log.d(TAG, "Wrote " + actualLength + "/" + requestLength + " offset " + offset + "/" + src.length + " timeout " + requestTimeout);
-            if (requestTimeout > 0) {
-                requestTimeout -= requestDuration;
-                if (requestTimeout == 0)
-                    requestTimeout = -1;
-            }
             if (actualLength <= 0) {
-                if(requestTimeout < 0) {
-                    SerialTimeoutException ex = new SerialTimeoutException("Error writing " + requestLength + " bytes at offset " + offset + " of total " + src.length);
+                if (timeout != 0 && System.currentTimeMillis() >= endTime) {
+                    SerialTimeoutException ex = new SerialTimeoutException("Error writing " + requestLength + " bytes at offset " + offset + " of total " + src.length + ", rc=" + actualLength);
                     ex.bytesTransferred = offset;
                     throw ex;
                 } else {
