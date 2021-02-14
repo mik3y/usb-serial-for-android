@@ -211,7 +211,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             throw new IOException("Connection closed");
         }
         while (offset < src.length) {
-            final int requestTimeout;
+            int requestTimeout;
             final int requestLength;
             final int actualLength;
 
@@ -230,6 +230,8 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                     requestTimeout = timeout;
                 } else {
                     requestTimeout = (int)(endTime - System.currentTimeMillis());
+                    if(requestTimeout == 0)
+                        requestTimeout = -1;
                 }
                 if (requestTimeout < 0) {
                     actualLength = -2;
