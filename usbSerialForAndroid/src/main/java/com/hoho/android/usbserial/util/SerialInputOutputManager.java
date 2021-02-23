@@ -167,18 +167,16 @@ public class SerialInputOutputManager implements Runnable {
      */
     @Override
     public void run() {
-        if(mThreadPriority != Process.THREAD_PRIORITY_DEFAULT)
-            setThreadPriority(mThreadPriority);
-
         synchronized (this) {
             if (getState() != State.STOPPED) {
                 throw new IllegalStateException("Already running");
             }
             mState = State.RUNNING;
         }
-
         Log.i(TAG, "Running ...");
         try {
+            if(mThreadPriority != Process.THREAD_PRIORITY_DEFAULT)
+                Process.setThreadPriority(mThreadPriority);
             while (true) {
                 if (getState() != State.RUNNING) {
                     Log.i(TAG, "Stopping mState=" + getState());
