@@ -12,6 +12,8 @@ import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
+import com.hoho.android.usbserial.util.MonotonicClock;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
@@ -178,11 +180,11 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             //     /system/lib64/libusbhost.so (usb_request_wait+192)
             //     /system/lib64/libandroid_runtime.so (android_hardware_UsbDeviceConnection_request_wait(_JNIEnv*, _jobject*, long)+84)
             // data loss / crashes were observed with timeout up to 200 msec
-            long endTime = testConnection ? System.currentTimeMillis() + timeout : 0;
+            long endTime = testConnection ? MonotonicClock.millis() + timeout : 0;
             int readMax = Math.min(dest.length, MAX_READ_SIZE);
             nread = mConnection.bulkTransfer(mReadEndpoint, dest, readMax, timeout);
             // Android error propagation is improvable, nread == -1 can be: timeout, connection lost, buffer undersized, ...
-            if(nread == -1 && testConnection && System.currentTimeMillis() < endTime)
+            if(nread == -1 && testConnection && MonotonicClock.millis() < endTime)
                 testConnection();
 
         } else {
@@ -205,7 +207,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     @Override
     public void write(final byte[] src, final int timeout) throws IOException {
         int offset = 0;
-        final long endTime = (timeout == 0) ? 0 : (System.currentTimeMillis() + timeout);
+        final long endTime = (timeout == 0) ? 0 : (MonotonicClock.millis() + timeout);
 
         if(mConnection == null) {
             throw new IOException("Connection closed");
@@ -229,7 +231,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                 if (timeout == 0 || offset == 0) {
                     requestTimeout = timeout;
                 } else {
-                    requestTimeout = (int)(endTime - System.currentTimeMillis());
+                    requestTimeout = (int)(endTime - MonotonicClock.millis());
                     if(requestTimeout == 0)
                         requestTimeout = -1;
                 }
@@ -241,7 +243,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             }
             Log.d(TAG, "Wrote " + actualLength + "/" + requestLength + " offset " + offset + "/" + src.length + " timeout " + requestTimeout);
             if (actualLength <= 0) {
-                if (timeout != 0 && System.currentTimeMillis() >= endTime) {
+                if (timeout != 0 && MonotonicClock.millis() >= endTime) {
                     SerialTimeoutException ex = new SerialTimeoutException("Error writing " + requestLength + " bytes at offset " + offset + " of total " + src.length + ", rc=" + actualLength);
                     ex.bytesTransferred = offset;
                     throw ex;

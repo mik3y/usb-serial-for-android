@@ -17,6 +17,7 @@ import android.hardware.usb.UsbInterface;
 import android.util.Log;
 
 import com.hoho.android.usbserial.BuildConfig;
+import com.hoho.android.usbserial.util.MonotonicClock;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -174,9 +175,9 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             try {
                 while (!mStopReadStatusThread) {
                     byte[] buffer = new byte[STATUS_BUFFER_SIZE];
-                    long endTime = System.currentTimeMillis() + 500;
+                    long endTime = MonotonicClock.millis() + 500;
                     int readBytesCount = mConnection.bulkTransfer(mInterruptEndpoint, buffer, STATUS_BUFFER_SIZE, 500);
-                    if(readBytesCount == -1 && System.currentTimeMillis() < endTime)
+                    if(readBytesCount == -1 && MonotonicClock.millis() < endTime)
                         testConnection();
                     if (readBytesCount > 0) {
                         if (readBytesCount != STATUS_BUFFER_SIZE) {

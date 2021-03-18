@@ -12,6 +12,8 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.util.Log;
 
+import com.hoho.android.usbserial.util.MonotonicClock;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -146,11 +148,11 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             }
             int nread;
             if (timeout != 0) {
-                long endTime = System.currentTimeMillis() + timeout;
+                long endTime = MonotonicClock.millis() + timeout;
                 do {
-                    nread = super.read(dest, Math.max(1, (int)(endTime - System.currentTimeMillis())), false);
-                } while (nread == READ_HEADER_LENGTH && System.currentTimeMillis() < endTime);
-                if(nread <= 0 && System.currentTimeMillis() < endTime)
+                    nread = super.read(dest, Math.max(1, (int)(endTime - MonotonicClock.millis())), false);
+                } while (nread == READ_HEADER_LENGTH && MonotonicClock.millis() < endTime);
+                if(nread <= 0 && MonotonicClock.millis() < endTime)
                     testConnection();
             } else {
                 do {
