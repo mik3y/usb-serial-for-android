@@ -194,7 +194,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         if(ioManager != null) {
             while (System.currentTimeMillis() < end) {
                 if(readError != null)
-                    throw readError;
+                    throw new IOException(readError);
                 synchronized (readBuffer) {
                     while(readBuffer.peek() != null)
                         buf.put(readBuffer.remove());

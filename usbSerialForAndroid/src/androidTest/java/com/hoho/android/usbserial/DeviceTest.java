@@ -984,15 +984,11 @@ public class DeviceTest {
 
     @Test
     public void readBufferSize() throws Exception {
-        // looks like most devices perform USB read with full mReadEndpoint.getMaxPacketSize() size (= 64)
-        // if the Java byte[] is shorter than the received result, it is silently lost!
+        // looks like devices perform USB read with full mReadEndpoint.getMaxPacketSize() size (32, 64, 512)
+        // if the Java byte[] is shorter than the received result, it is silently lost with read timeout!
         //
-        // with infinite timeout, one can see that UsbSerialPort.read() returns byte[] of length 0
-        // but there might be other reasons for [] return, so unclear if this should be returned as
-        // error exception.
-        //
-        // for buffer > 64 byte, but not multiple of 64 byte, the same issue happens, but typically
-        // only the last (partly filled) 64 byte fragment is lost.
+        // for buffer > packet size, but not multiple of packet size, the same issue happens, but typically
+        // only the last (partly filled) packet is lost.
         if(usb.serialDriver instanceof CdcAcmSerialDriver)
             return; // arduino sends each byte individually, so not testable here
         byte[] data;
@@ -1009,24 +1005,22 @@ public class DeviceTest {
         data = usb.read(4);
         Assert.assertThat(data, equalTo("1aaa".getBytes()));
         telnet.write(new byte[16]);
-        data = usb.read(16);
-        if (usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() == 1)
-            Assert.assertNotEquals(0, data.length); // can be shorter or full length
-        else if (usb.serialDriver instanceof ProlificSerialDriver)
-            Assert.assertTrue("expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
-        else // ftdi, ch340, cp2105
-            Assert.assertEquals(0, data.length);
-        telnet.write("1ccc".getBytes());
-        data = usb.read(4);
-        // Assert.assertThat(data, equalTo("1ccc".getBytes())); // unpredictable here. typically '1ccc' but sometimes '' or byte[16]
-        if(data.length != 4) {
-            if (purge) {
-                usb.serialPort.purgeHwBuffers(true, true);
-            } else {
-                usb.close();
-                usb.open();
-                Thread.sleep(500); // try to read missing value by iomanager to avoid garbage in next test
-            }
+        try {
+            data = usb.read(16);
+            if (usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() == 1)
+                Assert.assertNotEquals(0, data.length); // can be shorter or full length
+            else if (usb.serialDriver instanceof ProlificSerialDriver)
+                Assert.assertTrue("expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
+            else // ftdi, ch340, cp2105
+                fail("buffer to small exception expected");
+        } catch (IOException ignored) {
+        }
+        if (purge) {
+            usb.serialPort.purgeHwBuffers(true, true);
+        } else {
+            usb.close();
+            usb.open();
+            Thread.sleep(100); // try to read remaining data by iomanager to avoid garbage in next test
         }
 
         usb.close();
@@ -1073,7 +1067,7 @@ public class DeviceTest {
             } else {
                 usb.close();
                 usb.open();
-                Thread.sleep(500); // try to read missing value by iomanager to avoid garbage in next test
+                Thread.sleep(100); // try to read remaining data by iomanager to avoid garbage in next test
             }
         }
     }
@@ -1326,6 +1320,7 @@ public class DeviceTest {
 
     @Test
     public void IoManager() throws Exception {
+        SerialInputOutputManager.DEBUG = true;
         usb.ioManager = new SerialInputOutputManager(null);
         assertNull(usb.ioManager.getListener());
         usb.ioManager.setListener(usb);
@@ -1414,6 +1409,8 @@ public class DeviceTest {
         assertThat(usb.read(1), equalTo("c".getBytes()));
         telnet.write("d".getBytes());
         assertThat(usb.read(1), equalTo("d".getBytes()));
+
+        SerialInputOutputManager.DEBUG = false;
     }
 
     @Test
@@ -1484,8 +1481,10 @@ public class DeviceTest {
         time = System.currentTimeMillis();
         closed[0] = false;
         Executors.newSingleThreadExecutor().submit(closeThread);
-        len = usb.serialPort.read(readBuf, 0); // blocking until close()
-        assertEquals(0, len);
+        try {
+            usb.serialPort.read(readBuf, 0); // blocking until close()
+            fail("read error expected");
+        } catch (IOException ignored) {}
         assertTrue(System.currentTimeMillis()-time >= 100);
         // wait for usbClose
         for(i=0; i<100; i++) {

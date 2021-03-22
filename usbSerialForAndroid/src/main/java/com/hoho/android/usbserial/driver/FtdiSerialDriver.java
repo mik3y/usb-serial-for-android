@@ -162,7 +162,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             return readFilter(dest, nread);
         }
 
-        private int readFilter(byte[] buffer, int totalBytesRead) throws IOException {
+        protected int readFilter(byte[] buffer, int totalBytesRead) throws IOException {
             final int maxPacketSize = mReadEndpoint.getMaxPacketSize();
             int destPos = 0;
             for(int srcPos = 0; srcPos < totalBytesRead; srcPos += maxPacketSize) {

@@ -217,7 +217,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             IOException readStatusException = mReadStatusException;
             if (mReadStatusException != null) {
                 mReadStatusException = null;
-                throw readStatusException;
+                throw new IOException(readStatusException);
             }
 
             return mStatus;
