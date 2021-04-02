@@ -243,8 +243,10 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
     private void disconnect() {
         connected = false;
         controlLines.stop();
-        if(usbIoManager != null)
+        if(usbIoManager != null) {
+            usbIoManager.setListener(null);
             usbIoManager.stop();
+        }
         usbIoManager = null;
         try {
             usbSerialPort.close();
