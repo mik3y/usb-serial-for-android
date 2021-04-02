@@ -142,7 +142,7 @@ public class DeviceTest {
     }
 
     private static class TestBuffer {
-        private byte[] buf;
+        private final byte[] buf;
         private int len;
 
         private TestBuffer(int length) {
@@ -937,7 +937,7 @@ public class DeviceTest {
         int purgeTimeout = 250;
         TestBuffer tbuf;
         long begin;
-        int duration1, duration2, retries, i, timeout;
+        int duration1, duration2, retries, i;
         retries = purge ? 10 : 1;
         tbuf = new TestBuffer(writeBufferSize);
 
@@ -1260,7 +1260,7 @@ public class DeviceTest {
         usb.setParameters(2400, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(2400, 8, 1, UsbSerialPort.PARITY_NONE);
         byte[] buf = new byte[64];
-        for(int i=0; i<buf.length; i++) buf[i]='a';
+        Arrays.fill(buf, (byte) 'a');
         StringBuilder data = new StringBuilder();
 
         usb.write(buf);
@@ -1449,17 +1449,14 @@ public class DeviceTest {
     public void readTimeout() throws Exception {
         final Boolean[] closed = {Boolean.FALSE};
 
-        Runnable closeThread = new Runnable() {
-            @Override
-            public void run() {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            usb.close();
-            closed[0] = true;
-            }
+        Runnable closeThread = () -> {
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        usb.close();
+        closed[0] = true;
         };
 
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));

@@ -322,7 +322,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {
-        final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
+        final Map<Integer, int[]> supportedDevices = new LinkedHashMap<>();
         supportedDevices.put(UsbId.VENDOR_SILABS,
                 new int[] {
             UsbId.SILABS_CP2102, // same ID for CP2101, CP2103, CP2104, CP2109

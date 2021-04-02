@@ -52,12 +52,12 @@ public class SerialInputOutputManager implements Runnable {
         /**
          * Called when new incoming data is available.
          */
-        public void onNewData(byte[] data);
+        void onNewData(byte[] data);
 
         /**
          * Called when {@link SerialInputOutputManager#run()} aborts due to an error.
          */
-        public void onRunError(Exception e);
+        void onRunError(Exception e);
     }
 
     public SerialInputOutputManager(UsbSerialPort serialPort) {
@@ -200,7 +200,7 @@ public class SerialInputOutputManager implements Runnable {
 
     private void step() throws IOException {
         // Handle incoming data.
-        byte[] buffer = null;
+        byte[] buffer;
         synchronized (mReadBufferLock) {
             buffer = mReadBuffer.array();
         }

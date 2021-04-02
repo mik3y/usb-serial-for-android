@@ -48,7 +48,7 @@ public class FtdiSerialDriverTest {
         len = port.readFilter(buf, 0);
         assertEquals(len, 0);
 
-        assertThrows(IOException.class, () -> {port.readFilter(buf, 1);});
+        assertThrows(IOException.class, () -> port.readFilter(buf, 1));
 
         initBuf(buf);
         len = port.readFilter(buf, 2);
@@ -69,7 +69,7 @@ public class FtdiSerialDriverTest {
         assertEquals(len, 62);
         assertTrue(testBuf(buf, len));
 
-        assertThrows(IOException.class, () -> {port.readFilter(buf, 65);});
+        assertThrows(IOException.class, () -> port.readFilter(buf, 65));
 
         initBuf(buf);
         len = port.readFilter(buf, 66);

@@ -35,7 +35,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             28800, 38400, 57600, 115200, 128000, 134400, 161280, 201600, 230400, 268800,
             403200, 460800, 614400, 806400, 921600, 1228800, 2457600, 3000000, 6000000
     };
-    private enum DeviceType { DEVICE_TYPE_01, DEVICE_TYPE_HX};
+    private enum DeviceType { DEVICE_TYPE_01, DEVICE_TYPE_HX}
 
     private final UsbDevice mDevice;
     private final UsbSerialPort mPort;
@@ -502,7 +502,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
     }
 
     public static Map<Integer, int[]> getSupportedDevices() {
-        final Map<Integer, int[]> supportedDevices = new LinkedHashMap<Integer, int[]>();
+        final Map<Integer, int[]> supportedDevices = new LinkedHashMap<>();
         supportedDevices.put(UsbId.VENDOR_PROLIFIC,
                 new int[] { UsbId.PROLIFIC_PL2303, });
         return supportedDevices;

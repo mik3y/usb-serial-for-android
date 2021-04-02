@@ -46,11 +46,11 @@ public class UsbSerialProber {
      * not require permission from the Android USB system, since it does not
      * open any of the devices.
      *
-     * @param usbManager
+     * @param usbManager usb manager
      * @return a list, possibly empty, of all compatible drivers
      */
     public List<UsbSerialDriver> findAllDrivers(final UsbManager usbManager) {
-        final List<UsbSerialDriver> result = new ArrayList<UsbSerialDriver>();
+        final List<UsbSerialDriver> result = new ArrayList<>();
 
         for (final UsbDevice usbDevice : usbManager.getDeviceList().values()) {
             final UsbSerialDriver driver = probeDevice(usbDevice);

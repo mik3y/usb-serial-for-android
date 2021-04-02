@@ -21,7 +21,7 @@ import java.util.Map;
 public class ProbeTable {
 
     private final Map<Pair<Integer, Integer>, Class<? extends UsbSerialDriver>> mProbeTable =
-            new LinkedHashMap<Pair<Integer,Integer>, Class<? extends UsbSerialDriver>>();
+            new LinkedHashMap<>();
 
     /**
      * Adds or updates a (vendor, product) pair in the table.
