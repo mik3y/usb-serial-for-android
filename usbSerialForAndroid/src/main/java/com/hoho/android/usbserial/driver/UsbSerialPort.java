@@ -8,6 +8,7 @@ package com.hoho.android.usbserial.driver;
 
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
+import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbManager;
 
 import androidx.annotation.IntDef;
@@ -73,6 +74,18 @@ public interface UsbSerialPort extends Closeable {
      * Port number within driver.
      */
     int getPortNumber();
+
+    /**
+     * Returns the write endpoint.
+     * @return write endpoint
+     */
+    UsbEndpoint getWriteEndpoint();
+
+    /**
+     * Returns the read endpoint.
+     * @return read endpoint
+     */
+    UsbEndpoint getReadEndpoint();
 
     /**
      * The serial number of the underlying UsbDeviceConnection, or {@code null}.

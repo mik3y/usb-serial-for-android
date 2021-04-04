@@ -34,7 +34,7 @@ public class SerialInputOutputManager implements Runnable {
     private final Object mReadBufferLock = new Object();
     private final Object mWriteBufferLock = new Object();
 
-    private ByteBuffer mReadBuffer = ByteBuffer.allocate(BUFSIZ);
+    private ByteBuffer mReadBuffer; // default size = getReadEndpoint().getMaxPacketSize()
     private ByteBuffer mWriteBuffer = ByteBuffer.allocate(BUFSIZ);
 
     public enum State {
@@ -62,11 +62,13 @@ public class SerialInputOutputManager implements Runnable {
 
     public SerialInputOutputManager(UsbSerialPort serialPort) {
         mSerialPort = serialPort;
+        mReadBuffer = ByteBuffer.allocate(serialPort.getReadEndpoint().getMaxPacketSize());
     }
 
     public SerialInputOutputManager(UsbSerialPort serialPort, Listener listener) {
         mSerialPort = serialPort;
         mListener = listener;
+        mReadBuffer = ByteBuffer.allocate(serialPort.getReadEndpoint().getMaxPacketSize());
     }
 
     public synchronized void setListener(Listener listener) {

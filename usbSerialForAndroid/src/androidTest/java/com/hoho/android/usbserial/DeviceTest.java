@@ -818,7 +818,7 @@ public class DeviceTest {
         purgeWriteBuffer(purgeTimeout);
 
         // determine write buffer size
-        int writePacketSize = ((CommonUsbSerialPort)usb.serialPort).getWriteEndpoint().getMaxPacketSize();
+        int writePacketSize = usb.serialPort.getWriteEndpoint().getMaxPacketSize();
         byte[] pbuf = new byte[writePacketSize];
         int writePackets = 0;
         try {
@@ -1321,7 +1321,9 @@ public class DeviceTest {
     @Test
     public void IoManager() throws Exception {
         SerialInputOutputManager.DEBUG = true;
-        usb.ioManager = new SerialInputOutputManager(null);
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
+        assertNull(usb.ioManager);
+        usb.ioManager = new SerialInputOutputManager(usb.serialPort);
         assertNull(usb.ioManager.getListener());
         usb.ioManager.setListener(usb);
         assertEquals(usb, usb.ioManager.getListener());
@@ -1335,7 +1337,7 @@ public class DeviceTest {
         usb.ioManager.setWriteTimeout(11);
         assertEquals(11, usb.ioManager.getWriteTimeout());
 
-        assertEquals(4096, usb.ioManager.getReadBufferSize());
+        assertEquals(usb.serialPort.getReadEndpoint().getMaxPacketSize(), usb.ioManager.getReadBufferSize());
         usb.ioManager.setReadBufferSize(12);
         assertEquals(12, usb.ioManager.getReadBufferSize());
         assertEquals(4096, usb.ioManager.getWriteBufferSize());
@@ -1346,6 +1348,7 @@ public class DeviceTest {
         usb.ioManager.setWriteBufferSize(usb.ioManager.getWriteBufferSize());
         usb.ioManager.setReadTimeout(usb.ioManager.getReadTimeout());
         usb.ioManager.setWriteTimeout(usb.ioManager.getWriteTimeout());
+        usb.close();
 
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START)); // creates new IoManager
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -2007,8 +2010,8 @@ public class DeviceTest {
         usb.open();
         assertTrue(usb.serialPort.isOpen());
 
-        assertEquals(((CommonUsbSerialPort)usb.serialPort).getWriteEndpoint().getMaxPacketSize(),
-                     ((CommonUsbSerialPort)usb.serialPort).getReadEndpoint().getMaxPacketSize());
+        assertEquals(usb.serialPort.getWriteEndpoint().getMaxPacketSize(),
+                     usb.serialPort.getReadEndpoint().getMaxPacketSize());
         s = usb.serialPort.getSerial();
         // with target sdk 29 can throw SecurityException before USB permission dialog is confirmed
         // not all devices implement serial numbers. some observed values are:

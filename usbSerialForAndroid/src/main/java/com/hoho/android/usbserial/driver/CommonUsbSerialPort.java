@@ -66,16 +66,10 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         return mPortNumber;
     }
 
-    /**
-     * Returns the write endpoint.
-     * @return write endpoint
-     */
+    @Override
     public UsbEndpoint getWriteEndpoint() { return mWriteEndpoint; }
 
-    /**
-     * Returns the read endpoint.
-     * @return read endpoint
-     */
+    @Override
     public UsbEndpoint getReadEndpoint() { return mReadEndpoint; }
 
     /**
