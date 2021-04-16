@@ -996,7 +996,7 @@ public class DeviceTest {
 
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
         usb.ioManager.setReadBufferSize(8);
-        usb.startIoManager();
+        usb.ioManager.start();
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
         try { usb.serialPort.purgeHwBuffers(true, true); } catch(Exception ignored) { purge = false; }
@@ -1156,7 +1156,7 @@ public class DeviceTest {
         usb.ioManager.setReadTimeout(readTimeout);
         if(readBufferSize > 0)
             usb.ioManager.setReadBufferSize(readBufferSize);
-        usb.startIoManager();
+        usb.ioManager.start();
         usb.setParameters(baudrate, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(baudrate, 8, 1, UsbSerialPort.PARITY_NONE);
 
@@ -1354,8 +1354,14 @@ public class DeviceTest {
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);
-        usb.startIoManager();
+        usb.ioManager.start();
         usb.waitForIoManagerStarted();
+        assertTrue("iomanager thread", usb.hasIoManagerThread());
+        try {
+            usb.ioManager.start();
+            fail("already running error expected");
+        } catch (IllegalStateException ignored) {
+        }
         try {
             usb.ioManager.run();
             fail("already running error expected");
@@ -1413,7 +1419,25 @@ public class DeviceTest {
         telnet.write("d".getBytes());
         assertThat(usb.read(1), equalTo("d".getBytes()));
 
+        usb.close();
+        for (int i = 0; i < 100 && usb.hasIoManagerThread(); i++) {
+            Thread.sleep(1);
+        }
+        assertFalse("iomanager thread", usb.hasIoManagerThread());
         SerialInputOutputManager.DEBUG = false;
+
+        // legacy start
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START)); // creates new IoManager
+        usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);
+        Executors.newSingleThreadExecutor().submit(usb.ioManager);
+        usb.waitForIoManagerStarted();
+        try {
+            usb.ioManager.start();
+            fail("already running error expected");
+        } catch (IllegalStateException ignored) {
+        }
     }
 
     @Test
@@ -1438,7 +1462,7 @@ public class DeviceTest {
         // with timeout: write after timeout
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
         usb.ioManager.setReadTimeout(100);
-        usb.startIoManager();
+        usb.ioManager.start();
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.ioManager.writeAsync(buf);

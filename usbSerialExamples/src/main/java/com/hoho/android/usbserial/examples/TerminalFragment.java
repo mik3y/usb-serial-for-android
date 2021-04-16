@@ -38,7 +38,6 @@ import com.hoho.android.usbserial.util.SerialInputOutputManager;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.concurrent.Executors;
 
 public class TerminalFragment extends Fragment implements SerialInputOutputManager.Listener {
 
@@ -229,7 +228,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             usbSerialPort.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
             if(withIoManager) {
                 usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
-                Executors.newSingleThreadExecutor().submit(usbIoManager);
+                usbIoManager.start();
             }
             status("connected");
             connected = true;

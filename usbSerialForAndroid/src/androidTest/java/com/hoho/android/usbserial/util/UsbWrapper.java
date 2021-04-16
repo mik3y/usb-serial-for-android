@@ -160,10 +160,6 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         readError = null;
     }
 
-    public void startIoManager() {
-        Executors.newSingleThreadExecutor().submit(ioManager);
-    }
-
     public void waitForIoManagerStarted() throws IOException {
         for (int i = 0; i < 100; i++) {
             if (SerialInputOutputManager.State.STOPPED != ioManager.getState()) return;
@@ -174,6 +170,14 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
             }
         }
         throw new IOException("IoManager not started");
+    }
+
+    public boolean hasIoManagerThread() {
+        for (Thread thread : Thread.getAllStackTraces().keySet()) {
+            if (thread.getName().equals(SerialInputOutputManager.class.getSimpleName()))
+                return true;
+        }
+        return false;
     }
 
     // wait full time

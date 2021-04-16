@@ -80,7 +80,7 @@ public class SerialInputOutputManager implements Runnable {
     }
 
     /**
-     * setThreadPriority. By default use higher priority than UI thread to prevent data loss
+     * setThreadPriority. By default a higher priority than UI thread is used to prevent data loss
      *
      * @param threadPriority  see {@link Process#setThreadPriority(int)}
      * */
@@ -142,8 +142,8 @@ public class SerialInputOutputManager implements Runnable {
         return mWriteBuffer.capacity();
     }
 
-    /*
-     * when writeAsync is used, it is recommended to use readTimeout != 0,
+    /**
+     * when using writeAsync, it is recommended to use readTimeout != 0,
      * else the write will be delayed until read data is available
      */
     public void writeAsync(byte[] data) {
@@ -152,6 +152,21 @@ public class SerialInputOutputManager implements Runnable {
         }
     }
 
+    /**
+     * start SerialInputOutputManager in separate thread
+     */
+    public void start() {
+        if(mState != State.STOPPED)
+            throw new IllegalStateException("already started");
+        new Thread(this, this.getClass().getSimpleName()).start();
+    }
+
+    /**
+     * stop SerialInputOutputManager thread
+     *
+     * when using readTimeout == 0 (default), additionally use usbSerialPort.close() to
+     * interrupt blocking read
+     */
     public synchronized void stop() {
         if (getState() == State.RUNNING) {
             Log.i(TAG, "Stop requested");

@@ -81,7 +81,7 @@ then use direct read/write
 or direct write + event driven read:
 ```java
     usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
-    Executors.newSingleThreadExecutor().submit(usbIoManager);
+    usbIoManager.start();
     ...
     port.write("hello".getBytes(), WRITE_WAIT_MILLIS);
     
