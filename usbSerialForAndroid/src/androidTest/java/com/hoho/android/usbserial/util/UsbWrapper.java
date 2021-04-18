@@ -152,7 +152,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         if(!flags.contains(OpenCloseFlags.NO_IOMANAGER_THREAD)) {
             ioManager = new SerialInputOutputManager(serialPort, this);
             if(!flags.contains(OpenCloseFlags.NO_IOMANAGER_START))
-                Executors.newSingleThreadExecutor().submit(ioManager);
+                ioManager.start();
         }
         synchronized (readBuffer) {
             readBuffer.clear();

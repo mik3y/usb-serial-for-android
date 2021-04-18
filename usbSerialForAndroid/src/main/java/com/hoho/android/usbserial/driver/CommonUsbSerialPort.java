@@ -149,7 +149,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         byte[] buf = new byte[2];
         int len = mConnection.controlTransfer(0x80 /*DEVICE*/, 0 /*GET_STATUS*/, 0, 0, buf, buf.length, 200);
         if(len < 0)
-            throw new IOException("Connection lost, USB get_status request failed");
+            throw new IOException("USB get_status request failed");
     }
 
     @Override
@@ -177,7 +177,8 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             long endTime = testConnection ? MonotonicClock.millis() + timeout : 0;
             int readMax = Math.min(dest.length, MAX_READ_SIZE);
             nread = mConnection.bulkTransfer(mReadEndpoint, dest, readMax, timeout);
-            // Android error propagation is improvable, nread == -1 can be: timeout, connection lost, buffer to small
+            // Android error propagation is improvable:
+            //  nread == -1 can be: timeout, connection lost, buffer to small, ???
             if(nread == -1 && testConnection && MonotonicClock.millis() < endTime)
                 testConnection();
 
@@ -191,12 +192,10 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                 throw new IOException("Waiting for USB request failed");
             }
             nread = buf.position();
+            // Android error propagation is improvable:
+            //   response != null & nread == 0 can be: connection lost, buffer to small, ???
             if(nread == 0) {
-                if(dest.length % mReadEndpoint.getMaxPacketSize() != 0) {
-                    throw new IOException("Connection lost or buffer to small");
-                } else {
-                    throw new IOException("Connection lost");
-                }
+                testConnection();
             }
         }
         return Math.max(nread, 0);

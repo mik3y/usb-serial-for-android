@@ -54,6 +54,9 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -985,7 +988,7 @@ public class DeviceTest {
     @Test
     public void readBufferSize() throws Exception {
         // looks like devices perform USB read with full mReadEndpoint.getMaxPacketSize() size (32, 64, 512)
-        // if the Java byte[] is shorter than the received result, it is silently lost with read timeout!
+        // if the buffer is smaller than the received result, it is silently lost
         //
         // for buffer > packet size, but not multiple of packet size, the same issue happens, but typically
         // only the last (partly filled) packet is lost.
@@ -1012,7 +1015,7 @@ public class DeviceTest {
             else if (usb.serialDriver instanceof ProlificSerialDriver)
                 Assert.assertTrue("expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
             else // ftdi, ch340, cp2105
-                fail("buffer to small exception expected");
+                Assert.assertEquals(0, data.length);
         } catch (IOException ignored) {
         }
         if (purge) {
@@ -1474,22 +1477,8 @@ public class DeviceTest {
 
     @Test
     public void readTimeout() throws Exception {
-        final Boolean[] closed = {Boolean.FALSE};
-
-        Runnable closeThread = () -> {
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        usb.close();
-        closed[0] = true;
-        };
-
-        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
-        usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
-        telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
-
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        ScheduledFuture<?> future;
         byte[] writeBuf = new byte[]{1};
         byte[] readBuf = new byte[1];
         if (usb.serialDriver instanceof FtdiSerialDriver)
@@ -1497,25 +1486,29 @@ public class DeviceTest {
         int len,i,j;
         long time;
 
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
+        usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
+
         // w/o timeout
         telnet.write(writeBuf);
         len = usb.serialPort.read(readBuf, 0); // not blocking because data is available
         assertEquals(1, len);
 
         time = System.currentTimeMillis();
-        closed[0] = false;
-        Executors.newSingleThreadExecutor().submit(closeThread);
+        future = scheduler.schedule(() -> usb.close(), 100, TimeUnit.MILLISECONDS);
         try {
-            usb.serialPort.read(readBuf, 0); // blocking until close()
-            fail("read error expected");
-        } catch (IOException ignored) {}
-        assertTrue(System.currentTimeMillis()-time >= 100);
-        // wait for usbClose
-        for(i=0; i<100; i++) {
-            if(closed[0]) break;
-            Thread.sleep(1);
+            len = usb.serialPort.read(readBuf, 0); // blocking until close()
+            assertEquals(0, len);
+        } catch (IOException ignored) {
+            // typically no exception as read request canceled at the beginning of close()
+            // and most cases the connection is still valid in testConnection()
+        } catch (Exception ignored) {
+            // can fail with NPE if connection is closed between closed check and queueing/waiting for request
         }
-        assertTrue("not closed in time", closed[0]);
+        assertTrue(System.currentTimeMillis()-time >= 100);
+        future.get(); // wait until close finished
+        scheduler.shutdown();
 
         // with timeout
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
@@ -2083,8 +2076,8 @@ public class DeviceTest {
         b = usb.read(1);
         long t3 = System.currentTimeMillis();
         ftdiSerialPort.setLatencyTimer(lt);
-        assertEquals("latency 1", 99, Math.max(t2-t1, 99)); // looks strange, but shows actual value
-        assertEquals("latency 100", 99, Math.min(t3-t2, 99));
+        assertTrue("latency 1: expected < 100, got "+ (t2-t1), (t2-t1) < 100);
+        assertTrue("latency 100: expected > 100, got " + (t3-t2), (t3-t2) > 100);
 
         usb.deviceConnection.close();
         try {
