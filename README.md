@@ -11,7 +11,7 @@ Android, using the
 available since Android 3.1 and working reliably since Android 4.2.
 
 No root access, ADK, or special kernel drivers are required; all drivers are implemented in
-Java.  You get a raw serial port with `read()`, `write()`, and [other functions](https://github.com/mik3y/usb-serial-for-android/wiki/Troubleshooting#Feature_Matrix) for use with your own protocols.
+Java.  You get a raw serial port with `read()`, `write()`, and [other functions](https://github.com/mik3y/usb-serial-for-android/wiki/FAQ#Feature_Matrix) for use with your own protocols.
 
 ## Quick Start
 
@@ -150,9 +150,7 @@ and devices implementing the CDC/ACM protocol like
 
 ## Help & Discussion
 
-For common problems, see the
-[Troubleshooting](https://github.com/mik3y/usb-serial-for-android/wiki/Troubleshooting)
-wiki page.
+For common problems, see the [FAQ](https://github.com/mik3y/usb-serial-for-android/wiki/FAQ) wiki page.
 
 Are you using the library? Add your project to 
 [ProjectsUsingUsbSerialForAndroid](https://github.com/mik3y/usb-serial-for-android/wiki/Projects-Using-usb-serial-for-android).
