@@ -300,6 +300,17 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                         UsbId.ARDUINO_MEGA_ADK_R3,
                         UsbId.ARDUINO_LEONARDO,
                         UsbId.ARDUINO_MICRO,
+                        UsbId.ARDUINO_ZERO,
+                        UsbId.ARDUINO_MKR_1000,
+                        UsbId.ARDUINO_MKR_ZERO,
+                        UsbId.ARDUINO_MKR_FOX_1200,
+                        UsbId.ARDUINO_MKR_GSM_1400,
+                        UsbId.ARDUINO_MKR_WAN_1300,
+                        UsbId.ARDUINO_MKR_NB_1500,
+                        UsbId.ARDUINO_MKR_VIDOR_4000,
+                        UsbId.ARDUINO_MKR_WAN_1310,
+                        UsbId.ARDUINO_MKR_WIFI_1010,
+                        UsbId.ARDUINO_NANO_33_IOT,
                 });
         supportedDevices.put(UsbId.VENDOR_VAN_OOIJEN_TECH,
                 new int[] {

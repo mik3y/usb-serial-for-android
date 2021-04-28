@@ -37,6 +37,18 @@ public final class UsbId {
     public static final int ARDUINO_SERIAL_ADAPTER_R3 = 0x0044;
     public static final int ARDUINO_LEONARDO = 0x8036;
     public static final int ARDUINO_MICRO = 0x8037;
+    public static final int ARDUINO_ZERO = 0x804d;
+    public static final int ARDUINO_MKR_1000 = 0x804e;
+    public static final int ARDUINO_MKR_ZERO = 0x804f;
+    public static final int ARDUINO_MKR_FOX_1200 = 0x8050;
+    public static final int ARDUINO_MKR_GSM_1400 = 0x8052;
+    public static final int ARDUINO_MKR_WAN_1300 = 0x8053;
+    public static final int ARDUINO_MKR_NB_1500 = 0x8055;
+    public static final int ARDUINO_MKR_VIDOR_4000 = 0x8056;
+    public static final int ARDUINO_MKR_WAN_1310 = 0x8059;
+    public static final int ARDUINO_MKR_WIFI_1010 = 0x8054;
+    public static final int ARDUINO_NANO_33_IOT = 0x8057;
+
 
     public static final int VENDOR_VAN_OOIJEN_TECH = 0x16c0;
     public static final int VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL = 0x0483;
