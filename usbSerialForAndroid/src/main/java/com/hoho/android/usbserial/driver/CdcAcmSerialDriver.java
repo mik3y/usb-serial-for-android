@@ -317,6 +317,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 new int[] {
                     UsbId.ARM_MBED,
                 });
+        supportedDevices.put(UsbId.VENDOR_STM,
+                new int[] {
+                        UsbId.STM_VIRTUAL_COM_PORT,
+                });
         return supportedDevices;
     }
 

@@ -60,6 +60,9 @@ public final class UsbId {
     public static final int VENDOR_ARM = 0x0d28;
     public static final int ARM_MBED = 0x0204;
 
+    public static final int VENDOR_STM = 0x0483;
+    public static final int STM_VIRTUAL_COM_PORT = 0x5740;
+
     private UsbId() {
         throw new IllegalAccessError("Non-instantiable class");
     }
