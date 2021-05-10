@@ -26,6 +26,7 @@ import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
 import com.hoho.android.usbserial.driver.FtdiSerialDriver;
 import com.hoho.android.usbserial.driver.ProbeTable;
 import com.hoho.android.usbserial.driver.ProlificSerialDriver;
+import com.hoho.android.usbserial.driver.ProlificWrapper;
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbId;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -323,11 +324,12 @@ public class DeviceTest {
         };
         usb.open();
 
+        int minBaudRate = ProlificWrapper.isDeviceTypeT(usb.serialPort) ? 6 : 46;
         try {
-            usb.setParameters(45, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(minBaudRate-1, 8, 1, UsbSerialPort.PARITY_NONE);
             fail("baud rate to low expected");
         } catch(UnsupportedOperationException ignored) {}
-        usb.setParameters(46, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.setParameters(minBaudRate, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.setParameters(384_000_000, 8, 1, UsbSerialPort.PARITY_NONE);
         try {
             usb.setParameters(384_000_001, 8, 1, UsbSerialPort.PARITY_NONE);

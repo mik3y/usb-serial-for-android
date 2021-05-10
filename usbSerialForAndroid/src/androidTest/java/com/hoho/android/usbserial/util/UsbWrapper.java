@@ -21,7 +21,6 @@ import java.util.Deque;
 import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
