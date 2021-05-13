@@ -323,6 +323,7 @@ public class DeviceTest {
                 403200, 460800, 614400, 806400, 921600, 1228800, 2457600, 3000000, /*6000000*/
         };
         usb.open();
+        Assume.assumeFalse("only for non PL2303G*", ProlificWrapper.isDeviceTypeHxn(usb.serialPort)); // HXN does not use divisor
 
         int minBaudRate = ProlificWrapper.isDeviceTypeT(usb.serialPort) ? 6 : 46;
         try {
@@ -1675,7 +1676,7 @@ public class DeviceTest {
 
     @Test
     /* test not done by RFC2217 server. Instead output control lines are connected to
-         input control lines with a binary decoder 74LS138, 74LS139, 74HC... or ...
+         input control lines with a binary decoder 74LS42, 74LS138, 74LS139, 74HC... or ...
         in
             A0 = RTS
             A1 = DTR
