@@ -128,7 +128,8 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                 throw new IOException("Could not get device descriptors");
             }
             int deviceType = rawDescriptors[13];
-            baudRateWithPort = deviceType == 7 || deviceType == 8 || deviceType == 9; // ...H devices
+            baudRateWithPort = deviceType == 7 || deviceType == 8 || deviceType == 9 // ...H devices
+                    || mDevice.getInterfaceCount() > 1; // FT2232C
         }
 
         @Override
