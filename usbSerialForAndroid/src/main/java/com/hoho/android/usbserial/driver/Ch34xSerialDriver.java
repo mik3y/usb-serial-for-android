@@ -10,6 +10,9 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
+import android.util.Log;
+
+import com.hoho.android.usbserial.BuildConfig;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -191,29 +194,39 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
 
 		private void setBaudRate(int baudRate) throws IOException {
-			final long CH341_BAUDBASE_FACTOR = 1532620800;
-			final int CH341_BAUDBASE_DIVMAX = 3;
+			long factor;
+			long divisor;
 
-			long factor = CH341_BAUDBASE_FACTOR / baudRate;
-			int divisor = CH341_BAUDBASE_DIVMAX;
+			if (baudRate == 921600) {
+				divisor = 7;
+				factor = 0xf300;
+			} else {
+				final long BAUDBASE_FACTOR = 1532620800;
+				final int BAUDBASE_DIVMAX = 3;
 
-			while ((factor > 0xfff0) && divisor > 0) {
-				factor >>= 3;
-				divisor--;
-					}
-
-			if (factor > 0xfff0) {
-				throw new UnsupportedOperationException("Unsupported baud rate: " + baudRate);
+				if(BuildConfig.DEBUG && (baudRate & (3<<29)) == (1<<29))
+					baudRate &= ~(1<<29); // for testing purpose bypass dedicated baud rate handling
+				factor = BAUDBASE_FACTOR / baudRate;
+				divisor = BAUDBASE_DIVMAX;
+				while ((factor > 0xfff0) && divisor > 0) {
+					factor >>= 3;
+					divisor--;
+				}
+				if (factor > 0xfff0) {
+					throw new UnsupportedOperationException("Unsupported baud rate: " + baudRate);
+				}
+				factor = 0x10000 - factor;
 			}
 
-			factor = 0x10000 - factor;
 			divisor |= 0x0080; // else ch341a waits until buffer full
-			int ret = controlOut(0x9a, 0x1312, (int) ((factor & 0xff00) | divisor));
+			int val1 = (int) ((factor & 0xff00) | divisor);
+			int val2 = (int) (factor & 0xff);
+			Log.d(TAG, String.format("baud rate=%d, 0x1312=0x%04x, 0x0f2c=0x%04x", baudRate, val1, val2));
+			int ret = controlOut(0x9a, 0x1312, val1);
 			if (ret < 0) {
 				throw new IOException("Error setting baud rate: #1)");
 			}
-
-			ret = controlOut(0x9a, 0x0f2c, (int) (factor & 0xff));
+			ret = controlOut(0x9a, 0x0f2c, val2);
 			if (ret < 0) {
 				throw new IOException("Error setting baud rate: #2");
 			}

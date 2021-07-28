@@ -229,8 +229,8 @@ public class DeviceTest {
         doReadWrite(reason, -1);
     }
     private void doReadWrite(String reason, int readWait) throws Exception {
-        byte[] buf1 = new byte[]{ 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
-        byte[] buf2 = new byte[]{ 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26};
+        byte[] buf1 = new byte[]{ 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x55, 0x55};
+        byte[] buf2 = new byte[]{ 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x55, 0x55};
         byte[] data;
 
         telnet.write(buf1);
@@ -417,6 +417,36 @@ public class DeviceTest {
             usb.setParameters(4000000, 8, 1, UsbSerialPort.PARITY_NONE);
             fail("baud rate to high expected");
         } catch (UnsupportedOperationException ignored) {
+        }
+    }
+
+    @Test
+    public void Ch34xBaudRate() throws Exception {
+        Assume.assumeTrue("only for Ch34x", usb.serialDriver instanceof Ch34xSerialDriver);
+        usb.open();
+
+        int[] baudRates = {
+                115200, 230400, 256000, 307200, 460800, 921600, 1000000, 1228800
+        };
+        for (int baudRate : baudRates) {
+            telnet.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
+            usb.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
+            doReadWrite(baudRate + "");
+            try {
+                usb.setParameters(baudRate + (1 << 29), 8, 1, UsbSerialPort.PARITY_NONE);
+                doReadWrite(baudRate + "+(1<<29)");
+
+                usb.setParameters(baudRate - 1, 8, 1, UsbSerialPort.PARITY_NONE);
+                doReadWrite(baudRate + "-1");
+
+                usb.setParameters(baudRate + 1, 8, 1, UsbSerialPort.PARITY_NONE);
+                doReadWrite(baudRate + "+1");
+                if (baudRate == 921600)
+                    fail("error expected for " + baudRate + " baud");
+            } catch(AssertionError err) {
+                if (baudRate != 921600)
+                    throw(err);
+            }
         }
     }
 
