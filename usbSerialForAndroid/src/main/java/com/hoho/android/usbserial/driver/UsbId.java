@@ -53,8 +53,8 @@ public final class UsbId {
     public static final int PROLIFIC_PL2303 = 0x2303;   // device type 01, T, HX
     public static final int PROLIFIC_PL2303GC = 0x23a3; // device type HXN
     public static final int PROLIFIC_PL2303GB = 0x23b3; // "
-    public static final int PROLIFIC_PL2303GT = 0x23cd; // "
-    public static final int PROLIFIC_PL2303GL = 0x23e3; // "
+    public static final int PROLIFIC_PL2303GT = 0x23c3; // "
+    public static final int PROLIFIC_PL2303GL = 0x23d3; // "
     public static final int PROLIFIC_PL2303GE = 0x23e3; // "
     public static final int PROLIFIC_PL2303GS = 0x23f3; // "
 
