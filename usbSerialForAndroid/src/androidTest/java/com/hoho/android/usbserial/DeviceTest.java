@@ -359,7 +359,7 @@ public class DeviceTest {
             doReadWrite(String.valueOf(baudRate + 1) + " + 1<<29", readWait);
         }
 
-        // some PL2303... data sheets mention additional baud rates, others don't
+        // some PL2303... data sheets mention additional standard baud rates, others don't
         // they do not work with my devices and linux driver also excludes them
         baudRates = new int[]{110, 56000, 256000};
         for(int baudRate : baudRates) {
@@ -373,7 +373,7 @@ public class DeviceTest {
             // silent fallback to 9600 for unsupported baud rates
             telnet.setParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
             usb.setParameters(baudRate + (1<<29), 8, 1, UsbSerialPort.PARITY_NONE);
-            doReadWrite(String.valueOf(baudRate ) + " + 1<<29", readWait);
+            doReadWrite(String.valueOf(baudRate) + " + 1<<29", readWait);
         }
     }
 

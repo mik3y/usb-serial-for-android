@@ -32,7 +32,15 @@ android {
             dimension 'device'
             testInstrumentationRunnerArguments = ['test_device_driver': 'Ftdi', 'test_device_port': '1']
         }
-        pl2302 {
+        pl2303 {
+            dimension 'device'
+            testInstrumentationRunnerArguments = ['test_device_driver': 'Prolific']
+        }
+        pl2303t {
+            dimension 'device'
+            testInstrumentationRunnerArguments = ['test_device_driver': 'Prolific']
+        }
+        pl2303g {
             dimension 'device'
             testInstrumentationRunnerArguments = ['test_device_driver': 'Prolific']
         }
