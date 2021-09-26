@@ -25,8 +25,9 @@ import java.util.EnumSet;
  */
 public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
-    private static final String TAG = CommonUsbSerialPort.class.getSimpleName();
     public static boolean DEBUG = false;
+
+    private static final String TAG = CommonUsbSerialPort.class.getSimpleName();
     private static final int DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024;
     private static final int MAX_READ_SIZE = 16 * 1024; // = old bulkTransfer limit
 

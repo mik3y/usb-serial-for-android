@@ -21,8 +21,15 @@ import java.nio.ByteBuffer;
  */
 public class SerialInputOutputManager implements Runnable {
 
-    private static final String TAG = SerialInputOutputManager.class.getSimpleName();
+    public enum State {
+        STOPPED,
+        RUNNING,
+        STOPPING
+    }
+
     public static boolean DEBUG = false;
+
+    private static final String TAG = SerialInputOutputManager.class.getSimpleName();
     private static final int BUFSIZ = 4096;
 
     /**
@@ -36,12 +43,6 @@ public class SerialInputOutputManager implements Runnable {
 
     private ByteBuffer mReadBuffer; // default size = getReadEndpoint().getMaxPacketSize()
     private ByteBuffer mWriteBuffer = ByteBuffer.allocate(BUFSIZ);
-
-    public enum State {
-        STOPPED,
-        RUNNING,
-        STOPPING
-    }
 
     private int mThreadPriority = Process.THREAD_PRIORITY_URGENT_AUDIO;
     private State mState = State.STOPPED; // Synchronized by 'this'
