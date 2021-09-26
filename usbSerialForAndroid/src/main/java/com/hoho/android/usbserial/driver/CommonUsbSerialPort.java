@@ -26,6 +26,7 @@ import java.util.EnumSet;
 public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
     private static final String TAG = CommonUsbSerialPort.class.getSimpleName();
+    public static boolean DEBUG = false;
     private static final int DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024;
     private static final int MAX_READ_SIZE = 16 * 1024; // = old bulkTransfer limit
 
@@ -238,7 +239,9 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                     actualLength = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, requestLength, requestTimeout);
                 }
             }
-            Log.d(TAG, "Wrote " + actualLength + "/" + requestLength + " offset " + offset + "/" + src.length + " timeout " + requestTimeout);
+            if (DEBUG) {
+                Log.d(TAG, "Wrote " + actualLength + "/" + requestLength + " offset " + offset + "/" + src.length + " timeout " + requestTimeout);
+            }
             if (actualLength <= 0) {
                 if (timeout != 0 && MonotonicClock.millis() >= endTime) {
                     SerialTimeoutException ex = new SerialTimeoutException("Error writing " + requestLength + " bytes at offset " + offset + " of total " + src.length + ", rc=" + actualLength);

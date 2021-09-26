@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.util.Log;
 
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
+import com.hoho.android.usbserial.driver.CommonUsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 
@@ -53,6 +54,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         this.serialDriver = serialDriver;
         this.devicePort = devicePort;
         serialPort = serialDriver.getPorts().get(devicePort);
+        CommonUsbSerialPort.DEBUG = true;
     }
 
     public void setUp() throws Exception {
