@@ -4,15 +4,16 @@ on: [push]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        java-version: [ 11.0.3, 11 ]
     steps:
     - uses: actions/checkout@v2
-    - name: set up JDK 1.11
+    - name: set up JDK ${{ matrix.java-version }}
       uses: actions/setup-java@v2
       with:
-        distribution: 'adopt'
-        java-version: '11'
+        distribution: 'zulu'
+        java-version: ${{ matrix.java-version }}
     - name: Build with Gradle
       run: ./gradlew assembleDebug
