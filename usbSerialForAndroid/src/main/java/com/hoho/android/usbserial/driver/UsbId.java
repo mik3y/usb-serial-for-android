@@ -70,7 +70,7 @@ public final class UsbId {
     public static final int ST_CDC = 0x5740;
 
     public static final int VENDOR_RASPBERRY_PI = 0x2e8a;
-    public static final int RASPBERRY_PI_PICO = 0x0005;
+    public static final int RASPBERRY_PI_PICO_MICROPYTHON = 0x0005;
 
     private UsbId() {
         throw new IllegalAccessError("Non-instantiable class");

@@ -323,7 +323,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 });
         supportedDevices.put(UsbId.VENDOR_RASPBERRY_PI,
                 new int[] {
-                    UsbId.RASPBERRY_PI_PICO,
+                    UsbId.RASPBERRY_PI_PICO_MICROPYTHON,
                 });
         return supportedDevices;
     }
