@@ -34,6 +34,7 @@ import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
 import com.hoho.android.usbserial.util.TelnetWrapper;
+import com.hoho.android.usbserial.util.TestBuffer;
 import com.hoho.android.usbserial.util.UsbWrapper;
 
 import org.junit.After;
@@ -144,34 +145,6 @@ public class DeviceTest {
     public static void tearDownFixture() throws Exception {
         telnet.tearDownFixture();
     }
-
-    private static class TestBuffer {
-        private final byte[] buf;
-        private int len;
-
-        private TestBuffer(int length) {
-            len = 0;
-            buf = new byte[length];
-            int i=0;
-            int j=0;
-            for(j=0; j<length/16; j++)
-                for(int k=0; k<16; k++)
-                    buf[i++]=(byte)j;
-            while(i<length)
-                buf[i++]=(byte)j;
-        }
-
-        private boolean testRead(byte[] data) {
-            assertNotEquals(0, data.length);
-            assertTrue("got " + (len+data.length) +" bytes", (len+data.length) <= buf.length);
-            for(int j=0; j<data.length; j++)
-                assertEquals("at pos "+(len+j), (byte)((len+j)/16), data[j]);
-            len += data.length;
-            //Log.d(TAG, "read " + len);
-            return len == buf.length;
-        }
-    }
-
 
     // clone of org.apache.commons.lang3.StringUtils.indexOfDifference + optional startpos
     private static int indexOfDifference(final CharSequence cs1, final CharSequence cs2) {
@@ -816,30 +789,6 @@ public class DeviceTest {
         assertEquals(availableDrivers.get(0).getClass(), usb.serialDriver.getClass());
     }
 
-    // return [write packet size, write buffer size(s)]
-    private int[] getWriteSizes() {
-        if (usb.serialDriver instanceof Cp21xxSerialDriver) {
-            if (usb.serialDriver.getPorts().size() == 1) return new int[]{64, 576};
-            else if (usb.serialPort.getPortNumber() == 0) return new int[]{64, 320};
-            else return new int[]{32, 128, 160}; // write buffer size detection is unreliable
-        } else if (usb.serialDriver instanceof Ch34xSerialDriver) {
-            return new int[]{32, 64};
-        } else if (usb.serialDriver instanceof ProlificSerialDriver) {
-            return new int[]{64, 256};
-        } else if (usb.serialDriver instanceof FtdiSerialDriver) {
-            switch (usb.serialDriver.getPorts().size()) {
-                case 1: return new int[]{64, 128};
-                case 2: return new int[]{512, 4096};
-                case 4: return new int[]{512, 2048};
-                default: return null;
-            }
-        } else if (usb.serialDriver instanceof CdcAcmSerialDriver) {
-            return new int[]{64, 128};
-        } else {
-            return null;
-        }
-    }
-
     @Test
     public void writeTimeout() throws Exception {
         usb.open();
@@ -866,7 +815,7 @@ public class DeviceTest {
 
         int writeBufferSize = writePacketSize * writePackets;
         Log.d(TAG, "write packet size = " + writePacketSize + ", write buffer size = " + writeBufferSize);
-        int[] writeSizes = getWriteSizes();
+        int[] writeSizes = usb.getWriteSizes();
         assertNotNull(writeSizes);
         assertEquals("write packet size", writeSizes[0], writePacketSize);
         assertTrue("write buffer size", Arrays.binarySearch(writeSizes, writeBufferSize) > 0);
@@ -967,7 +916,7 @@ public class DeviceTest {
         if(usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() == 1)
             purge = false; // purge is blocking
 
-        int[] writeSizes = getWriteSizes();
+        int[] writeSizes = usb.getWriteSizes();
         int writePacketSize = writeSizes[0];
         int writeBufferSize = writeSizes[1];
         int purgeTimeout = 250;

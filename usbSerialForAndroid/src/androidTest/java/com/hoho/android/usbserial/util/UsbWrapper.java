@@ -12,7 +12,11 @@ import android.net.Uri;
 import android.util.Log;
 
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
+import com.hoho.android.usbserial.driver.Ch34xSerialDriver;
 import com.hoho.android.usbserial.driver.CommonUsbSerialPort;
+import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
+import com.hoho.android.usbserial.driver.FtdiSerialDriver;
+import com.hoho.android.usbserial.driver.ProlificSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 
@@ -246,15 +250,40 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         }
     }
 
+    // return [write packet size, write buffer size(s)]
+    public int[] getWriteSizes() {
+        if (serialDriver instanceof Cp21xxSerialDriver) {
+            if (serialDriver.getPorts().size() == 1) return new int[]{64, 576};
+            else if (serialPort.getPortNumber() == 0) return new int[]{64, 320};
+            else return new int[]{32, 128, 160}; // write buffer size detection is unreliable
+        } else if (serialDriver instanceof Ch34xSerialDriver) {
+            return new int[]{32, 64};
+        } else if (serialDriver instanceof ProlificSerialDriver) {
+            return new int[]{64, 256};
+        } else if (serialDriver instanceof FtdiSerialDriver) {
+            switch (serialDriver.getPorts().size()) {
+                case 1: return new int[]{64, 128};
+                case 2: return new int[]{512, 4096};
+                case 4: return new int[]{512, 2048};
+                default: return null;
+            }
+        } else if (serialDriver instanceof CdcAcmSerialDriver) {
+            return new int[]{64, 128};
+        } else {
+            return null;
+        }
+    }
+
+
     @Override
     public void onNewData(byte[] data) {
         long now = System.currentTimeMillis();
         if(readTime == 0)
             readTime = now;
         if(data.length > 64) {
-            Log.d(TAG, "usb read: time+=" + String.format("%-3d",now- readTime) + " len=" + String.format("%-4d",data.length) + " data=" + new String(data, 0, 32) + "..." + new String(data, data.length-32, 32));
+            Log.d(TAG, "usb " + devicePort + " read: time+=" + String.format("%-3d",now- readTime) + " len=" + String.format("%-4d",data.length) + " data=" + new String(data, 0, 32) + "..." + new String(data, data.length-32, 32));
         } else {
-            Log.d(TAG, "usb read: time+=" + String.format("%-3d",now- readTime) + " len=" + String.format("%-4d",data.length) + " data=" + new String(data));
+            Log.d(TAG, "usb " + devicePort + " read: time+=" + String.format("%-3d",now- readTime) + " len=" + String.format("%-4d",data.length) + " data=" + new String(data));
         }
         readTime = now;
 

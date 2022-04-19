@@ -14,6 +14,7 @@ import android.util.Log;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
+import com.hoho.android.usbserial.util.TestBuffer;
 import com.hoho.android.usbserial.util.UsbWrapper;
 
 import org.junit.Before;
@@ -24,12 +25,14 @@ import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 
+import java.io.IOException;
 import java.util.EnumSet;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -160,4 +163,53 @@ public class CrossoverTest {
         usb2.close();
     }
 
+    @Test
+    public void concurrent() throws Exception {
+        // 115200 baud ~= 11kB/sec => ~1.5 second test duration with 16kB tbuf
+        // concurrent (+ blocking) write calls as tbuf larger than any buffer size returned by UsbWrapper.getWriteSizes()
+        // concurrent read calls in IoManager threads
+        TestBuffer tbuf1 = new TestBuffer(16*1024);
+        TestBuffer tbuf2 = new TestBuffer(16*1024);
+
+        class WriteRunnable implements Runnable {
+            public WriteRunnable(int port) { this.port = port; }
+            private final int port;
+            Exception exc;
+            @Override
+            public void run() {
+                byte[] buf = new byte[1024];
+                try {
+                    for(int i=0; i<tbuf1.buf.length / 1024; i++) {
+                        System.arraycopy(tbuf1.buf, i*1024, buf, 0, 1024);
+                        if (port == 1)
+                            usb1.write(buf);
+                        else
+                            usb2.write(buf);
+                    }
+                } catch (IOException exc) {
+                    this.exc = exc;
+                }
+            }
+        }
+
+        usb1.open();
+        usb2.open();
+        usb1.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb2.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        WriteRunnable wr1 = new WriteRunnable(1), wr2 = new WriteRunnable(2);
+        Thread wt1 = new Thread(wr1), wt2 = new Thread(wr2);
+        boolean done1 = false, done2 = false;
+        wt1.start();
+        Thread.sleep(50);
+        wt2.start();
+        while(!done1 && !done2) {
+            if(!done1)
+                done1 = tbuf1.testRead(usb1.read(-1));
+            if(!done2)
+                done2 = tbuf2.testRead(usb2.read(-1));
+        }
+        wt1.join(); wt2.join();
+        assertNull(wr1.exc);
+        assertNull(wr2.exc);
+    }
 }
