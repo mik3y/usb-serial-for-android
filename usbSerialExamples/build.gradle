@@ -15,7 +15,6 @@ android {
         targetSdkVersion 31
         vectorDrawables.useSupportLibrary = true
 
-        testInstrumentationRunner "android.test.InstrumentationTestRunner"
         missingDimensionStrategy 'device', 'anyDevice'
     }
 

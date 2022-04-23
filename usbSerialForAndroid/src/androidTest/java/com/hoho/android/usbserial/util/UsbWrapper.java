@@ -17,6 +17,7 @@ import com.hoho.android.usbserial.driver.CommonUsbSerialPort;
 import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
 import com.hoho.android.usbserial.driver.FtdiSerialDriver;
 import com.hoho.android.usbserial.driver.ProlificSerialDriver;
+import com.hoho.android.usbserial.driver.UsbId;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 
@@ -52,6 +53,13 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
     public boolean readBlock = false;
     long readTime = 0;
 
+    // device properties
+    public boolean isCp21xxRestrictedPort; // second port of Cp2105 has limited dataBits, stopBits, parity
+    public boolean inputLinesSupported;
+    public boolean inputLinesConnected;
+    public boolean inputLinesOnlyRtsCts;
+    public int writePacketSize = -1;
+    public int writeBufferSize = -1;
 
     public UsbWrapper(Context context, UsbSerialDriver serialDriver, int devicePort) {
         this.context = context;
@@ -86,6 +94,50 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
             Log.d(TAG,"USB permission "+granted[0]);
             assertTrue("USB permission dialog not confirmed", granted[0]==null?false:granted[0]);
         }
+
+        // extract some device properties:
+        isCp21xxRestrictedPort = serialDriver instanceof Cp21xxSerialDriver && serialDriver.getPorts().size()==2 && serialPort.getPortNumber() == 1;
+        // output lines are supported by all drivers
+        // input lines are supported by all drivers except CDC
+        if (serialDriver instanceof FtdiSerialDriver) {
+            inputLinesSupported = true;
+            if(serialDriver.getDevice().getProductId() == UsbId.FTDI_FT2232H)
+                inputLinesConnected = true; // I only have 74LS138 connected at FT2232, not at FT232
+            if(serialDriver.getDevice().getProductId() == UsbId.FTDI_FT231X) {
+                inputLinesConnected = true;
+                inputLinesOnlyRtsCts = true; // I only test with FT230X that has only these 2 control lines. DTR is silently ignored
+            }
+        } else if (serialDriver instanceof Cp21xxSerialDriver) {
+            inputLinesSupported = true;
+            if(serialDriver.getPorts().size() == 1)
+                inputLinesConnected = true; // I only have 74LS138 connected at CP2102, not at CP2105
+        } else if (serialDriver instanceof ProlificSerialDriver) {
+            inputLinesSupported = true;
+            inputLinesConnected = true;
+        } else if (serialDriver instanceof Ch34xSerialDriver) {
+            inputLinesSupported = true;
+            if(serialDriver.getDevice().getProductId() == UsbId.QINHENG_CH340)
+                inputLinesConnected = true;  // I only have 74LS138 connected at CH340, not connected at CH341A
+        }
+
+        if (serialDriver instanceof Cp21xxSerialDriver) {
+            if (serialDriver.getPorts().size() == 1) { writePacketSize = 64; writeBufferSize = 576; }
+            else if (serialPort.getPortNumber() == 0) { writePacketSize = 64; writeBufferSize = 320; }
+            else { writePacketSize = 32; writeBufferSize = 128; }; //, 160}; // write buffer size detection is unreliable
+        } else if (serialDriver instanceof Ch34xSerialDriver) {
+            writePacketSize = 32; writeBufferSize = 64;
+        } else if (serialDriver instanceof ProlificSerialDriver) {
+            writePacketSize = 64; writeBufferSize = 256;
+        } else if (serialDriver instanceof FtdiSerialDriver) {
+            switch (serialDriver.getPorts().size()) {
+                case 1: writePacketSize = 64; writeBufferSize = 128; break;
+                case 2: writePacketSize = 512; writeBufferSize = 4096; break;
+                case 4: writePacketSize = 512; writeBufferSize = 2048; break;
+            }
+        } else if (serialDriver instanceof CdcAcmSerialDriver) {
+            writePacketSize = 64; writeBufferSize = 128;
+        }
+
     }
 
     public void tearDown() {

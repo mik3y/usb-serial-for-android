@@ -28,7 +28,6 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public static boolean DEBUG = false;
 
     private static final String TAG = CommonUsbSerialPort.class.getSimpleName();
-    private static final int DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024;
     private static final int MAX_READ_SIZE = 16 * 1024; // = old bulkTransfer limit
 
     protected final UsbDevice mDevice;
@@ -40,15 +39,18 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     protected UsbEndpoint mWriteEndpoint;
     protected UsbRequest mUsbRequest;
 
-    protected final Object mWriteBufferLock = new Object();
-    /** Internal write buffer.  Guarded by {@link #mWriteBufferLock}. */
+    /**
+     * Internal write buffer.
+     *  Guarded by {@link #mWriteBufferLock}.
+     *  Default length = mReadEndpoint.getMaxPacketSize()
+     **/
     protected byte[] mWriteBuffer;
+    protected final Object mWriteBufferLock = new Object();
+
 
     public CommonUsbSerialPort(UsbDevice device, int portNumber) {
         mDevice = device;
         mPortNumber = portNumber;
-
-        mWriteBuffer = new byte[DEFAULT_WRITE_BUFFER_SIZE];
     }
 
     @Override
@@ -87,11 +89,19 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
      * Sets the size of the internal buffer used to exchange data with the USB
      * stack for write operations.  Most users should not need to change this.
      *
-     * @param bufferSize the size in bytes
+     * @param bufferSize the size in bytes, <= 0 resets original size
      */
     public final void setWriteBufferSize(int bufferSize) {
         synchronized (mWriteBufferLock) {
-            if (bufferSize == mWriteBuffer.length) {
+            if (bufferSize <= 0) {
+                if (mWriteEndpoint != null) {
+                    bufferSize = mWriteEndpoint.getMaxPacketSize();
+                } else {
+                    mWriteBuffer = null;
+                    return;
+                }
+            }
+            if (mWriteBuffer != null && bufferSize == mWriteBuffer.length) {
                 return;
             }
             mWriteBuffer = new byte[bufferSize];
@@ -219,6 +229,9 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             synchronized (mWriteBufferLock) {
                 final byte[] writeBuffer;
 
+                if (mWriteBuffer == null) {
+                    mWriteBuffer = new byte[mWriteEndpoint.getMaxPacketSize()];
+                }
                 requestLength = Math.min(src.length - offset, mWriteBuffer.length);
                 if (offset == 0) {
                     writeBuffer = src;

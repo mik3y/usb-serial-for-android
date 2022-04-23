@@ -7,8 +7,9 @@ package com.hoho.android.usbserial;
 
 import android.content.Context;
 import android.hardware.usb.UsbManager;
-import android.support.test.InstrumentationRegistry;
-import android.support.test.runner.AndroidJUnit4;
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.runner.AndroidJUnit4;
 import android.util.Log;
 
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -58,7 +59,7 @@ public class CrossoverTest {
         assumeTrue("ignore test for device specific coverage report",
                 InstrumentationRegistry.getArguments().getString("test_device_driver") == null);
 
-        context = InstrumentationRegistry.getContext();
+        context = ApplicationProvider.getApplicationContext();
         usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
         assertNotEquals("no USB device found", 0, availableDrivers.size());

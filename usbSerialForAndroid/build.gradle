@@ -11,7 +11,7 @@ android {
         targetSdkVersion 31
         consumerProguardFiles 'proguard-rules.pro'
         
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments = [                    // Raspi   Windows   LinuxVM   ...
                 'rfc2217_server_host': '192.168.0.100',
                 'rfc2217_server_nonstandard_baudrates': 'true',   // true    false     false
@@ -25,9 +25,10 @@ android {
 
 dependencies {
     implementation "androidx.annotation:annotation:1.3.0"
+    implementation 'androidx.test:core:1.4.0'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:1.10.19'
-    androidTestImplementation 'com.android.support.test:runner:1.0.2'
+    androidTestImplementation 'androidx.test:runner:1.4.0'
     androidTestImplementation 'commons-net:commons-net:3.8.0'
     androidTestImplementation 'org.apache.commons:commons-lang3:3.11'
 }
@@ -37,7 +38,7 @@ project.afterEvaluate {
     publishing {
         publications {
             release(MavenPublication) {
-                from components.release
+                from components.release // change to anyDeviceRelease if coverage is enabled
                 artifact androidSourcesJar
 
                 // values used for local maven repo, jitpack uses github release:
