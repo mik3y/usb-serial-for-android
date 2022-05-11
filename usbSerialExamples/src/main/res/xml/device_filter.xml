@@ -26,11 +26,16 @@
     <usb-device vendor-id="6790" product-id="29987" /> <!-- 0x7523: CH340 -->
 
     <!-- CDC driver -->
-    <usb-device vendor-id="9025" />                   <!-- 0x2341 / ......: Arduino -->
-    <usb-device vendor-id="5824" product-id="1155" /> <!-- 0x16C0 / 0x0483: Teensyduino  -->
-    <usb-device vendor-id="1003" product-id="8260" /> <!-- 0x03EB / 0x2044: Atmel Lufa -->
-    <usb-device vendor-id="7855" product-id="4"    /> <!-- 0x1eaf / 0x0004: Leaflabs Maple -->
-    <usb-device vendor-id="3368" product-id="516"  /> <!-- 0x0d28 / 0x0204: ARM mbed -->
-    <usb-device vendor-id="1155" product-id="22336" /><!-- 0x0483 / 0x5740: ST CDC -->
-    <usb-device vendor-id="11914" product-id="5"   /> <!-- 0x2E8A: Raspberry Pi Pico Micropython -->
+    <usb-device vendor-id="9025" />                    <!-- 0x2341 / ......: Arduino -->
+    <usb-device vendor-id="5824" product-id="1155" />  <!-- 0x16C0 / 0x0483: Teensyduino  -->
+    <usb-device vendor-id="1003" product-id="8260" />  <!-- 0x03EB / 0x2044: Atmel Lufa -->
+    <usb-device vendor-id="7855" product-id="4"    />  <!-- 0x1eaf / 0x0004: Leaflabs Maple -->
+    <usb-device vendor-id="3368" product-id="516"  />  <!-- 0x0d28 / 0x0204: ARM mbed -->
+    <usb-device vendor-id="1155" product-id="22336" /> <!-- 0x0483 / 0x5740: ST CDC -->
+    <usb-device vendor-id="11914" product-id="5"   />  <!-- 0x2E8A: Raspberry Pi Pico Micropython -->
+    <usb-device vendor-id="11914" product-id="10"  />  <!-- 0x2E8A: Raspberry Pi Pico Arduino BSP -->
+    <usb-device vendor-id="11914" product-id="61450" /><!-- 0x2E8A: Raspberry Pi generic RP2040 -->
+    <usb-device vendor-id="6790" product-id="21972" /> <!-- 0x55D4: Qinheng CH9102 -->
+    <usb-device vendor-id="9114" product-id="32809" /> <!-- 0x239A / 0x8029: Nordic nRF52840 DK -->
+    <usb-device vendor-id="7504" product-id="24713" /> <!-- 0x1D50 / 0x6089: OpenMoko HackRF One -->
 </resources>

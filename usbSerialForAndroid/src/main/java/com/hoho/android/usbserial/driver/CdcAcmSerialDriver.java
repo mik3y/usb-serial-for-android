@@ -300,6 +300,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                         UsbId.ARDUINO_MEGA_ADK_R3,
                         UsbId.ARDUINO_LEONARDO,
                         UsbId.ARDUINO_MICRO,
+                        UsbId.ARDUINO_ZERO,
                 });
         supportedDevices.put(UsbId.VENDOR_VAN_OOIJEN_TECH,
                 new int[] {
@@ -324,6 +325,20 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         supportedDevices.put(UsbId.VENDOR_RASPBERRY_PI,
                 new int[] {
                     UsbId.RASPBERRY_PI_PICO_MICROPYTHON,
+                    UsbId.RASPBERRY_PI_PICO_ARDUINO_BSP,
+                    UsbId.RASPBERRY_PI_GENERIC_RP2040,
+                });
+        supportedDevices.put(UsbId.VENDOR_OPENMOKO,
+                new int[] {
+                    UsbId.HACKRF_ONE,
+                });
+        supportedDevices.put(UsbId.VENDOR_NORDIC,
+                new int[] {
+                    UsbId.NRF52840_DK,
+                });
+        supportedDevices.put(UsbId.VENDOR_QINHENG,
+                new int[] {
+                    UsbId.QINHENG_CH9102,
                 });
         return supportedDevices;
     }

@@ -37,6 +37,7 @@ public final class UsbId {
     public static final int ARDUINO_SERIAL_ADAPTER_R3 = 0x0044;
     public static final int ARDUINO_LEONARDO = 0x8036;
     public static final int ARDUINO_MICRO = 0x8037;
+    public static final int ARDUINO_ZERO = 0x804d;
 
     public static final int VENDOR_VAN_OOIJEN_TECH = 0x16c0;
     public static final int VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL = 0x0483;
@@ -61,6 +62,7 @@ public final class UsbId {
     public static final int VENDOR_QINHENG = 0x1a86;
     public static final int QINHENG_CH340 = 0x7523;
     public static final int QINHENG_CH341A = 0x5523;
+    public static final int QINHENG_CH9102 = 0x55d4;
 
     // at www.linux-usb.org/usb.ids listed for NXP/LPC1768, but all processors supported by ARM mbed DAPLink firmware report these ids
     public static final int VENDOR_ARM = 0x0d28;
@@ -71,6 +73,14 @@ public final class UsbId {
 
     public static final int VENDOR_RASPBERRY_PI = 0x2e8a;
     public static final int RASPBERRY_PI_PICO_MICROPYTHON = 0x0005;
+    public static final int RASPBERRY_PI_PICO_ARDUINO_BSP = 0x000a;
+    public static final int RASPBERRY_PI_GENERIC_RP2040   = 0xf00a;
+
+    public static final int VENDOR_OPENMOKO = 0x1d50;
+    public static final int HACKRF_ONE = 0x6089;
+
+    public static final int VENDOR_NORDIC = 0x239a;
+    public static final int NRF52840_DK = 0x8029;
 
     private UsbId() {
         throw new IllegalAccessError("Non-instantiable class");
