@@ -71,6 +71,7 @@ public final class UsbId {
 
     public static final int VENDOR_RASPBERRY_PI = 0x2e8a;
     public static final int RASPBERRY_PI_PICO_MICROPYTHON = 0x0005;
+    public static final int RASPBERRY_PI_PICO_SDK = 0x000a;
 
     private UsbId() {
         throw new IllegalAccessError("Non-instantiable class");

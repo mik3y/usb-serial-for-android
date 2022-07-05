@@ -303,19 +303,19 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 });
         supportedDevices.put(UsbId.VENDOR_VAN_OOIJEN_TECH,
                 new int[] {
-                    UsbId.VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL,
+                        UsbId.VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL,
                 });
         supportedDevices.put(UsbId.VENDOR_ATMEL,
                 new int[] {
-                    UsbId.ATMEL_LUFA_CDC_DEMO_APP,
+                        UsbId.ATMEL_LUFA_CDC_DEMO_APP,
                 });
         supportedDevices.put(UsbId.VENDOR_LEAFLABS,
                 new int[] {
-                    UsbId.LEAFLABS_MAPLE,
+                        UsbId.LEAFLABS_MAPLE,
                 });
         supportedDevices.put(UsbId.VENDOR_ARM,
                 new int[] {
-                    UsbId.ARM_MBED,
+                        UsbId.ARM_MBED,
                 });
         supportedDevices.put(UsbId.VENDOR_ST,
                 new int[] {
@@ -323,7 +323,8 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 });
         supportedDevices.put(UsbId.VENDOR_RASPBERRY_PI,
                 new int[] {
-                    UsbId.RASPBERRY_PI_PICO_MICROPYTHON,
+                        UsbId.RASPBERRY_PI_PICO_MICROPYTHON,
+                        UsbId.RASPBERRY_PI_PICO_SDK,
                 });
         return supportedDevices;
     }
