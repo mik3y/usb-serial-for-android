@@ -326,6 +326,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                         UsbId.RASPBERRY_PI_PICO_MICROPYTHON,
                         UsbId.RASPBERRY_PI_PICO_SDK,
                 });
+        supportedDevices.put(UsbId.VENDOR_QINHENG,
+                new int[] {
+                        UsbId.QINHENG_CH9102F,
+                });
         return supportedDevices;
     }
 
