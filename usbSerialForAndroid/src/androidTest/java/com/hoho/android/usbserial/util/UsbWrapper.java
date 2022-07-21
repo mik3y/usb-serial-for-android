@@ -9,6 +9,7 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.media.RingtoneManager;
 import android.net.Uri;
+import android.os.Build;
 import android.util.Log;
 
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
@@ -83,7 +84,8 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
                     granted[0] = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
                 }
             };
-            PendingIntent permissionIntent = PendingIntent.getBroadcast(context, 0, new Intent("com.android.example.USB_PERMISSION"), 0);
+            int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0;
+            PendingIntent permissionIntent = PendingIntent.getBroadcast(context, 0, new Intent("com.android.example.USB_PERMISSION"), flags);
             IntentFilter filter = new IntentFilter("com.android.example.USB_PERMISSION");
             context.registerReceiver(usbReceiver, filter);
             usbManager.requestPermission(serialDriver.getDevice(), permissionIntent);
@@ -92,7 +94,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
                 Thread.sleep(1);
             }
             Log.d(TAG,"USB permission "+granted[0]);
-            assertTrue("USB permission dialog not confirmed", granted[0]==null?false:granted[0]);
+            assertTrue("USB permission dialog not confirmed", granted[0] != null && granted[0]);
         }
 
         // extract some device properties:

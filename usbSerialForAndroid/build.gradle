@@ -4,16 +4,16 @@ plugins {
 }
 
 android {
-    compileSdkVersion 31
+    compileSdkVersion 32
 
     defaultConfig {
         minSdkVersion 17
-        targetSdkVersion 31
+        targetSdkVersion 32
         consumerProguardFiles 'proguard-rules.pro'
         
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments = [                    // Raspi   Windows   LinuxVM   ...
-                'rfc2217_server_host': '192.168.0.100',
+                'rfc2217_server_host': '192.168.0.186',
                 'rfc2217_server_nonstandard_baudrates': 'true',   // true    false     false
         ]
     }
