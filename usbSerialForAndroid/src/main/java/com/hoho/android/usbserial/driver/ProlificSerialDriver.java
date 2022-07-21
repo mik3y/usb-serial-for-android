@@ -299,12 +299,14 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             byte maxPacketSize0 = rawDescriptors[7];
             if (mDevice.getDeviceClass() == 0x02 || maxPacketSize0 != 64) {
                 mDeviceType = DeviceType.DEVICE_TYPE_01;
-            } else if(deviceVersion == 0x300 && usbVersion == 0x200) {
-                mDeviceType = DeviceType.DEVICE_TYPE_T; // TA
-            } else if(deviceVersion == 0x500) {
-                mDeviceType = DeviceType.DEVICE_TYPE_T; // TB
-            } else if(usbVersion == 0x200 && !testHxStatus()) {
-                mDeviceType = DeviceType.DEVICE_TYPE_HXN;
+            } else if(usbVersion == 0x200) {
+                if(deviceVersion == 0x300 && testHxStatus()) {
+                    mDeviceType = DeviceType.DEVICE_TYPE_T; // TA
+                } else if(deviceVersion == 0x500 && testHxStatus()) {
+                    mDeviceType = DeviceType.DEVICE_TYPE_T; // TB
+                } else {
+                    mDeviceType = DeviceType.DEVICE_TYPE_HXN;
+                }
             } else {
                 mDeviceType = DeviceType.DEVICE_TYPE_HX;
             }
