@@ -26,6 +26,17 @@ allprojects {
     }
 }
 ```
+
+For newer version of Android Studio, add jitpack.io repository to your settings.gradle instead:
+```gradle
+dependencyResolutionManagement {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
 Add library to dependencies
 ```gradle
 dependencies {
