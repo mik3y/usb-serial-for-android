@@ -26,6 +26,17 @@ allprojects {
     }
 }
 ```
+
+Starting with gradle 6.8 you can alternatively add jitpack.io repository to your settings.gradle:
+```gradle
+dependencyResolutionManagement {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
 Add library to dependencies
 ```gradle
 dependencies {
