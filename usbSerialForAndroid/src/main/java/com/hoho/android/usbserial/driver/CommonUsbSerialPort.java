@@ -118,7 +118,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         }
         mConnection = connection;
         try {
-            openInt(connection);
+            openInt();
             if (mReadEndpoint == null || mWriteEndpoint == null) {
                 throw new IOException("Could not get read & write endpoints");
             }
@@ -132,7 +132,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         }
     }
 
-    protected abstract void openInt(UsbDeviceConnection connection) throws IOException;
+    protected abstract void openInt() throws IOException;
 
     @Override
     public void close() throws IOException {

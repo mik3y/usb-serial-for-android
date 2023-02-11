@@ -8,7 +8,6 @@ package com.hoho.android.usbserial.driver;
 
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.util.Log;
@@ -95,7 +94,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        protected void openInt(UsbDeviceConnection connection) throws IOException {
+        protected void openInt() throws IOException {
             if (mPortNumber == -1) {
                 Log.d(TAG,"device might be castrated ACM device, trying single interface logic");
                 openSingleInterface();

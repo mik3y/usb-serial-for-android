@@ -9,7 +9,6 @@ package com.hoho.android.usbserial.driver;
 
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
 import android.util.Log;
 
 import com.hoho.android.usbserial.util.MonotonicClock;
@@ -99,8 +98,8 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
 
         @Override
-        protected void openInt(UsbDeviceConnection connection) throws IOException {
-            if (!connection.claimInterface(mDevice.getInterface(mPortNumber), true)) {
+        protected void openInt() throws IOException {
+            if (!mConnection.claimInterface(mDevice.getInterface(mPortNumber), true)) {
                 throw new IOException("Could not claim interface " + mPortNumber);
             }
             if (mDevice.getInterface(mPortNumber).getEndpointCount() < 2) {
@@ -123,7 +122,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             }
 
             // mDevice.getVersion() would require API 23
-            byte[] rawDescriptors = connection.getRawDescriptors();
+            byte[] rawDescriptors = mConnection.getRawDescriptors();
             if(rawDescriptors == null || rawDescriptors.length < 14) {
                 throw new IOException("Could not get device descriptors");
             }

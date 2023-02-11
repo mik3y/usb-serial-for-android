@@ -7,7 +7,6 @@ package com.hoho.android.usbserial.driver;
 
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.util.Log;
@@ -80,7 +79,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 		}
 
 		@Override
-		protected void openInt(UsbDeviceConnection connection) throws IOException {
+		protected void openInt() throws IOException {
 			for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
 				UsbInterface usbIface = mDevice.getInterface(i);
 				if (!mConnection.claimInterface(usbIface, true)) {

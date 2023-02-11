@@ -11,7 +11,6 @@ package com.hoho.android.usbserial.driver;
 
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.util.Log;
@@ -265,10 +264,10 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public void openInt(UsbDeviceConnection connection) throws IOException {
+        public void openInt() throws IOException {
             UsbInterface usbInterface = mDevice.getInterface(0);
 
-            if (!connection.claimInterface(usbInterface, true)) {
+            if (!mConnection.claimInterface(usbInterface, true)) {
                 throw new IOException("Error claiming Prolific interface 0");
             }
 
@@ -290,7 +289,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                 }
             }
 
-            byte[] rawDescriptors = connection.getRawDescriptors();
+            byte[] rawDescriptors = mConnection.getRawDescriptors();
             if(rawDescriptors == null || rawDescriptors.length < 14) {
                 throw new IOException("Could not get device descriptors");
             }

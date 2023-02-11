@@ -8,7 +8,6 @@ package com.hoho.android.usbserial.driver;
 
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 
@@ -126,7 +125,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        protected void openInt(UsbDeviceConnection connection) throws IOException {
+        protected void openInt() throws IOException {
             mIsRestrictedPort = mDevice.getInterfaceCount() == 2 && mPortNumber == 1;
             if(mPortNumber >= mDevice.getInterfaceCount()) {
                 throw new IOException("Unknown port number");
