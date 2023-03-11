@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    compileSdkVersion 32
+    compileSdkVersion 33
 
     defaultConfig {
         minSdkVersion 17
-        targetSdkVersion 32
+        targetSdkVersion 33
         consumerProguardFiles 'proguard-rules.pro'
         
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
