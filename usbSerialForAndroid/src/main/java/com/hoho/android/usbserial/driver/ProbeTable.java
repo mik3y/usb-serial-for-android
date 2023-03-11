@@ -6,6 +6,7 @@
 
 package com.hoho.android.usbserial.driver;
 
+import android.hardware.usb.UsbDevice;
 import android.util.Pair;
 
 import java.lang.reflect.InvocationTargetException;
@@ -14,14 +15,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Maps (vendor id, product id) pairs to the corresponding serial driver.
- *
- * @author mike wakerly (opensource@hoho.com)
+ * Maps (vendor id, product id) pairs to the corresponding serial driver,
+ * or invoke 'probe' method to check actual USB devices for matching interfaces.
  */
 public class ProbeTable {
 
-    private final Map<Pair<Integer, Integer>, Class<? extends UsbSerialDriver>> mProbeTable =
+    private final Map<Pair<Integer, Integer>, Class<? extends UsbSerialDriver>> mVidPidProbeTable =
             new LinkedHashMap<>();
+    private final Map<Method, Class<? extends UsbSerialDriver>> mMethodProbeTable = new LinkedHashMap<>();
 
     /**
      * Adds or updates a (vendor, product) pair in the table.
@@ -33,7 +34,7 @@ public class ProbeTable {
      */
     public ProbeTable addProduct(int vendorId, int productId,
             Class<? extends UsbSerialDriver> driverClass) {
-        mProbeTable.put(Pair.create(vendorId, productId), driverClass);
+        mVidPidProbeTable.put(Pair.create(vendorId, productId), driverClass);
         return this;
     }
 
@@ -41,12 +42,11 @@ public class ProbeTable {
      * Internal method to add all supported products from
      * {@code getSupportedProducts} static method.
      *
-     * @param driverClass
-     * @return
+     * @param driverClass to be added
      */
     @SuppressWarnings("unchecked")
-    ProbeTable addDriver(Class<? extends UsbSerialDriver> driverClass) {
-        final Method method;
+    void addDriver(Class<? extends UsbSerialDriver> driverClass) {
+        Method method;
 
         try {
             method = driverClass.getMethod("getSupportedDevices");
@@ -68,20 +68,35 @@ public class ProbeTable {
             }
         }
 
-        return this;
+        try {
+            method = driverClass.getMethod("probe", UsbDevice.class);
+            mMethodProbeTable.put(method, driverClass);
+        } catch (SecurityException | NoSuchMethodException ignored) {
+        }
     }
 
     /**
-     * Returns the driver for the given (vendor, product) pair, or {@code null}
-     * if no match.
+     * Returns the driver for the given USB device, or {@code null} if no match.
      *
-     * @param vendorId the USB vendor id
-     * @param productId the USB product id
+     * @param usbDevice the USB device to be probed
      * @return the driver class matching this pair, or {@code null}
      */
-    public Class<? extends UsbSerialDriver> findDriver(int vendorId, int productId) {
-        final Pair<Integer, Integer> pair = Pair.create(vendorId, productId);
-        return mProbeTable.get(pair);
+    public Class<? extends UsbSerialDriver> findDriver(final UsbDevice usbDevice) {
+        final Pair<Integer, Integer> pair = Pair.create(usbDevice.getVendorId(), usbDevice.getProductId());
+        Class<? extends UsbSerialDriver> driverClass = mVidPidProbeTable.get(pair);
+        if (driverClass != null)
+            return driverClass;
+        for (Map.Entry<Method, Class<? extends UsbSerialDriver>> entry : mMethodProbeTable.entrySet()) {
+            try {
+                Method method = entry.getKey();
+                Object o = method.invoke(null, usbDevice);
+                if((boolean)o)
+                    return entry.getValue();
+            } catch (IllegalArgumentException | IllegalAccessException | InvocationTargetException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return null;
     }
 
 }

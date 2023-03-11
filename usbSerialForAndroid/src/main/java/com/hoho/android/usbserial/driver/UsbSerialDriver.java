@@ -10,11 +10,16 @@ import android.hardware.usb.UsbDevice;
 
 import java.util.List;
 
-/**
- *
- * @author mike wakerly (opensource@hoho.com)
- */
 public interface UsbSerialDriver {
+
+    /*
+     * Additional interface properties. Invoked thru reflection.
+     *
+        UsbSerialDriver(UsbDevice device);                  // constructor with device
+        static Map<Integer, int[]> getSupportedDevices();
+        static boolean probe(UsbDevice device);             // optional
+     */
+
 
     /**
      * Returns the raw {@link UsbDevice} backing this port.

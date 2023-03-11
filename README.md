@@ -124,22 +124,23 @@ new device or for one using a custom VID/PID pair.
 UsbSerialProber is a class to help you find and instantiate compatible
 UsbSerialDrivers from the tree of connected UsbDevices.  Normally, you will use
 the default prober returned by ``UsbSerialProber.getDefaultProber()``, which
-uses the built-in list of well-known VIDs and PIDs that are supported by our
-drivers.
+uses USB interface types and the built-in list of well-known VIDs and PIDs that
+are supported by our drivers.
 
 To use your own set of rules, create and use a custom prober:
 
 ```java
-// Probe for our custom CDC devices, which use VID 0x1234
-// and PIDS 0x0001 and 0x0002.
+// Probe for our custom FTDI device, which use VID 0x1234 and PID 0x0001 and 0x0002.
 ProbeTable customTable = new ProbeTable();
-customTable.addProduct(0x1234, 0x0001, CdcAcmSerialDriver.class);
-customTable.addProduct(0x1234, 0x0002, CdcAcmSerialDriver.class);
+customTable.addProduct(0x1234, 0x0001, FtdiSerialDriver.class);
+customTable.addProduct(0x1234, 0x0002, FtdiSerialDriver.class);
 
 UsbSerialProber prober = new UsbSerialProber(customTable);
 List<UsbSerialDriver> drivers = prober.findAllDrivers(usbManager);
 // ...
 ```
+*Note*: as of v3.5.0 this library detects CDC devices by USB interface types instead of fixed VID+PID,
+so custom probers are typically not required any more for CDC devices.
 
 Of course, nothing requires you to use UsbSerialProber at all: you can
 instantiate driver classes directly if you know what you're doing; just supply

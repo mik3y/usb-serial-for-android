@@ -566,6 +566,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         }
     }
 
+    @SuppressWarnings({"unused"})
     public static Map<Integer, int[]> getSupportedDevices() {
         final Map<Integer, int[]> supportedDevices = new LinkedHashMap<>();
         supportedDevices.put(UsbId.VENDOR_PROLIFIC,

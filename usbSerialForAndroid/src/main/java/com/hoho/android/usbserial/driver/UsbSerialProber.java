@@ -69,11 +69,7 @@ public class UsbSerialProber {
      *         {@code null} if none available.
      */
     public UsbSerialDriver probeDevice(final UsbDevice usbDevice) {
-        final int vendorId = usbDevice.getVendorId();
-        final int productId = usbDevice.getProductId();
-
-        final Class<? extends UsbSerialDriver> driverClass =
-                mProbeTable.findDriver(vendorId, productId);
+        final Class<? extends UsbSerialDriver> driverClass = mProbeTable.findDriver(usbDevice);
         if (driverClass != null) {
             final UsbSerialDriver driver;
             try {

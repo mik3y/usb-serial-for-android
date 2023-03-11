@@ -53,6 +53,10 @@ public class CdcAcmSerialDriverTest {
         port.openInt();
         assertEquals(readEndpoint, port.mReadEndpoint);
         assertEquals(writeEndpoint, port.mWriteEndpoint);
+
+        ProbeTable probeTable = UsbSerialProber.getDefaultProbeTable();
+        Class<? extends UsbSerialDriver> probeDriver = probeTable.findDriver(usbDevice);
+        assertEquals(driver.getClass(), probeDriver);
     }
 
     @Test
@@ -84,6 +88,10 @@ public class CdcAcmSerialDriverTest {
         port.openInt();
         assertEquals(readEndpoint, port.mReadEndpoint);
         assertEquals(writeEndpoint, port.mWriteEndpoint);
+
+        ProbeTable probeTable = UsbSerialProber.getDefaultProbeTable();
+        Class<? extends UsbSerialDriver> probeDriver = probeTable.findDriver(usbDevice);
+        assertNull(probeDriver);
     }
 
     @Test

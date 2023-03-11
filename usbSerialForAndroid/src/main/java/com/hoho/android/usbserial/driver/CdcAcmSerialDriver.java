@@ -37,21 +37,30 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
     public CdcAcmSerialDriver(UsbDevice device) {
         mDevice = device;
         mPorts = new ArrayList<>();
-
-        int controlInterfaceCount = 0;
-        int dataInterfaceCount = 0;
-        for( int i = 0; i < device.getInterfaceCount(); i++) {
-            if(device.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_COMM)
-                controlInterfaceCount++;
-            if(device.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA)
-                dataInterfaceCount++;
-        }
-        for( int port = 0; port < Math.min(controlInterfaceCount, dataInterfaceCount); port++) {
+        int ports = countPorts(device);
+        for (int port = 0; port < ports; port++) {
             mPorts.add(new CdcAcmSerialPort(mDevice, port));
         }
-        if(mPorts.size() == 0) {
+        if (mPorts.size() == 0) {
             mPorts.add(new CdcAcmSerialPort(mDevice, -1));
         }
+    }
+
+    @SuppressWarnings({"unused"})
+    public static boolean probe(UsbDevice device) {
+        return countPorts(device) > 0;
+    }
+
+    private static int countPorts(UsbDevice device) {
+        int controlInterfaceCount = 0;
+        int dataInterfaceCount = 0;
+        for (int i = 0; i < device.getInterfaceCount(); i++) {
+            if (device.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_COMM)
+                controlInterfaceCount++;
+            if (device.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA)
+                dataInterfaceCount++;
+        }
+        return Math.min(controlInterfaceCount, dataInterfaceCount);
     }
 
     @Override
@@ -297,51 +306,9 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
     }
 
+    @SuppressWarnings({"unused"})
     public static Map<Integer, int[]> getSupportedDevices() {
-        final Map<Integer, int[]> supportedDevices = new LinkedHashMap<>();
-        supportedDevices.put(UsbId.VENDOR_ARDUINO,
-                new int[] {
-                        UsbId.ARDUINO_UNO,
-                        UsbId.ARDUINO_UNO_R3,
-                        UsbId.ARDUINO_MEGA_2560,
-                        UsbId.ARDUINO_MEGA_2560_R3,
-                        UsbId.ARDUINO_SERIAL_ADAPTER,
-                        UsbId.ARDUINO_SERIAL_ADAPTER_R3,
-                        UsbId.ARDUINO_MEGA_ADK,
-                        UsbId.ARDUINO_MEGA_ADK_R3,
-                        UsbId.ARDUINO_LEONARDO,
-                        UsbId.ARDUINO_MICRO,
-                });
-        supportedDevices.put(UsbId.VENDOR_VAN_OOIJEN_TECH,
-                new int[] {
-                        UsbId.VAN_OOIJEN_TECH_TEENSYDUINO_SERIAL,
-                });
-        supportedDevices.put(UsbId.VENDOR_ATMEL,
-                new int[] {
-                        UsbId.ATMEL_LUFA_CDC_DEMO_APP,
-                });
-        supportedDevices.put(UsbId.VENDOR_LEAFLABS,
-                new int[] {
-                        UsbId.LEAFLABS_MAPLE,
-                });
-        supportedDevices.put(UsbId.VENDOR_ARM,
-                new int[] {
-                        UsbId.ARM_MBED,
-                });
-        supportedDevices.put(UsbId.VENDOR_ST,
-                new int[] {
-                        UsbId.ST_CDC,
-                });
-        supportedDevices.put(UsbId.VENDOR_RASPBERRY_PI,
-                new int[] {
-                        UsbId.RASPBERRY_PI_PICO_MICROPYTHON,
-                        UsbId.RASPBERRY_PI_PICO_SDK,
-                });
-        supportedDevices.put(UsbId.VENDOR_QINHENG,
-                new int[] {
-                        UsbId.QINHENG_CH9102F,
-                });
-        return supportedDevices;
+        return new LinkedHashMap<>();
     }
 
 }
