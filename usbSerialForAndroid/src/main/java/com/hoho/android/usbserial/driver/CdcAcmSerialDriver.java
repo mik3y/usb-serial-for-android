@@ -132,6 +132,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         private void openInterface() throws IOException {
             Log.d(TAG, "claiming interfaces, count=" + mDevice.getInterfaceCount());
 
+            int rndisControlInterfaceCount = 0;
             int controlInterfaceCount = 0;
             int dataInterfaceCount = 0;
             mControlInterface = null;
@@ -146,10 +147,21 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                     controlInterfaceCount++;
                 }
                 if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA) {
-                    if(dataInterfaceCount == mPortNumber) {
+                    if(dataInterfaceCount == mPortNumber + rndisControlInterfaceCount) {
                         mDataInterface = usbInterface;
                     }
                     dataInterfaceCount++;
+                }
+                if (mDataInterface == null &&
+                        usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_WIRELESS_CONTROLLER &&
+                        usbInterface.getInterfaceSubclass() == 1 &&
+                        usbInterface.getInterfaceProtocol() == 3) {
+                    /*
+                     * RNDIS is a MSFT variant of CDC-ACM states the Linux kernel in rndis_host.c
+                     * The devices provide IAD descriptors to indicate consecutive interfaces belonging
+                     * together, but this is not exposed to Java. So simply skip related data interfaces.
+                     */
+                    rndisControlInterfaceCount++;
                 }
             }
 

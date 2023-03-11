@@ -179,6 +179,53 @@ public class CdcAcmSerialDriverTest {
         assertEquals(writeEndpoint, port.mWriteEndpoint);
     }
 
+
+    @Test
+    public void compositeRndisDevice() throws Exception {
+        UsbDeviceConnection usbDeviceConnection = mock(UsbDeviceConnection.class);
+        UsbDevice usbDevice = mock(UsbDevice.class);
+        UsbInterface rndisControlInterface = mock(UsbInterface.class);
+        UsbInterface rndisDataInterface = mock(UsbInterface.class);
+        UsbInterface controlInterface = mock(UsbInterface.class);
+        UsbInterface dataInterface = mock(UsbInterface.class);
+        UsbEndpoint controlEndpoint = mock(UsbEndpoint.class);
+        UsbEndpoint readEndpoint = mock(UsbEndpoint.class);
+        UsbEndpoint writeEndpoint = mock(UsbEndpoint.class);
+
+        when(usbDeviceConnection.claimInterface(controlInterface,true)).thenReturn(true);
+        when(usbDeviceConnection.claimInterface(dataInterface,true)).thenReturn(true);
+        when(usbDevice.getInterfaceCount()).thenReturn(4);
+        when(usbDevice.getInterface(0)).thenReturn(rndisControlInterface);
+        when(usbDevice.getInterface(1)).thenReturn(rndisDataInterface);
+        when(usbDevice.getInterface(2)).thenReturn(controlInterface);
+        when(usbDevice.getInterface(3)).thenReturn(dataInterface);
+        when(rndisControlInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_WIRELESS_CONTROLLER);
+        when(rndisControlInterface.getInterfaceSubclass()).thenReturn(1);
+        when(rndisControlInterface.getInterfaceProtocol()).thenReturn(3);
+        when(rndisDataInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
+        when(controlInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_COMM);
+        when(dataInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
+
+        when(controlInterface.getEndpointCount()).thenReturn(1);
+        when(controlInterface.getEndpoint(0)).thenReturn(controlEndpoint);
+        when(dataInterface.getEndpointCount()).thenReturn(2);
+        when(dataInterface.getEndpoint(0)).thenReturn(writeEndpoint);
+        when(dataInterface.getEndpoint(1)).thenReturn(readEndpoint);
+        when(controlEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_IN);
+        when(controlEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_INT);
+        when(readEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_IN);
+        when(readEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_BULK);
+        when(writeEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_OUT);
+        when(writeEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_BULK);
+
+        CdcAcmSerialDriver driver = new CdcAcmSerialDriver(usbDevice);
+        CdcAcmSerialDriver.CdcAcmSerialPort port = (CdcAcmSerialDriver.CdcAcmSerialPort) driver.getPorts().get(0);
+        port.mConnection = usbDeviceConnection;
+        port.openInt();
+        assertEquals(readEndpoint, port.mReadEndpoint);
+        assertEquals(writeEndpoint, port.mWriteEndpoint);
+    }
+
     @Test
     public void invalidStandardDevice() throws Exception {
         UsbDeviceConnection usbDeviceConnection = mock(UsbDeviceConnection.class);
