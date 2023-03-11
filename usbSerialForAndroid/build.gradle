@@ -13,7 +13,7 @@ android {
         
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments = [                    // Raspi   Windows   LinuxVM   ...
-                'rfc2217_server_host': '192.168.0.186',
+                'rfc2217_server_host': '192.168.0.144',
                 'rfc2217_server_nonstandard_baudrates': 'true',   // true    false     false
         ]
     }
@@ -21,14 +21,16 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    namespace 'com.hoho.android.usbserial'
 }
 
 dependencies {
-    implementation "androidx.annotation:annotation:1.3.0"
-    implementation 'androidx.test:core:1.4.0'
+    implementation "androidx.annotation:annotation:1.5.0"
+    //testImplementation 'androidx.test:core:1.5.0'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:1.10.19'
-    androidTestImplementation 'androidx.test:runner:1.4.0'
+    androidTestImplementation 'androidx.test:core:1.5.0'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'commons-net:commons-net:3.8.0'
     androidTestImplementation 'org.apache.commons:commons-lang3:3.11'
 }
@@ -38,13 +40,13 @@ project.afterEvaluate {
     publishing {
         publications {
             release(MavenPublication) {
-                from components.release // change to anyDeviceRelease if coverage is enabled
+                from components.release // change 'release' to 'anyDeviceRelease' if coverage is enabled
                 artifact androidSourcesJar
 
                 // values used for local maven repo, jitpack uses github release:
                 groupId 'com.github.mik3y'
                 artifactId 'usb-serial-for-android'
-                version 'v3.5.0beta'
+                version '3.5.0beta'
             }
         }
     }

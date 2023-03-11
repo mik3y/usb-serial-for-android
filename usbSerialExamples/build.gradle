@@ -23,10 +23,11 @@ android {
             minifyEnabled true
         }
     }
+    namespace 'com.hoho.android.usbserial.examples'
 }
 
 dependencies {
     implementation project(':usbSerialForAndroid')
-    implementation 'androidx.appcompat:appcompat:1.4.1'
-    implementation 'com.google.android.material:material:1.5.0'
+    implementation 'androidx.appcompat:appcompat:1.5.1'
+    implementation 'com.google.android.material:material:1.8.0'
 }

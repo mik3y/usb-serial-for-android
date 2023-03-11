@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.hoho.android.usbserial.examples">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- mipmap/ic_launcher created with Android Studio -> New -> Image Asset using @color/colorPrimary and USB clip art -->
     <application
@@ -15,7 +14,6 @@
              when the settings activity is currently shown -->
         <activity
             android:name=".MainActivity"
-            android:label="@string/app_name"
             android:launchMode="singleTask"
             android:windowSoftInputMode="stateHidden|adjustResize"
             android:exported="true">

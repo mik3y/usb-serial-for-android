@@ -48,7 +48,8 @@ android {
 
     buildTypes {
         debug {
-            testCoverageEnabled true // disable for testAnyDeviceDebugUnitTest
+            enableUnitTestCoverage true
+            enableAndroidTestCoverage true
         }
     }
 }
@@ -60,20 +61,18 @@ project.gradle.taskGraph.whenReady {
     }
 }
 
-task jacocoTestReport(type: JacocoReport ,
-        dependsOn: ['compileAnyDeviceDebugSources' /*'testAnyDeviceDebugUnitTest' , 'create<device>DebugCoverageReport'*/]) {
-    reports {
-        xml.enabled = true
-        html.enabled = true
-    }
-
+task jacocoTestReport(type: JacocoReport, dependsOn: ['compileAnyDeviceDebugSources'
+                                                  /*, 'testAnyDeviceDebugUnitTest' */
+                                                  /*, 'create<device>DebugCoverageReport' */]) {
     def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*.*']
     def debugTree = fileTree(dir: "$project.buildDir/intermediates/javac/anyDeviceDebug", excludes: fileFilter)
     def mainSrc = "$project.projectDir/src/main/java"
 
+    reports.xml.required = true
     sourceDirectories.from files([mainSrc])
     classDirectories.from files([debugTree])
     executionData.from fileTree(dir: project.buildDir, includes: [
-            'jacoco/testAnyDeviceDebugUnitTest.exec', 'outputs/code_coverage/*AndroidTest/connected/*.ec'
+            'outputs/unit_test_code_coverage/anyDeviceDebugUnitTest/testAnyDeviceDebugUnitTest.exec',
+            'outputs/code_coverage/*DebugAndroidTest/connected/*/coverage.ec'
     ])
 }
