@@ -13,7 +13,7 @@ android {
         
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments = [                    // Raspi   Windows   LinuxVM   ...
-                'rfc2217_server_host': '192.168.0.144',
+                'rfc2217_server_host': '192.168.0.145',
                 'rfc2217_server_nonstandard_baudrates': 'true',   // true    false     false
         ]
     }
@@ -22,17 +22,22 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
     namespace 'com.hoho.android.usbserial'
+    publishing {
+        // if coverage is enabled, change 'release' to 'anyDeviceRelease' or comment out publishing rule
+        singleVariant('release') {
+            withSourcesJar()
+        }
+    }
 }
 
 dependencies {
     implementation "androidx.annotation:annotation:1.5.0"
-    //testImplementation 'androidx.test:core:1.5.0'
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.mockito:mockito-core:1.10.19'
+    testImplementation 'org.mockito:mockito-core:5.4.0'
     androidTestImplementation 'androidx.test:core:1.5.0'
     androidTestImplementation 'androidx.test:runner:1.5.2'
-    androidTestImplementation 'commons-net:commons-net:3.8.0'
-    androidTestImplementation 'org.apache.commons:commons-lang3:3.11'
+    androidTestImplementation 'commons-net:commons-net:3.9.0'
+    androidTestImplementation 'org.apache.commons:commons-lang3:3.12.0'
 }
 
 // gradle task: publishToMavenLocal
@@ -40,21 +45,15 @@ project.afterEvaluate {
     publishing {
         publications {
             release(MavenPublication) {
-                from components.release // change 'release' to 'anyDeviceRelease' if coverage is enabled
-                artifact androidSourcesJar
+                from components.release
 
                 // values used for local maven repo, jitpack uses github release:
                 groupId 'com.github.mik3y'
                 artifactId 'usb-serial-for-android'
-                version '3.5.0beta'
+                version '3.5.2beta'
             }
         }
     }
-}
-
-task androidSourcesJar(type: Jar) {
-    classifier 'sources'
-    from android.sourceSets.main.java.srcDirs
 }
 
 //apply from: 'coverage.gradle'
