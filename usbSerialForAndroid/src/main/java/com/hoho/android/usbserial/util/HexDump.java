@@ -19,8 +19,8 @@ package com.hoho.android.usbserial.util;
 import java.security.InvalidParameterException;
 
 /**
- * Clone of Android's HexDump class, for use in debugging. Cosmetic changes
- * only.
+ * Clone of Android's /core/java/com/android/internal/util/HexDump class, for use in debugging.
+ * Cosmetic changes only.
  */
 public class HexDump {
     private final static char[] HEX_DIGITS = {
@@ -144,8 +144,7 @@ public class HexDump {
         byte[] buffer = new byte[length / 2];
 
         for (int i = 0; i < length; i += 2) {
-            buffer[i / 2] = (byte) ((toByte(hexString.charAt(i)) << 4) | toByte(hexString
-                    .charAt(i + 1)));
+            buffer[i / 2] = (byte) ((toByte(hexString.charAt(i)) << 4) | toByte(hexString.charAt(i + 1)));
         }
 
         return buffer;
