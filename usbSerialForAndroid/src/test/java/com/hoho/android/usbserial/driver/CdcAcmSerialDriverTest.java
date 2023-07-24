@@ -1,5 +1,6 @@
 package com.hoho.android.usbserial.driver;
 
+import static com.hoho.android.usbserial.driver.CdcAcmSerialDriver.USB_SUBCLASS_ACM;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -34,6 +35,7 @@ public class CdcAcmSerialDriverTest {
         when(usbDevice.getInterface(0)).thenReturn(controlInterface);
         when(usbDevice.getInterface(1)).thenReturn(dataInterface);
         when(controlInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_COMM);
+        when(controlInterface.getInterfaceSubclass()).thenReturn(USB_SUBCLASS_ACM);
         when(controlInterface.getEndpointCount()).thenReturn(1);
         when(controlInterface.getEndpoint(0)).thenReturn(controlEndpoint);
         when(dataInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
@@ -117,6 +119,7 @@ public class CdcAcmSerialDriverTest {
             when(usbDevice.getInterface(2*i+0)).thenReturn(controlInterfaces[i]);
             when(usbDevice.getInterface(2*i+1)).thenReturn(dataInterfaces[i]);
             when(controlInterfaces[i].getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_COMM);
+            when(controlInterfaces[i].getInterfaceSubclass()).thenReturn(USB_SUBCLASS_ACM);
             when(controlInterfaces[i].getEndpointCount()).thenReturn(1);
             when(controlInterfaces[i].getEndpoint(0)).thenReturn(controlEndpoints[i]);
             when(dataInterfaces[i].getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
@@ -163,6 +166,7 @@ public class CdcAcmSerialDriverTest {
         when(usbDevice.getInterface(4)).thenReturn(vendorInterface);
         when(massStorageInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_MASS_STORAGE);
         when(controlInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_COMM);
+        when(controlInterface.getInterfaceSubclass()).thenReturn(USB_SUBCLASS_ACM);
         when(dataInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
         when(hidInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_HID);
         when(vendorInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_VENDOR_SPEC);
@@ -212,6 +216,7 @@ public class CdcAcmSerialDriverTest {
         when(rndisControlInterface.getInterfaceProtocol()).thenReturn(3);
         when(rndisDataInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
         when(controlInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_COMM);
+        when(controlInterface.getInterfaceSubclass()).thenReturn(USB_SUBCLASS_ACM);
         when(dataInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
 
         when(controlInterface.getEndpointCount()).thenReturn(1);
@@ -250,6 +255,7 @@ public class CdcAcmSerialDriverTest {
         when(usbDevice.getInterface(0)).thenReturn(controlInterface);
         when(usbDevice.getInterface(1)).thenReturn(dataInterface);
         when(controlInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_COMM);
+        when(controlInterface.getInterfaceSubclass()).thenReturn(USB_SUBCLASS_ACM);
         when(controlInterface.getEndpointCount()).thenReturn(1);
         when(controlInterface.getEndpoint(0)).thenReturn(controlEndpoint);
         when(dataInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
@@ -266,7 +272,7 @@ public class CdcAcmSerialDriverTest {
         CdcAcmSerialDriver driver = new CdcAcmSerialDriver(usbDevice);
         CdcAcmSerialDriver.CdcAcmSerialPort port = (CdcAcmSerialDriver.CdcAcmSerialPort) driver.getPorts().get(0);
         port.mConnection = usbDeviceConnection;
-        assertThrows(IOException.class, () ->port.openInt());
+        assertThrows(IOException.class, port::openInt);
     }
 
     @Test

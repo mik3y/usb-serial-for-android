@@ -29,6 +29,8 @@ import java.util.Map;
  */
 public class CdcAcmSerialDriver implements UsbSerialDriver {
 
+    public static final int USB_SUBCLASS_ACM = 2;
+
     private final String TAG = CdcAcmSerialDriver.class.getSimpleName();
 
     private final UsbDevice mDevice;
@@ -55,7 +57,8 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         int controlInterfaceCount = 0;
         int dataInterfaceCount = 0;
         for (int i = 0; i < device.getInterfaceCount(); i++) {
-            if (device.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_COMM)
+            if (device.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_COMM &&
+                    device.getInterface(i).getInterfaceSubclass() == USB_SUBCLASS_ACM)
                 controlInterfaceCount++;
             if (device.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA)
                 dataInterfaceCount++;
@@ -148,7 +151,8 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             mDataInterface = null;
             for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
                 UsbInterface usbInterface = mDevice.getInterface(i);
-                if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_COMM) {
+                if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_COMM &&
+                        usbInterface.getInterfaceSubclass() == USB_SUBCLASS_ACM) {
                     if(controlInterfaceCount == mPortNumber) {
                         mControlIndex = usbInterface.getId();
                         mControlInterface = usbInterface;
