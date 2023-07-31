@@ -41,6 +41,10 @@ public final class UsbId {
     public static final int QINHENG_CH340 = 0x7523;
     public static final int QINHENG_CH341A = 0x5523;
 
+    public static final int VENDOR_UNISOC = 0x1782;
+    public static final int FIBOCOM_L610 = 0x4D10;
+    public static final int FIBOCOM_L612 = 0x4D12;
+
 
     private UsbId() {
         throw new IllegalAccessError("Non-instantiable class");

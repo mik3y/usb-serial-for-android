@@ -227,7 +227,11 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
         try {
             usbSerialPort.open(usbConnection);
-            usbSerialPort.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
+            try{
+                usbSerialPort.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
+            }catch (UnsupportedOperationException e){
+                status("unsupport setparameters");
+            }
             if(withIoManager) {
                 usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
                 usbIoManager.start();
@@ -351,7 +355,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                 cdBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.CD));
                 riBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.RI));
                 mainLooper.postDelayed(runnable, refreshInterval);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 status("getControlLines() failed: " + e.getMessage() + " -> stopped control line refresh");
             }
         }
@@ -368,8 +372,15 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                 if (!controlLines.contains(UsbSerialPort.ControlLine.CD))   cdBtn.setVisibility(View.INVISIBLE);
                 if (!controlLines.contains(UsbSerialPort.ControlLine.RI))   riBtn.setVisibility(View.INVISIBLE);
                 run();
-            } catch (IOException e) {
+            } catch (Exception e) {
                 Toast.makeText(getActivity(), "getSupportedControlLines() failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                rtsBtn.setVisibility(View.INVISIBLE);
+                ctsBtn.setVisibility(View.INVISIBLE);
+                dtrBtn.setVisibility(View.INVISIBLE);
+                dsrBtn.setVisibility(View.INVISIBLE);
+                cdBtn.setVisibility(View.INVISIBLE);
+                cdBtn.setVisibility(View.INVISIBLE);
+                riBtn.setVisibility(View.INVISIBLE);
             }
         }
 
