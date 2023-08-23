@@ -12,6 +12,9 @@ import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.util.Log;
 
+import com.hoho.android.usbserial.util.HexDump;
+import com.hoho.android.usbserial.util.UsbUtils;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -107,6 +110,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         @Override
         protected void openInt() throws IOException {
+            Log.d(TAG, "interfaces:");
+            for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
+                Log.d(TAG, mDevice.getInterface(i).toString());
+            }
             if (mPortNumber == -1) {
                 Log.d(TAG,"device might be castrated ACM device, trying single interface logic");
                 openSingleInterface();
@@ -142,51 +149,57 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         private void openInterface() throws IOException {
-            Log.d(TAG, "claiming interfaces, count=" + mDevice.getInterfaceCount());
 
-            int rndisControlInterfaceCount = 0;
-            int controlInterfaceCount = 0;
-            int dataInterfaceCount = 0;
             mControlInterface = null;
             mDataInterface = null;
-            for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
-                UsbInterface usbInterface = mDevice.getInterface(i);
-                if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_COMM &&
-                        usbInterface.getInterfaceSubclass() == USB_SUBCLASS_ACM) {
-                    if(controlInterfaceCount == mPortNumber) {
-                        mControlIndex = usbInterface.getId();
-                        mControlInterface = usbInterface;
+            int j = getInterfaceIdFromDescriptors();
+            Log.d(TAG, "interface count=" + mDevice.getInterfaceCount() + ", IAD=" + j);
+            if (j >= 0) {
+                for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
+                    UsbInterface usbInterface = mDevice.getInterface(i);
+                    if (usbInterface.getId() == j || usbInterface.getId() == j+1) {
+                        if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_COMM &&
+                                usbInterface.getInterfaceSubclass() == USB_SUBCLASS_ACM) {
+                            mControlIndex = usbInterface.getId();
+                            mControlInterface = usbInterface;
+                        }
+                        if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA) {
+                            mDataInterface = usbInterface;
+                        }
                     }
-                    controlInterfaceCount++;
                 }
-                if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA) {
-                    if(dataInterfaceCount == mPortNumber + rndisControlInterfaceCount) {
-                        mDataInterface = usbInterface;
+            }
+            if (mControlInterface == null || mDataInterface == null) {
+                Log.d(TAG, "no IAD fallback");
+                int controlInterfaceCount = 0;
+                int dataInterfaceCount = 0;
+                for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
+                    UsbInterface usbInterface = mDevice.getInterface(i);
+                    if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_COMM &&
+                            usbInterface.getInterfaceSubclass() == USB_SUBCLASS_ACM) {
+                        if (controlInterfaceCount == mPortNumber) {
+                            mControlIndex = usbInterface.getId();
+                            mControlInterface = usbInterface;
+                        }
+                        controlInterfaceCount++;
                     }
-                    dataInterfaceCount++;
-                }
-                if (mDataInterface == null &&
-                        usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_WIRELESS_CONTROLLER &&
-                        usbInterface.getInterfaceSubclass() == 1 &&
-                        usbInterface.getInterfaceProtocol() == 3) {
-                    /*
-                     * RNDIS is a MSFT variant of CDC-ACM states the Linux kernel in rndis_host.c
-                     * The devices provide IAD descriptors to indicate consecutive interfaces belonging
-                     * together, but this is not exposed to Java. So simply skip related data interfaces.
-                     */
-                    rndisControlInterfaceCount++;
+                    if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA) {
+                        if (dataInterfaceCount == mPortNumber) {
+                            mDataInterface = usbInterface;
+                        }
+                        dataInterfaceCount++;
+                    }
                 }
             }
 
             if(mControlInterface == null) {
                 throw new IOException("No control interface");
             }
-            Log.d(TAG, "Control iface=" + mControlInterface);
+            Log.d(TAG, "Control interface id " + mControlInterface.getId());
 
             if (!mConnection.claimInterface(mControlInterface, true)) {
                 throw new IOException("Could not claim control interface");
             }
-
             mControlEndpoint = mControlInterface.getEndpoint(0);
             if (mControlEndpoint.getDirection() != UsbConstants.USB_DIR_IN || mControlEndpoint.getType() != UsbConstants.USB_ENDPOINT_XFER_INT) {
                 throw new IOException("Invalid control endpoint");
@@ -195,12 +208,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             if(mDataInterface == null) {
                 throw new IOException("No data interface");
             }
-            Log.d(TAG, "data iface=" + mDataInterface);
-
+            Log.d(TAG, "data interface id " + mDataInterface.getId());
             if (!mConnection.claimInterface(mDataInterface, true)) {
                 throw new IOException("Could not claim data interface");
             }
-
             for (int i = 0; i < mDataInterface.getEndpointCount(); i++) {
                 UsbEndpoint ep = mDataInterface.getEndpoint(i);
                 if (ep.getDirection() == UsbConstants.USB_DIR_IN && ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)
@@ -208,6 +219,36 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 if (ep.getDirection() == UsbConstants.USB_DIR_OUT && ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)
                     mWriteEndpoint = ep;
             }
+        }
+
+        private int getInterfaceIdFromDescriptors() {
+            ArrayList<byte[]> descriptors = UsbUtils.getDescriptors(mConnection);
+            Log.d(TAG, "USB descriptor:");
+            for(byte[] descriptor : descriptors)
+                Log.d(TAG, HexDump.toHexString(descriptor));
+
+            if (descriptors.size() > 0 &&
+                    descriptors.get(0).length == 18 &&
+                    descriptors.get(0)[1] == 1 && // bDescriptorType
+                    descriptors.get(0)[4] == (byte)(UsbConstants.USB_CLASS_MISC) && //bDeviceClass
+                    descriptors.get(0)[5] == 2 && // bDeviceSubClass
+                    descriptors.get(0)[6] == 1) { // bDeviceProtocol
+                // is IAD device, see https://www.usb.org/sites/default/files/iadclasscode_r10.pdf
+                int port = -1;
+                for (int d = 1; d < descriptors.size(); d++) {
+                    if (descriptors.get(d).length == 8 &&
+                            descriptors.get(d)[1] == 0x0b && // bDescriptorType == IAD
+                            descriptors.get(d)[4] == UsbConstants.USB_CLASS_COMM && // bFunctionClass == CDC
+                            descriptors.get(d)[5] == USB_SUBCLASS_ACM) { // bFunctionSubClass == ACM
+                        port++;
+                        if (port == mPortNumber &&
+                                descriptors.get(d)[3] == 2) { // bInterfaceCount
+                            return descriptors.get(d)[2]; // bFirstInterface
+                        }
+                    }
+                }
+            }
+            return -1;
         }
 
         private int sendAcmControlMessage(int request, int value, byte[] buf) throws IOException {
