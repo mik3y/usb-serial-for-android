@@ -173,6 +173,9 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         if(mConnection == null) {
             throw new IOException("Connection closed");
         }
+        if (mUsbRequest == null) {
+            throw new IOException("USB request is null");
+        }
         if(dest.length <= 0) {
             throw new IllegalArgumentException("Read buffer to small");
         }
