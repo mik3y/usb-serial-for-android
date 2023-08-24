@@ -253,13 +253,15 @@ public class DeviceTest {
         }
         try {
             usb.write(new byte[]{0x00});
-            fail("write error expected");
-        } catch (IOException ignored) {
+            fail("write closed expected");
+        } catch(IOException ex) {
+            assertEquals("Connection closed", ex.getMessage());
         }
         try {
             usb.read(1);
-            fail("read error expected");
-        } catch (IOException ignored) {
+            fail("read closed expected");
+        } catch(IOException ex) {
+            assertEquals("Connection closed", ex.getMessage());
         }
         try {
             usb.setParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -281,10 +283,56 @@ public class DeviceTest {
                 break;
             Thread.sleep(1);
         }
+        try {
+            usb.read();
+            fail("closed expected");
+        } catch (IOException ex) {
+            assertEquals("java.io.IOException: Connection closed", ex.getMessage());
+        }
         // assertEquals(SerialInputOutputManager.State.STOPPED, usb.usbIoManager.getState());
         // unstable. null'ify not-stopped ioManager, else usbClose would try again
         if(SerialInputOutputManager.State.STOPPED != usb.ioManager.getState())
             usb.ioManager = null;
+        usb.close();
+
+        // close while waiting in read
+        class CloseRunnable implements Runnable {
+            boolean wait;
+            public void run() {
+                try {
+                    while(wait)
+                        Thread.sleep(1);
+                    Thread.sleep(5);
+                } catch (InterruptedException ignored) {
+                }
+                Log.d(TAG, "close");
+                usb.close();
+            }
+        }
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
+        CloseRunnable closer = new CloseRunnable();
+        closer.wait = true;
+        Thread th = new Thread(closer);
+        th.start();
+        try {
+            closer.wait = false;
+            usb.serialPort.read(new byte[256], 2000);
+            fail("closed expected");
+        } catch(IOException ex) {
+            assertEquals("Connection closed", ex.getMessage());
+        }
+        th.join();
+        closer.wait = true;
+        th = new Thread(closer);
+        th.start();
+        try {
+            closer.wait = false;
+            usb.serialPort.read(new byte[256], 0);
+            fail("closed expected");
+        } catch(IOException ex) {
+            assertEquals("Connection closed", ex.getMessage());
+        }
+        th.join();
     }
 
     @Test

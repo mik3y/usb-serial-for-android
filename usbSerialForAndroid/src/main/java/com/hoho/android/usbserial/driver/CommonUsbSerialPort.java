@@ -158,6 +158,9 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
      * use simple USB request supported by all devices to test if connection is still valid
      */
     protected void testConnection() throws IOException {
+        if(mConnection == null || mUsbRequest == null) {
+            throw new IOException("Connection closed");
+        }
         byte[] buf = new byte[2];
         int len = mConnection.controlTransfer(0x80 /*DEVICE*/, 0 /*GET_STATUS*/, 0, 0, buf, buf.length, 200);
         if(len < 0)
