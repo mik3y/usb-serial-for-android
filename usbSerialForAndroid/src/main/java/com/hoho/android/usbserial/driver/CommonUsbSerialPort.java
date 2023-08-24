@@ -170,7 +170,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     }
 
     protected int read(final byte[] dest, final int timeout, boolean testConnection) throws IOException {
-        if(mConnection == null) {
+        if(mConnection == null || mUsbRequest == null) {
             throw new IOException("Connection closed");
         }
         if(dest.length <= 0) {
