@@ -40,7 +40,7 @@ dependencyResolutionManagement {
 Add library to dependencies
 ```gradle
 dependencies {
-    implementation 'com.github.mik3y:usb-serial-for-android:3.5.1'
+    implementation 'com.github.mik3y:usb-serial-for-android:3.6.0'
 }
 ```
 
@@ -153,6 +153,7 @@ This library supports USB to serial converter chips:
 * Prolific PL2303
 * Silabs CP2102 and all other CP210x
 * Qinheng CH340, CH341A, CH9102
+* GsmModem devices, e.g. for Unisoc based Fibocom GSM modems
 
 and devices implementing the CDC/ACM protocol like
 * Arduino using ATmega32U4
