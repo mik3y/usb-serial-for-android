@@ -37,6 +37,9 @@ public final class UsbId {
     public static final int PROLIFIC_PL2303GE = 0x23e3; // "
     public static final int PROLIFIC_PL2303GS = 0x23f3; // "
 
+    public static final int VENDOR_GOOGLE = 0x18d1;
+    public static final int GOOGLE_CR50 = 0x5014;
+
     public static final int VENDOR_QINHENG = 0x1a86;
     public static final int QINHENG_CH340 = 0x7523;
     public static final int QINHENG_CH341A = 0x5523;
