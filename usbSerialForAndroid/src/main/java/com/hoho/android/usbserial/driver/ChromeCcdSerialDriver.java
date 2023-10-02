@@ -76,6 +76,11 @@ public class ChromeCcdSerialDriver implements UsbSerialDriver{
         }
 
         @Override
+        public void setParameters(int baudRate, int dataBits, int stopBits, int parity) throws IOException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public EnumSet<ControlLine> getControlLines() throws IOException {
             return EnumSet.noneOf(ControlLine.class);
         }
