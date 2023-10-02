@@ -90,13 +90,8 @@ public class GsmModemSerialDriver implements UsbSerialDriver{
         }
 
         @Override
-        public EnumSet<ControlLine> getControlLines() throws IOException {
-            throw  new UnsupportedOperationException();
-        }
-
-        @Override
         public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
-            throw  new UnsupportedOperationException();
+            return EnumSet.noneOf(ControlLine.class);
         }
     }
 

@@ -22,10 +22,12 @@ import android.util.Log;
 
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
 import com.hoho.android.usbserial.driver.Ch34xSerialDriver;
+import com.hoho.android.usbserial.driver.ChromeCcdSerialDriver;
 import com.hoho.android.usbserial.driver.CommonUsbSerialPort;
 import com.hoho.android.usbserial.driver.CommonUsbSerialPortWrapper;
 import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
 import com.hoho.android.usbserial.driver.FtdiSerialDriver;
+import com.hoho.android.usbserial.driver.GsmModemSerialDriver;
 import com.hoho.android.usbserial.driver.ProbeTable;
 import com.hoho.android.usbserial.driver.ProlificSerialDriver;
 import com.hoho.android.usbserial.driver.ProlificSerialPortWrapper;
@@ -71,6 +73,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -1616,15 +1619,10 @@ public class DeviceTest {
 
     @Test
     public void wrongDriver() throws Exception {
-
-        UsbDeviceConnection wrongDeviceConnection;
-        UsbSerialDriver wrongSerialDriver;
-        UsbSerialPort wrongSerialPort;
-
         if(!(usb.serialDriver instanceof CdcAcmSerialDriver)) {
-            wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
-            wrongSerialDriver = new CdcAcmSerialDriver(usb.serialDriver.getDevice());
-            wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            UsbDeviceConnection wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
+            UsbSerialDriver wrongSerialDriver = new CdcAcmSerialDriver(usb.serialDriver.getDevice());
+            UsbSerialPort wrongSerialPort = wrongSerialDriver.getPorts().get(0);
             try {
                 wrongSerialPort.open(wrongDeviceConnection);
                 wrongSerialPort.setParameters(115200, UsbSerialPort.DATABITS_8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE); // ch340 fails here
@@ -1645,9 +1643,9 @@ public class DeviceTest {
             }
         }
         if(!(usb.serialDriver instanceof Ch34xSerialDriver)) {
-            wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
-            wrongSerialDriver = new Ch34xSerialDriver(usb.serialDriver.getDevice());
-            wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            UsbDeviceConnection wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
+            UsbSerialDriver wrongSerialDriver = new Ch34xSerialDriver(usb.serialDriver.getDevice());
+            UsbSerialPort wrongSerialPort = wrongSerialDriver.getPorts().get(0);
             try {
                 wrongSerialPort.open(wrongDeviceConnection);
                 fail("error expected");
@@ -1661,9 +1659,9 @@ public class DeviceTest {
         }
         // FTDI only recovers from Cp21xx control commands with power toggle, so skip this combination!
         if(!(usb.serialDriver instanceof Cp21xxSerialDriver | usb.serialDriver instanceof FtdiSerialDriver)) {
-            wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
-            wrongSerialDriver = new Cp21xxSerialDriver(usb.serialDriver.getDevice());
-            wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            UsbDeviceConnection wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
+            UsbSerialDriver wrongSerialDriver = new Cp21xxSerialDriver(usb.serialDriver.getDevice());
+            UsbSerialPort wrongSerialPort = wrongSerialDriver.getPorts().get(0);
             try {
                 wrongSerialPort.open(wrongDeviceConnection);
                 //if(usb.usbSerialDriver instanceof FtdiSerialDriver)
@@ -1679,9 +1677,9 @@ public class DeviceTest {
             }
         }
         if(!(usb.serialDriver instanceof FtdiSerialDriver)) {
-            wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
-            wrongSerialDriver = new FtdiSerialDriver(usb.serialDriver.getDevice());
-            wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            UsbDeviceConnection wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
+            UsbSerialDriver wrongSerialDriver = new FtdiSerialDriver(usb.serialDriver.getDevice());
+            UsbSerialPort wrongSerialPort = wrongSerialDriver.getPorts().get(0);
             try {
                 wrongSerialPort.open(wrongDeviceConnection);
                 if(usb.serialDriver instanceof Cp21xxSerialDriver)
@@ -1697,9 +1695,9 @@ public class DeviceTest {
             }
         }
         if(!(usb.serialDriver instanceof ProlificSerialDriver)) {
-            wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
-            wrongSerialDriver = new ProlificSerialDriver(usb.serialDriver.getDevice());
-            wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            UsbDeviceConnection wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
+            UsbSerialDriver wrongSerialDriver = new ProlificSerialDriver(usb.serialDriver.getDevice());
+            UsbSerialPort wrongSerialPort = wrongSerialDriver.getPorts().get(0);
             try {
                 wrongSerialPort.open(wrongDeviceConnection);
                 fail("error expected");
@@ -1708,6 +1706,36 @@ public class DeviceTest {
             try {
                 wrongSerialPort.close();
                 fail("error expected");
+            } catch (IOException ignored) {
+            }
+        }
+        if(!(usb.serialDriver instanceof GsmModemSerialDriver)) {
+            UsbDeviceConnection wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
+            UsbSerialDriver wrongSerialDriver = new GsmModemSerialDriver(usb.serialDriver.getDevice());
+            UsbSerialPort wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            try {
+                wrongSerialPort.open(wrongDeviceConnection);
+            } catch (IOException ignored) {
+            }
+            assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.setParameters(9200, 8, 1, 0));
+            assertEquals(EnumSet.noneOf(ControlLine.class), wrongSerialPort.getSupportedControlLines());
+            try {
+                wrongSerialPort.close();
+            } catch (IOException ignored) {
+            }
+        }
+        if(!(usb.serialDriver instanceof ChromeCcdSerialDriver)) {
+            UsbDeviceConnection wrongDeviceConnection = usbManager.openDevice(usb.serialDriver.getDevice());
+            UsbSerialDriver wrongSerialDriver = new ChromeCcdSerialDriver(usb.serialDriver.getDevice());
+            UsbSerialPort wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+            try {
+                wrongSerialPort.open(wrongDeviceConnection);
+            } catch (IOException ignored) {
+            }
+            assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.setParameters(9200, 8, 1, 0));
+            assertEquals(EnumSet.noneOf(ControlLine.class), wrongSerialPort.getSupportedControlLines());
+            try {
+                wrongSerialPort.close();
             } catch (IOException ignored) {
             }
         }
@@ -1743,7 +1771,11 @@ public class DeviceTest {
         Boolean inputLineFalse = usb.inputLinesSupported ? Boolean.FALSE : null;
         Boolean inputLineTrue = usb.inputLinesConnected ? Boolean.TRUE : inputLineFalse;
 
-        EnumSet<ControlLine> supportedControlLines = EnumSet.of(ControlLine.RTS, ControlLine.DTR);
+        EnumSet<ControlLine> supportedControlLines = EnumSet.noneOf(ControlLine.class);
+        if(usb.outputLinesSupported) {
+            supportedControlLines.add(ControlLine.RTS);
+            supportedControlLines.add(ControlLine.DTR);
+        }
         if(usb.inputLinesSupported) {
             supportedControlLines.add(ControlLine.CTS);
             supportedControlLines.add(ControlLine.DSR);
@@ -1760,6 +1792,16 @@ public class DeviceTest {
         Thread.sleep(sleep);
 
         assertEquals(supportedControlLines, usb.serialPort.getSupportedControlLines());
+        if(supportedControlLines == EnumSet.noneOf(ControlLine.class)) {
+            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.getControlLines());
+            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.getRTS());
+            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.getCTS());
+            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.getDTR());
+            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.getDSR());
+            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.getCD());
+            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.getRI());
+            return;
+        }
 
         // control lines reset on initial open
         data = "none".getBytes();

@@ -81,11 +81,6 @@ public class ChromeCcdSerialDriver implements UsbSerialDriver{
         }
 
         @Override
-        public EnumSet<ControlLine> getControlLines() throws IOException {
-            return EnumSet.noneOf(ControlLine.class);
-        }
-
-        @Override
         public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
             return EnumSet.noneOf(ControlLine.class);
         }

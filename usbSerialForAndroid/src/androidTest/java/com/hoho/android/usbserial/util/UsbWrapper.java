@@ -56,6 +56,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
 
     // device properties
     public boolean isCp21xxRestrictedPort; // second port of Cp2105 has limited dataBits, stopBits, parity
+    public boolean outputLinesSupported;
     public boolean inputLinesSupported;
     public boolean inputLinesConnected;
     public boolean inputLinesOnlyRtsCts;
@@ -99,9 +100,10 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
 
         // extract some device properties:
         isCp21xxRestrictedPort = serialDriver instanceof Cp21xxSerialDriver && serialDriver.getPorts().size()==2 && serialPort.getPortNumber() == 1;
-        // output lines are supported by all drivers
-        // input lines are supported by all drivers except CDC
+        // output lines are supported by all common drivers
+        // input lines are supported by all common drivers except CDC
         if (serialDriver instanceof FtdiSerialDriver) {
+            outputLinesSupported = true;
             inputLinesSupported = true;
             if(serialDriver.getDevice().getProductId() == UsbId.FTDI_FT2232H)
                 inputLinesConnected = true; // I only have 74LS138 connected at FT2232, not at FT232
@@ -110,16 +112,21 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
                 inputLinesOnlyRtsCts = true; // I only test with FT230X that has only these 2 control lines. DTR is silently ignored
             }
         } else if (serialDriver instanceof Cp21xxSerialDriver) {
+            outputLinesSupported = true;
             inputLinesSupported = true;
             if(serialDriver.getPorts().size() == 1)
                 inputLinesConnected = true; // I only have 74LS138 connected at CP2102, not at CP2105
         } else if (serialDriver instanceof ProlificSerialDriver) {
+            outputLinesSupported = true;
             inputLinesSupported = true;
             inputLinesConnected = true;
         } else if (serialDriver instanceof Ch34xSerialDriver) {
+            outputLinesSupported = true;
             inputLinesSupported = true;
             if(serialDriver.getDevice().getProductId() == UsbId.QINHENG_CH340)
                 inputLinesConnected = true;  // I only have 74LS138 connected at CH340, not connected at CH341A
+        } else if (serialDriver instanceof CdcAcmSerialDriver) {
+            outputLinesSupported = true;
         }
 
         if (serialDriver instanceof Cp21xxSerialDriver) {
