@@ -37,6 +37,11 @@ dependencyResolutionManagement {
 }
 ```
 
+If using gradle kotlin  use line
+```gradle.kts
+        maven(url = "https://jitpack.io")
+```
+
 Add library to dependencies
 ```gradle
 dependencies {
