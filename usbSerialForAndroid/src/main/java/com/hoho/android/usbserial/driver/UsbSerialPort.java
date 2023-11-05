@@ -123,6 +123,17 @@ public interface UsbSerialPort extends Closeable {
     int read(final byte[] dest, final int timeout) throws IOException;
 
     /**
+     * Reads bytes with specified length into the destination buffer.
+     *
+     * @param dest the destination byte buffer
+     * @param length the maximum length of the data to read
+     * @param timeout the timeout for reading in milliseconds, 0 is infinite
+     * @return the actual number of bytes read
+     * @throws IOException if an error occurred during reading
+     */
+    int read(final byte[] dest, int length, final int timeout) throws IOException;
+
+    /**
      * Writes as many bytes as possible from the source buffer.
      *
      * @param src the source byte buffer
@@ -132,6 +143,18 @@ public interface UsbSerialPort extends Closeable {
      * @throws IOException if an error occurred during writing
      */
     void write(final byte[] src, final int timeout) throws IOException;
+
+    /**
+     * Writes bytes with specified length from the source buffer.
+     *
+     * @param src the source byte buffer
+     * @param length the length of the data to write
+     * @param timeout the timeout for writing in milliseconds, 0 is infinite
+     * @throws SerialTimeoutException if timeout reached before sending all data.
+     *                                ex.bytesTransferred may contain bytes transferred
+     * @throws IOException if an error occurred during writing
+     */
+    void write(final byte[] src, int length, final int timeout) throws IOException;
 
     /**
      * Sets various serial port parameters.
