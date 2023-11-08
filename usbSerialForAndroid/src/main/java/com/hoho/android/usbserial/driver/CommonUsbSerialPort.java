@@ -169,16 +169,23 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
     @Override
     public int read(final byte[] dest, final int timeout) throws IOException {
-        return read(dest, timeout, true);
+        if(dest.length <= 0) {
+            throw new IllegalArgumentException("Read buffer too small");
+        }
+        return read(dest, dest.length, timeout);
     }
 
-    protected int read(final byte[] dest, final int timeout, boolean testConnection) throws IOException {
+    @Override
+    public int read(final byte[] dest, final int length, final int timeout) throws IOException {return read(dest, length, timeout, true);}
+
+    protected int read(final byte[] dest, int length, final int timeout, boolean testConnection) throws IOException {
         if(mConnection == null || mUsbRequest == null) {
             throw new IOException("Connection closed");
         }
-        if(dest.length <= 0) {
-            throw new IllegalArgumentException("Read buffer to small");
+        if(length <= 0) {
+            throw new IllegalArgumentException("Read length too small");
         }
+        length = Math.min(length, dest.length);
         final int nread;
         if (timeout != 0) {
             // bulkTransfer will cause data loss with short timeout + high baud rates + continuous transfer
@@ -190,7 +197,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             //     /system/lib64/libandroid_runtime.so (android_hardware_UsbDeviceConnection_request_wait(_JNIEnv*, _jobject*, long)+84)
             // data loss / crashes were observed with timeout up to 200 msec
             long endTime = testConnection ? MonotonicClock.millis() + timeout : 0;
-            int readMax = Math.min(dest.length, MAX_READ_SIZE);
+            int readMax = Math.min(length, MAX_READ_SIZE);
             nread = mConnection.bulkTransfer(mReadEndpoint, dest, readMax, timeout);
             // Android error propagation is improvable:
             //  nread == -1 can be: timeout, connection lost, buffer to small, ???
@@ -198,8 +205,8 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                 testConnection();
 
         } else {
-            final ByteBuffer buf = ByteBuffer.wrap(dest);
-            if (!mUsbRequest.queue(buf, dest.length)) {
+            final ByteBuffer buf = ByteBuffer.wrap(dest, 0, length);
+            if (!mUsbRequest.queue(buf, length)) {
                 throw new IOException("Queueing USB request failed");
             }
             final UsbRequest response = mConnection.requestWait();
@@ -217,14 +224,18 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     }
 
     @Override
-    public void write(final byte[] src, final int timeout) throws IOException {
+    public void write(byte[] src, int timeout) throws IOException {write(src, src.length, timeout);}
+
+    @Override
+    public void write(final byte[] src, int length, final int timeout) throws IOException {
         int offset = 0;
         final long endTime = (timeout == 0) ? 0 : (MonotonicClock.millis() + timeout);
+        length = Math.min(length, src.length);
 
         if(mConnection == null) {
             throw new IOException("Connection closed");
         }
-        while (offset < src.length) {
+        while (offset < length) {
             int requestTimeout;
             final int requestLength;
             final int actualLength;
@@ -235,7 +246,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                 if (mWriteBuffer == null) {
                     mWriteBuffer = new byte[mWriteEndpoint.getMaxPacketSize()];
                 }
-                requestLength = Math.min(src.length - offset, mWriteBuffer.length);
+                requestLength = Math.min(length - offset, mWriteBuffer.length);
                 if (offset == 0) {
                     writeBuffer = src;
                 } else {
@@ -257,7 +268,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                 }
             }
             if (DEBUG) {
-                Log.d(TAG, "Wrote " + actualLength + "/" + requestLength + " offset " + offset + "/" + src.length + " timeout " + requestTimeout);
+                Log.d(TAG, "Wrote " + actualLength + "/" + requestLength + " offset " + offset + "/" + length + " timeout " + requestTimeout);
             }
             if (actualLength <= 0) {
                 if (timeout != 0 && MonotonicClock.millis() >= endTime) {
@@ -265,7 +276,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                     ex.bytesTransferred = offset;
                     throw ex;
                 } else {
-                    throw new IOException("Error writing " + requestLength + " bytes at offset " + offset + " of total " + src.length);
+                    throw new IOException("Error writing " + requestLength + " bytes at offset " + offset + " of total " + length);
                 }
             }
             offset += actualLength;

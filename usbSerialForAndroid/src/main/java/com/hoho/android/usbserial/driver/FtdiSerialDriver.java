@@ -139,24 +139,37 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         }
 
         @Override
-        public int read(final byte[] dest, final int timeout) throws IOException {
+        public int read(final byte[] dest, final int timeout) throws IOException
+        {
             if(dest.length <= READ_HEADER_LENGTH) {
-                throw new IllegalArgumentException("Read buffer to small");
+                throw new IllegalArgumentException("Read buffer too small");
                 // could allocate larger buffer, including space for 2 header bytes, but this would
                 // result in buffers not being 64 byte aligned any more, causing data loss at continuous
                 // data transfer at high baud rates when buffers are fully filled.
             }
+            return read(dest, dest.length, timeout);
+        }
+
+        @Override
+        public int read(final byte[] dest, int length, final int timeout) throws IOException {
+            if(length <= READ_HEADER_LENGTH) {
+                throw new IllegalArgumentException("Read length too small");
+                // could allocate larger buffer, including space for 2 header bytes, but this would
+                // result in buffers not being 64 byte aligned any more, causing data loss at continuous
+                // data transfer at high baud rates when buffers are fully filled.
+            }
+            length = Math.min(length, dest.length);
             int nread;
             if (timeout != 0) {
                 long endTime = MonotonicClock.millis() + timeout;
                 do {
-                    nread = super.read(dest, Math.max(1, (int)(endTime - MonotonicClock.millis())), false);
+                    nread = super.read(dest, length, Math.max(1, (int)(endTime - MonotonicClock.millis())), false);
                 } while (nread == READ_HEADER_LENGTH && MonotonicClock.millis() < endTime);
                 if(nread <= 0 && MonotonicClock.millis() < endTime)
                     testConnection();
             } else {
                 do {
-                    nread = super.read(dest, timeout);
+                    nread = super.read(dest, length, timeout);
                 } while (nread == READ_HEADER_LENGTH);
             }
             return readFilter(dest, nread);
