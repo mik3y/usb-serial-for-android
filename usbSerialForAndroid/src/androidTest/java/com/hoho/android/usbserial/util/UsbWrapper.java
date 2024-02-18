@@ -86,9 +86,11 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
                 }
             };
             int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_MUTABLE : 0;
-            PendingIntent permissionIntent = PendingIntent.getBroadcast(context, 0, new Intent("com.android.example.USB_PERMISSION"), flags);
+            Intent intent = new Intent("com.android.example.USB_PERMISSION");
+            intent.setPackage(context.getPackageName());
+            PendingIntent permissionIntent = PendingIntent.getBroadcast(context, 0, intent, flags);
             IntentFilter filter = new IntentFilter("com.android.example.USB_PERMISSION");
-            context.registerReceiver(usbReceiver, filter);
+            context.registerReceiver(usbReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
             usbManager.requestPermission(serialDriver.getDevice(), permissionIntent);
             for(int i=0; i<5000; i++) {
                 if(granted[0] != null) break;

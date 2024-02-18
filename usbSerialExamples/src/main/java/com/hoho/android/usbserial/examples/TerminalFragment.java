@@ -28,6 +28,7 @@ import android.widget.ToggleButton;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -90,11 +91,21 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        ContextCompat.registerReceiver(getActivity(), broadcastReceiver, new IntentFilter(INTENT_ACTION_GRANT_USB), ContextCompat.RECEIVER_NOT_EXPORTED);
+    }
+
+    @Override
+    public void onStop() {
+        getActivity().unregisterReceiver(broadcastReceiver);
+        super.onStop();
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
-        getActivity().registerReceiver(broadcastReceiver, new IntentFilter(INTENT_ACTION_GRANT_USB));
-
-        if(usbPermission == UsbPermission.Unknown || usbPermission == UsbPermission.Granted)
+        if(!connected && (usbPermission == UsbPermission.Unknown || usbPermission == UsbPermission.Granted))
             mainLooper.post(this::connect);
     }
 
@@ -104,7 +115,6 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             status("disconnected");
             disconnect();
         }
-        getActivity().unregisterReceiver(broadcastReceiver);
         super.onPause();
     }
 
@@ -213,7 +223,9 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         if(usbConnection == null && usbPermission == UsbPermission.Unknown && !usbManager.hasPermission(driver.getDevice())) {
             usbPermission = UsbPermission.Requested;
             int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_MUTABLE : 0;
-            PendingIntent usbPermissionIntent = PendingIntent.getBroadcast(getActivity(), 0, new Intent(INTENT_ACTION_GRANT_USB), flags);
+            Intent intent = new Intent(INTENT_ACTION_GRANT_USB);
+            intent.setPackage(getActivity().getPackageName());
+            PendingIntent usbPermissionIntent = PendingIntent.getBroadcast(getActivity(), 0, intent, flags);
             usbManager.requestPermission(driver.getDevice(), usbPermissionIntent);
             return;
         }
