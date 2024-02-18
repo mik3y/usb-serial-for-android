@@ -13,7 +13,7 @@ android {
         
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments = [                    // Raspi   Windows   LinuxVM   ...
-                'rfc2217_server_host': '192.168.0.145',
+                'rfc2217_server_host': '192.168.0.147',
                 'rfc2217_server_nonstandard_baudrates': 'true',   // true    false     false
         ]
     }
@@ -31,12 +31,12 @@ android {
 }
 
 dependencies {
-    implementation "androidx.annotation:annotation:1.5.0"
+    implementation "androidx.annotation:annotation:1.7.1"
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.mockito:mockito-core:5.4.0'
+    testImplementation 'org.mockito:mockito-core:5.8.0'
     androidTestImplementation 'androidx.test:core:1.5.0'
     androidTestImplementation 'androidx.test:runner:1.5.2'
-    androidTestImplementation 'commons-net:commons-net:3.9.0'
+    androidTestImplementation 'commons-net:commons-net:3.10.0'
     androidTestImplementation 'org.apache.commons:commons-lang3:3.12.0'
 }
 

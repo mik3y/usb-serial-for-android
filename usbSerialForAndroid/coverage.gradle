@@ -2,7 +2,7 @@
 apply plugin: 'jacoco'
 
 android {
-    flavorDimensions 'device'
+    flavorDimensions += 'device'
     productFlavors {
         anyDevice {
             // Used as fallback in usbSerialExample/build.gradle -> missingDimensionStrategy, but not for coverage report
