@@ -118,7 +118,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             byte[] buffer = new byte[1];
             int result = mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST, SILABSER_GET_MDMSTS_REQUEST_CODE, 0,
                     mPortNumber, buffer, buffer.length, USB_WRITE_TIMEOUT_MILLIS);
-            if (result != 1) {
+            if (result != buffer.length) {
                 throw new IOException("Control transfer failed: " + SILABSER_GET_MDMSTS_REQUEST_CODE + " / " + 0 + " -> " + result);
             }
             return buffer[0];

@@ -303,7 +303,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             byte[] data = new byte[2];
             int result = mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST, GET_MODEM_STATUS_REQUEST,
                     0, mPortNumber+1, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
-            if (result != 2) {
+            if (result != data.length) {
                 throw new IOException("Get modem status failed: result=" + result);
             }
             return data[0];
@@ -419,7 +419,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             byte[] data = new byte[1];
             int result = mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST, GET_LATENCY_TIMER_REQUEST,
                     0, mPortNumber+1, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
-            if (result != 1) {
+            if (result != data.length) {
                 throw new IOException("Get latency timer failed: result=" + result);
             }
             return data[0];
