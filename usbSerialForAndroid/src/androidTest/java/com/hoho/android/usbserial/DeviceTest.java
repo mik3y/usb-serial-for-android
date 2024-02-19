@@ -44,7 +44,6 @@ import com.hoho.android.usbserial.driver.UsbSerialPort.ControlLine;
 
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -66,13 +65,13 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -1059,16 +1058,16 @@ public class DeviceTest {
 
         telnet.write("1aaa".getBytes());
         data = usb.read(4);
-        Assert.assertThat(data, equalTo("1aaa".getBytes()));
+        assertThat(data, equalTo("1aaa".getBytes()));
         telnet.write(new byte[16]);
         try {
             data = usb.read(16);
             if (usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() == 1)
-                Assert.assertNotEquals(0, data.length); // can be shorter or full length
+                assertNotEquals(0, data.length); // can be shorter or full length
             else if (usb.serialDriver instanceof ProlificSerialDriver)
-                Assert.assertTrue("expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
+                assertTrue("expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
             else // ftdi, ch340, cp2105
-                Assert.assertEquals(0, data.length);
+                assertEquals(0, data.length);
         } catch (IOException ignored) {
         }
         if (purge) {
@@ -1105,18 +1104,18 @@ public class DeviceTest {
         
         telnet.write("2aaa".getBytes());
         data = usb.read(4, 8);
-        Assert.assertThat(data, equalTo("2aaa".getBytes()));
+        assertThat(data, equalTo("2aaa".getBytes()));
         telnet.write(new byte[16]);
         data = usb.read(16, 8);
         if (usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() == 1)
-            Assert.assertNotEquals(0, data.length); // can be shorter or full length
+            assertNotEquals(0, data.length); // can be shorter or full length
         else if (usb.serialDriver instanceof ProlificSerialDriver)
-            Assert.assertTrue("sporadic issue! expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
+            assertTrue("sporadic issue! expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
         else // ftdi, ch340, cp2105
-            Assert.assertEquals(0, data.length);
+            assertEquals(0, data.length);
         telnet.write("2ccc".getBytes());
         data = usb.read(4);
-        // Assert.assertThat(data, equalTo("1ccc".getBytes())); // unpredictable here. typically '2ccc' but sometimes '' or byte[16]
+        // assertThat(data, equalTo("1ccc".getBytes())); // unpredictable here. typically '2ccc' but sometimes '' or byte[16]
         if(data.length != 4) {
             if (purge) {
                 usb.serialPort.purgeHwBuffers(true, true);
