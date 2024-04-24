@@ -165,8 +165,8 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                 do {
                     nread = super.read(dest, length, Math.max(1, (int)(endTime - MonotonicClock.millis())), false);
                 } while (nread == READ_HEADER_LENGTH && MonotonicClock.millis() < endTime);
-                if(nread <= 0 && MonotonicClock.millis() < endTime)
-                    testConnection();
+                if(nread <= 0)
+                    testConnection(MonotonicClock.millis() < endTime);
             } else {
                 do {
                     nread = super.read(dest, length, timeout);

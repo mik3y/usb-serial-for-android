@@ -205,8 +205,8 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                     byte[] buffer = new byte[STATUS_BUFFER_SIZE];
                     long endTime = MonotonicClock.millis() + 500;
                     int readBytesCount = mConnection.bulkTransfer(mInterruptEndpoint, buffer, STATUS_BUFFER_SIZE, 500);
-                    if(readBytesCount == -1 && MonotonicClock.millis() < endTime)
-                        testConnection();
+                    if(readBytesCount == -1)
+                        testConnection(MonotonicClock.millis() < endTime);
                     if (readBytesCount > 0) {
                         if (readBytesCount != STATUS_BUFFER_SIZE) {
                             throw new IOException("Invalid status notification, expected " + STATUS_BUFFER_SIZE + " bytes, got " + readBytesCount);

@@ -320,8 +320,10 @@ public class DeviceTest {
         try {
             closer.wait = false;
             usb.serialPort.read(new byte[256], 2000);
+
             fail("closed expected");
         } catch(IOException ex) {
+            assertFalse(usb.serialPort.isOpen());
             assertEquals("Connection closed", ex.getMessage());
         }
         th.join();
@@ -333,6 +335,7 @@ public class DeviceTest {
             usb.serialPort.read(new byte[256], 0);
             fail("closed expected");
         } catch(IOException ex) {
+            assertFalse(usb.serialPort.isOpen());
             assertEquals("Connection closed", ex.getMessage());
         }
         th.join();

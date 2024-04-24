@@ -203,7 +203,11 @@ public class SerialInputOutputManager implements Runnable {
                 step();
             }
         } catch (Exception e) {
-            Log.w(TAG, "Run ending due to exception: " + e.getMessage(), e);
+            if(mSerialPort.isOpen()) {
+                Log.w(TAG, "Run ending due to exception: " + e.getMessage(), e);
+            } else {
+                Log.i(TAG, "Socket closed");
+            }
             final Listener listener = getListener();
             if (listener != null) {
               listener.onRunError(e);

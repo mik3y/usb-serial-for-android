@@ -139,6 +139,8 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         if (mConnection == null) {
             throw new IOException("Already closed");
         }
+        UsbDeviceConnection connection = mConnection;
+        mConnection = null;
         try {
             mUsbRequest.cancel();
         } catch(Exception ignored) {}
@@ -147,9 +149,8 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             closeInt();
         } catch(Exception ignored) {}
         try {
-            mConnection.close();
+            connection.close();
         } catch(Exception ignored) {}
-        mConnection = null;
     }
 
     protected abstract void closeInt();
@@ -157,9 +158,12 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     /**
      * use simple USB request supported by all devices to test if connection is still valid
      */
-    protected void testConnection() throws IOException {
-        if(mConnection == null || mUsbRequest == null) {
+    protected void testConnection(boolean full) throws IOException {
+        if(mConnection == null) {
             throw new IOException("Connection closed");
+        }
+        if(!full) {
+            return;
         }
         byte[] buf = new byte[2];
         int len = mConnection.controlTransfer(0x80 /*DEVICE*/, 0 /*GET_STATUS*/, 0, 0, buf, buf.length, 200);
@@ -169,7 +173,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
     @Override
     public int read(final byte[] dest, final int timeout) throws IOException {
-        if(dest.length <= 0) {
+        if(dest.length == 0) {
             throw new IllegalArgumentException("Read buffer too small");
         }
         return read(dest, dest.length, timeout);
@@ -179,7 +183,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public int read(final byte[] dest, final int length, final int timeout) throws IOException {return read(dest, length, timeout, true);}
 
     protected int read(final byte[] dest, int length, final int timeout, boolean testConnection) throws IOException {
-        if(mConnection == null || mUsbRequest == null) {
+        if(mConnection == null) {
             throw new IOException("Connection closed");
         }
         if(length <= 0) {
@@ -201,8 +205,8 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             nread = mConnection.bulkTransfer(mReadEndpoint, dest, readMax, timeout);
             // Android error propagation is improvable:
             //  nread == -1 can be: timeout, connection lost, buffer to small, ???
-            if(nread == -1 && testConnection && MonotonicClock.millis() < endTime)
-                testConnection();
+            if(nread == -1 && testConnection)
+                testConnection(MonotonicClock.millis() < endTime);
 
         } else {
             final ByteBuffer buf = ByteBuffer.wrap(dest, 0, length);
@@ -217,7 +221,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             // Android error propagation is improvable:
             //   response != null & nread == 0 can be: connection lost, buffer to small, ???
             if(nread == 0) {
-                testConnection();
+                testConnection(true);
             }
         }
         return Math.max(nread, 0);
