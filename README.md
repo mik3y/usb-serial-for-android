@@ -45,7 +45,7 @@ If using gradle kotlin  use line
 Add library to dependencies
 ```gradle
 dependencies {
-    implementation 'com.github.mik3y:usb-serial-for-android:3.7.0'
+    implementation 'com.github.mik3y:usb-serial-for-android:3.7.2'
 }
 ```
 
