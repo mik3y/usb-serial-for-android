@@ -122,7 +122,7 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         private volatile Thread mReadStatusThread = null;
         private final Object mReadStatusThreadLock = new Object();
         private boolean mStopReadStatusThread = false;
-        private IOException mReadStatusException = null;
+        private Exception mReadStatusException = null;
 
 
         public ProlificSerialPort(UsbDevice device, int portNumber) {
@@ -201,8 +201,8 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         private void readStatusThreadFunction() {
             try {
+                byte[] buffer = new byte[STATUS_BUFFER_SIZE];
                 while (!mStopReadStatusThread) {
-                    byte[] buffer = new byte[STATUS_BUFFER_SIZE];
                     long endTime = MonotonicClock.millis() + 500;
                     int readBytesCount = mConnection.bulkTransfer(mInterruptEndpoint, buffer, STATUS_BUFFER_SIZE, 500);
                     if(readBytesCount == -1)
@@ -217,8 +217,9 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                         }
                     }
                 }
-            } catch (IOException e) {
-                mReadStatusException = e;
+            } catch (Exception e) {
+                if (isOpen())
+                    mReadStatusException = e;
             }
             //Log.d(TAG, "end control line status thread " + mStopReadStatusThread + " " + (mReadStatusException == null ? "-" : mReadStatusException.getMessage()));
         }
@@ -249,8 +250,8 @@ public class ProlificSerialDriver implements UsbSerialDriver {
                 }
             }
 
-            /* throw and clear an exception which occured in the status read thread */
-            IOException readStatusException = mReadStatusException;
+            /* throw and clear an exception which occurred in the status read thread */
+            Exception readStatusException = mReadStatusException;
             if (mReadStatusException != null) {
                 mReadStatusException = null;
                 throw new IOException(readStatusException);
