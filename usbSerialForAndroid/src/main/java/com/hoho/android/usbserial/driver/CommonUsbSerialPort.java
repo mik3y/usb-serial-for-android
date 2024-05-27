@@ -159,6 +159,10 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
      * use simple USB request supported by all devices to test if connection is still valid
      */
     protected void testConnection(boolean full) throws IOException {
+        testConnection(full, "USB get_status request failed");
+    }
+
+    protected void testConnection(boolean full, String msg) throws IOException {
         if(mConnection == null) {
             throw new IOException("Connection closed");
         }
@@ -168,7 +172,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         byte[] buf = new byte[2];
         int len = mConnection.controlTransfer(0x80 /*DEVICE*/, 0 /*GET_STATUS*/, 0, 0, buf, buf.length, 200);
         if(len < 0)
-            throw new IOException("USB get_status request failed");
+            throw new IOException(msg);
     }
 
     @Override
@@ -233,7 +237,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     @Override
     public void write(final byte[] src, int length, final int timeout) throws IOException {
         int offset = 0;
-        final long endTime = (timeout == 0) ? 0 : (MonotonicClock.millis() + timeout);
+        long startTime = MonotonicClock.millis();
         length = Math.min(length, src.length);
 
         if(mConnection == null) {
@@ -261,7 +265,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                 if (timeout == 0 || offset == 0) {
                     requestTimeout = timeout;
                 } else {
-                    requestTimeout = (int)(endTime - MonotonicClock.millis());
+                    requestTimeout = (int)(startTime + timeout - MonotonicClock.millis());
                     if(requestTimeout == 0)
                         requestTimeout = -1;
                 }
@@ -271,16 +275,18 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
                     actualLength = mConnection.bulkTransfer(mWriteEndpoint, writeBuffer, requestLength, requestTimeout);
                 }
             }
+            long elapsed = MonotonicClock.millis() - startTime;
             if (DEBUG) {
-                Log.d(TAG, "Wrote " + actualLength + "/" + requestLength + " offset " + offset + "/" + length + " timeout " + requestTimeout);
+                Log.d(TAG, "Wrote " + actualLength + "/" + requestLength + " offset " + offset + "/" + length + " time " + elapsed + "/" + requestTimeout);
             }
             if (actualLength <= 0) {
-                if (timeout != 0 && MonotonicClock.millis() >= endTime) {
-                    SerialTimeoutException ex = new SerialTimeoutException("Error writing " + requestLength + " bytes at offset " + offset + " of total " + src.length + ", rc=" + actualLength);
-                    ex.bytesTransferred = offset;
-                    throw ex;
+                String msg = "Error writing " + requestLength + " bytes at offset " + offset + " of total " + src.length + " after " + elapsed + "msec, rc=" + actualLength;
+                if (timeout != 0) {
+                    testConnection(elapsed < timeout, msg);
+                    throw new SerialTimeoutException(msg, offset);
                 } else {
-                    throw new IOException("Error writing " + requestLength + " bytes at offset " + offset + " of total " + length);
+                    throw new IOException(msg);
+
                 }
             }
             offset += actualLength;

@@ -3,4 +3,6 @@ codeStyles
 libraries
 workspace.xml
 androidTestResultsUserPreferences.xml
+appInsightsSettings.xml
 deploymentTargetDropDown.xml
+deploymentTargetSelector.xml
