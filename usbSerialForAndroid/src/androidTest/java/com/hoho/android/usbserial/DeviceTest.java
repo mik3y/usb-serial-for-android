@@ -1525,6 +1525,15 @@ public class DeviceTest {
         data = telnet.read(2);
         assertEquals(2, data.length);
         usb.ioManager.setReadTimeout(200);
+
+        // with internal SerialTimeoutException
+        TestBuffer tbuf = new TestBuffer(usb.writeBufferSize + 2*usb.writePacketSize);
+        usb.ioManager.setWriteTimeout(20); // tbuf len >= 128, needs 133msec @ 9600 baud
+        usb.setParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
+        usb.ioManager.writeAsync(tbuf.buf);
+        while(!tbuf.testRead(telnet.read(-1)))
+            ;
     }
 
     @Test

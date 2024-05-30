@@ -9,6 +9,7 @@ package com.hoho.android.usbserial.util;
 import android.os.Process;
 import android.util.Log;
 
+import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 
 import java.io.IOException;
@@ -254,7 +255,23 @@ public class SerialInputOutputManager implements Runnable {
             if (DEBUG) {
                 Log.d(TAG, "Writing data len=" + len);
             }
-            mSerialPort.write(buffer, mWriteTimeout);
+            try {
+                mSerialPort.write(buffer, mWriteTimeout);
+            } catch (SerialTimeoutException ex) {
+                synchronized (mWriteBufferLock) {
+                    byte[] buffer2 = null;
+                    int len2 = mWriteBuffer.position();
+                    if (len2 > 0) {
+                        buffer2 = new byte[len2];
+                        mWriteBuffer.rewind();
+                        mWriteBuffer.get(buffer2, 0, len2);
+                        mWriteBuffer.clear();
+                    }
+                    mWriteBuffer.put(buffer, ex.bytesTransferred, buffer.length - ex.bytesTransferred);
+                    if (buffer2 != null)
+                        mWriteBuffer.put(buffer2);
+                }
+            }
         }
     }
 
