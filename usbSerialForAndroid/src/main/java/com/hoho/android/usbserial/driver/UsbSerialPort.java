@@ -58,7 +58,7 @@ public interface UsbSerialPort extends Closeable {
     int STOPBITS_2 = 2;
 
     /** Values for get[Supported]ControlLines() */
-    enum ControlLine { RTS, CTS,  DTR, DSR,  CD, RI }
+    enum ControlLine { RTS, CTS, DTR, DSR, CD, RI }
 
     /**
      * Returns the driver used by this port.
