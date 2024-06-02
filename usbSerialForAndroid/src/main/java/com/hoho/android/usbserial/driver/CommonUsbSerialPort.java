@@ -34,7 +34,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     protected final int mPortNumber;
 
     // non-null when open()
-    protected UsbDeviceConnection mConnection = null;
+    protected UsbDeviceConnection mConnection;
     protected UsbEndpoint mReadEndpoint;
     protected UsbEndpoint mWriteEndpoint;
     protected UsbRequest mUsbRequest;
@@ -139,18 +139,18 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         if (mConnection == null) {
             throw new IOException("Already closed");
         }
-        UsbDeviceConnection connection = mConnection;
-        mConnection = null;
-        try {
-            mUsbRequest.cancel();
-        } catch(Exception ignored) {}
+        UsbRequest usbRequest = mUsbRequest;
         mUsbRequest = null;
+        try {
+            usbRequest.cancel();
+        } catch(Exception ignored) {}
         try {
             closeInt();
         } catch(Exception ignored) {}
         try {
-            connection.close();
+            mConnection.close();
         } catch(Exception ignored) {}
+        mConnection = null;
     }
 
     protected abstract void closeInt();
@@ -163,7 +163,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     }
 
     protected void testConnection(boolean full, String msg) throws IOException {
-        if(mConnection == null) {
+        if(mUsbRequest == null) {
             throw new IOException("Connection closed");
         }
         if(!full) {
@@ -187,9 +187,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public int read(final byte[] dest, final int length, final int timeout) throws IOException {return read(dest, length, timeout, true);}
 
     protected int read(final byte[] dest, int length, final int timeout, boolean testConnection) throws IOException {
-        if(mConnection == null) {
-            throw new IOException("Connection closed");
-        }
+        testConnection(false);
         if(length <= 0) {
             throw new IllegalArgumentException("Read length too small");
         }
@@ -240,9 +238,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         long startTime = MonotonicClock.millis();
         length = Math.min(length, src.length);
 
-        if(mConnection == null) {
-            throw new IOException("Connection closed");
-        }
+        testConnection(false);
         while (offset < length) {
             int requestTimeout;
             final int requestLength;
@@ -295,7 +291,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
     @Override
     public boolean isOpen() {
-        return mConnection != null;
+        return mUsbRequest != null;
     }
 
     @Override
