@@ -6,6 +6,9 @@ import java.util.ArrayList;
 
 public class UsbUtils {
 
+    private UsbUtils() {
+    }
+
     public static  ArrayList<byte[]> getDescriptors(UsbDeviceConnection connection) {
         ArrayList<byte[]> descriptors = new ArrayList<>();
         byte[] rawDescriptors = connection.getRawDescriptors();

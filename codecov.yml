@@ -1,0 +1,5 @@
+codecov:
+  max_report_age: off
+  require_ci_to_pass: no
+  notify:
+    wait_for_ci: no

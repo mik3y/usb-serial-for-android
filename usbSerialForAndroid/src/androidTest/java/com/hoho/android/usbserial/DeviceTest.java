@@ -235,6 +235,12 @@ public class DeviceTest {
 
     @Test
     public void openClose() throws Exception {
+        try {
+            usb.serialPort.open(null);
+            fail("null connection error expected");
+        } catch (IllegalArgumentException ignored) {
+        }
+
         usb.open();
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -1528,10 +1534,18 @@ public class DeviceTest {
 
         // with internal SerialTimeoutException
         TestBuffer tbuf = new TestBuffer(usb.writeBufferSize + 2*usb.writePacketSize);
+        byte[] pbuf1 = new byte[tbuf.buf.length - 4];
+        byte[] pbuf2 = new byte[1];
+        System.arraycopy(tbuf.buf, 0,pbuf1, 0, pbuf1.length);
         usb.ioManager.setWriteTimeout(20); // tbuf len >= 128, needs 133msec @ 9600 baud
         usb.setParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(9600, 8, 1, UsbSerialPort.PARITY_NONE);
-        usb.ioManager.writeAsync(tbuf.buf);
+        usb.ioManager.writeAsync(pbuf1);
+        for(int i = pbuf1.length; i < tbuf.buf.length; i++) {
+            Thread.sleep(20);
+            pbuf2[0] = tbuf.buf[i];
+            usb.ioManager.writeAsync(pbuf2);
+        }
         while(!tbuf.testRead(telnet.read(-1)))
             ;
     }
@@ -1577,7 +1591,7 @@ public class DeviceTest {
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
 
         int longTimeout = 1000;
-        int shortTimeout = 10;
+        int shortTimeout = 20;
         time = System.currentTimeMillis();
         len = usb.serialPort.read(readBuf, shortTimeout);
         assertEquals(0, len);
@@ -1728,6 +1742,8 @@ public class DeviceTest {
                 wrongSerialPort.open(wrongDeviceConnection);
             } catch (IOException ignored) {
             }
+            assertEquals(usb.serialDriver.getDevice(), wrongSerialDriver.getDevice());
+            assertEquals(wrongSerialDriver, wrongSerialPort.getDriver());
             assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.setParameters(9200, 8, 1, 0));
             assertEquals(EnumSet.noneOf(ControlLine.class), wrongSerialPort.getSupportedControlLines());
             try {
@@ -1743,6 +1759,8 @@ public class DeviceTest {
                 wrongSerialPort.open(wrongDeviceConnection);
             } catch (IOException ignored) {
             }
+            assertEquals(usb.serialDriver.getDevice(), wrongSerialDriver.getDevice());
+            assertEquals(wrongSerialDriver, wrongSerialPort.getDriver());
             assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.setParameters(9200, 8, 1, 0));
             assertEquals(EnumSet.noneOf(ControlLine.class), wrongSerialPort.getSupportedControlLines());
             try {
@@ -2093,7 +2111,9 @@ public class DeviceTest {
     public void commonMethods() throws Exception {
         String s;
         assertNotNull(usb.serialPort.getDriver());
+        assertEquals(usb.serialDriver, usb.serialPort.getDriver());
         assertNotNull(usb.serialPort.getDevice());
+        assertEquals(usb.serialDriver.getDevice(), usb.serialPort.getDevice());
         assertEquals(test_device_port, usb.serialPort.getPortNumber());
         s = usb.serialDriver.toString();
         assertNotEquals(0, s.length());
@@ -2124,6 +2144,26 @@ public class DeviceTest {
             usb.serialPort.read(buffer, UsbWrapper.USB_READ_WAIT);
             fail("read buffer to small expected");
         } catch(IllegalArgumentException ignored) {}
+        try {
+            byte[] buffer = new byte[1];
+            usb.serialPort.read(buffer, 0, UsbWrapper.USB_READ_WAIT);
+            fail("read length to small expected");
+        } catch(IllegalArgumentException ignored) {}
+
+        // use driver that does not override base class
+        UsbSerialDriver wrongSerialDriver = new ChromeCcdSerialDriver(usb.serialDriver.getDevice());
+        UsbSerialPort wrongSerialPort = wrongSerialDriver.getPorts().get(0);
+        assertThrows(UnsupportedOperationException.class, wrongSerialPort::getCD);
+        assertThrows(UnsupportedOperationException.class, wrongSerialPort::getCTS);
+        assertThrows(UnsupportedOperationException.class, wrongSerialPort::getDSR);
+        assertThrows(UnsupportedOperationException.class, wrongSerialPort::getDTR);
+        assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.setDTR(true));
+        assertThrows(UnsupportedOperationException.class, wrongSerialPort::getRI);
+        assertThrows(UnsupportedOperationException.class, wrongSerialPort::getRTS);
+        assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.setRTS(true));
+        assertThrows(UnsupportedOperationException.class, wrongSerialPort::getControlLines);
+        assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.purgeHwBuffers(true, true));
+        assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.setBreak(true));
     }
 
     @Test
