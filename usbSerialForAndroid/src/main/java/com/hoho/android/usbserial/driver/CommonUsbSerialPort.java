@@ -117,6 +117,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             throw new IllegalArgumentException("Connection is null");
         }
         mConnection = connection;
+        boolean ok = false;
         try {
             openInt();
             if (mReadEndpoint == null || mWriteEndpoint == null) {
@@ -124,11 +125,13 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             }
             mUsbRequest = new UsbRequest();
             mUsbRequest.initialize(mConnection, mReadEndpoint);
-        } catch(Exception e) {
-            try {
-                close();
-            } catch(Exception ignored) {}
-            throw e;
+            ok = true;
+        } finally {
+            if (!ok) {
+                try {
+                    close();
+                } catch (Exception ignored) {}
+            }
         }
     }
 
