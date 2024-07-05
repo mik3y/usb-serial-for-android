@@ -60,9 +60,14 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         private static final int SILABSER_SET_LINE_CTL_REQUEST_CODE = 0x03;
         private static final int SILABSER_SET_BREAK_REQUEST_CODE = 0x05;
         private static final int SILABSER_SET_MHS_REQUEST_CODE = 0x07;
-        private static final int SILABSER_SET_BAUDRATE = 0x1E;
-        private static final int SILABSER_FLUSH_REQUEST_CODE = 0x12;
         private static final int SILABSER_GET_MDMSTS_REQUEST_CODE = 0x08;
+        private static final int SILABSER_SET_XON_REQUEST_CODE = 0x09;
+        private static final int SILABSER_SET_XOFF_REQUEST_CODE = 0x0A;
+        private static final int SILABSER_GET_COMM_STATUS_REQUEST_CODE = 0x10;
+        private static final int SILABSER_FLUSH_REQUEST_CODE = 0x12;
+        private static final int SILABSER_SET_FLOW_REQUEST_CODE = 0x13;
+        private static final int SILABSER_SET_CHARS_REQUEST_CODE = 0x19;
+        private static final int SILABSER_SET_BAUDRATE_REQUEST_CODE = 0x1E;
 
         private static final int FLUSH_READ_CODE = 0x0a;
         private static final int FLUSH_WRITE_CODE = 0x05;
@@ -84,6 +89,8 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         /*
         * SILABSER_GET_MDMSTS_REQUEST_CODE
          */
+        private static final int STATUS_DTR = 0x01;
+        private static final int STATUS_RTS = 0x02;
         private static final int STATUS_CTS = 0x10;
         private static final int STATUS_DSR = 0x20;
         private static final int STATUS_RI = 0x40;
@@ -147,6 +154,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
             setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_ENABLE);
             setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, (dtr ? DTR_ENABLE : DTR_DISABLE) | (rts ? RTS_ENABLE : RTS_DISABLE));
+            setFlowControl(mFlowControl);
         }
 
         @Override
@@ -166,7 +174,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
                     (byte) ((baudRate >> 16) & 0xff),
                     (byte) ((baudRate >> 24) & 0xff)
             };
-            int ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_BAUDRATE,
+            int ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_BAUDRATE_REQUEST_CODE,
                     0, mPortNumber, data, 4, USB_WRITE_TIMEOUT_MILLIS);
             if (ret < 0) {
                 throw new IOException("Error setting baud rate");
@@ -289,9 +297,11 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         public EnumSet<ControlLine> getControlLines() throws IOException {
             byte status = getStatus();
             EnumSet<ControlLine> set = EnumSet.noneOf(ControlLine.class);
-            if(rts) set.add(ControlLine.RTS);
+            //if(rts) set.add(ControlLine.RTS);                      // configured value
+            if((status & STATUS_RTS) != 0) set.add(ControlLine.RTS); // actual value
             if((status & STATUS_CTS) != 0) set.add(ControlLine.CTS);
-            if(dtr) set.add(ControlLine.DTR);
+            //if(dtr) set.add(ControlLine.DTR);                      // configured value
+            if((status & STATUS_DTR) != 0) set.add(ControlLine.DTR); // actual value
             if((status & STATUS_DSR) != 0) set.add(ControlLine.DSR);
             if((status & STATUS_CD) != 0) set.add(ControlLine.CD);
             if((status & STATUS_RI) != 0) set.add(ControlLine.RI);
@@ -301,6 +311,73 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         @Override
         public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
             return EnumSet.allOf(ControlLine.class);
+        }
+
+        @Override
+        public boolean getXON() throws IOException {
+            byte[] buffer = new byte[0x13];
+            int result = mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST, SILABSER_GET_COMM_STATUS_REQUEST_CODE, 0,
+                    mPortNumber, buffer, buffer.length, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != buffer.length) {
+                throw new IOException("Control transfer failed: " + SILABSER_GET_COMM_STATUS_REQUEST_CODE + " -> " + result);
+            }
+            return (buffer[4] & 8) == 0;
+        }
+
+        /**
+         * emulate external XON/OFF
+         * @throws IOException
+         */
+        public void setXON(boolean value) throws IOException {
+            setConfigSingle(value ? SILABSER_SET_XON_REQUEST_CODE : SILABSER_SET_XOFF_REQUEST_CODE, 0);
+        }
+
+        @Override
+        public void setFlowControl(FlowControl flowControl) throws IOException {
+            byte[] data = new byte[16];
+            if(flowControl == FlowControl.RTS_CTS) {
+                data[4] |=  0b1000_0000; // RTS
+                data[0] |=  0b0000_1000; // CTS
+            } else {
+                if(rts)
+                    data[4] |= 0b0100_0000;
+            }
+            if(flowControl == FlowControl.DTR_DSR) {
+                data[0] |= 0b0000_0010; // DTR
+                data[0] |= 0b0001_0000; // DSR
+            } else {
+                if(dtr)
+                    data[0] |= 0b0000_0001;
+            }
+            if(flowControl == FlowControl.XON_XOFF) {
+                byte[] chars = new byte[]{0, 0, 0, 0, CHAR_XON, CHAR_XOFF};
+                int ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_CHARS_REQUEST_CODE,
+                        0, mPortNumber, chars, chars.length, USB_WRITE_TIMEOUT_MILLIS);
+                if (ret != chars.length) {
+                    throw new IOException("Error setting XON/XOFF chars");
+                }
+                data[4] |= 0b0000_0011;
+                data[7] |= 0b1000_0000;
+                data[8] = (byte)128;
+                data[12] = (byte)128;
+            }
+            if(flowControl == FlowControl.XON_XOFF_INLINE) {
+                throw new UnsupportedOperationException();
+            }
+            int ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_FLOW_REQUEST_CODE,
+                    0, mPortNumber, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
+            if (ret != data.length) {
+                throw new IOException("Error setting flow control");
+            }
+            if(flowControl == FlowControl.XON_XOFF) {
+                setXON(true);
+            }
+            mFlowControl = flowControl;
+        }
+
+        @Override
+        public EnumSet<FlowControl> getSupportedFlowControl() {
+            return EnumSet.of(FlowControl.NONE, FlowControl.RTS_CTS, FlowControl.DTR_DSR, FlowControl.XON_XOFF);
         }
 
         @Override

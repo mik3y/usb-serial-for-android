@@ -60,6 +60,15 @@ public interface UsbSerialPort extends Closeable {
     /** Values for get[Supported]ControlLines() */
     enum ControlLine { RTS, CTS, DTR, DSR, CD, RI }
 
+    /** Values for (set|get|getSupported)FlowControl() */
+    enum FlowControl { NONE, RTS_CTS, DTR_DSR, XON_XOFF, XON_XOFF_INLINE }
+
+    /** XON character used with flow control XON/XOFF */
+    char CHAR_XON = 17;
+    /** XOFF character used with flow control XON/XOFF */
+    char CHAR_XOFF = 19;
+
+
     /**
      * Returns the driver used by this port.
      */
@@ -258,6 +267,36 @@ public interface UsbSerialPort extends Closeable {
      * @throws IOException if an error occurred during reading
      */
     EnumSet<ControlLine> getSupportedControlLines() throws IOException;
+
+    /**
+     * Set flow control mode, if supported
+     * @param flowControl @FlowControl
+     * @throws IOException if an error occurred during writing
+     * @throws UnsupportedOperationException if not supported
+     */
+    void setFlowControl(FlowControl flowControl) throws IOException;
+
+    /**
+     * Get flow control mode.
+     * @return FlowControl
+     */
+    FlowControl getFlowControl();
+
+    /**
+     * Get supported flow control modes
+     * @return EnumSet.contains(...) is {@code true} if supported, else {@code false}
+     */
+    EnumSet<FlowControl> getSupportedFlowControl();
+
+    /**
+     * If flow control = XON_XOFF, indicates that send is enabled by XON.
+     * Devices supporting flow control = XON_XOFF_INLINE return CHAR_XON/CHAR_XOFF in read() data.
+     *
+     * @return the current state
+     * @throws IOException if an error occurred during reading
+     * @throws UnsupportedOperationException if not supported
+     */
+    boolean getXON() throws IOException;
 
     /**
      * Purge non-transmitted output data and / or non-read input data.

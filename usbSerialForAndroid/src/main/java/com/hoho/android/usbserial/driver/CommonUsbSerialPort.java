@@ -16,6 +16,7 @@ import com.hoho.android.usbserial.util.MonotonicClock;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.InvalidParameterException;
 import java.util.EnumSet;
 
 /**
@@ -38,6 +39,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     protected UsbEndpoint mReadEndpoint;
     protected UsbEndpoint mWriteEndpoint;
     protected UsbRequest mUsbRequest;
+    protected FlowControl mFlowControl = FlowControl.NONE;
 
     /**
      * Internal write buffer.
@@ -281,6 +283,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             if (actualLength <= 0) {
                 String msg = "Error writing " + requestLength + " bytes at offset " + offset + " of total " + src.length + " after " + elapsed + "msec, rc=" + actualLength;
                 if (timeout != 0) {
+                    // could be buffer full because: writing to fast, stopped by flow control
                     testConnection(elapsed < timeout, msg);
                     throw new SerialTimeoutException(msg, offset);
                 } else {
@@ -328,12 +331,22 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public EnumSet<ControlLine> getControlLines() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
-    public abstract EnumSet<ControlLine> getSupportedControlLines() throws IOException;
+    public EnumSet<ControlLine> getSupportedControlLines() throws IOException { return EnumSet.noneOf(ControlLine.class); }
 
     @Override
-    public void purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException {
-        throw new UnsupportedOperationException();
-    }
+    public void setFlowControl(FlowControl flowcontrol) throws IOException { throw new UnsupportedOperationException(); }
+
+    @Override
+    public FlowControl getFlowControl() { return mFlowControl; }
+
+    @Override
+    public EnumSet<FlowControl> getSupportedFlowControl() { return EnumSet.of(FlowControl.NONE); }
+
+    @Override
+    public boolean getXON() throws IOException { throw new UnsupportedOperationException(); }
+
+    @Override
+    public void purgeHwBuffers(boolean purgeWriteBuffers, boolean purgeReadBuffers) throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
     public void setBreak(boolean value) throws IOException { throw new UnsupportedOperationException(); }

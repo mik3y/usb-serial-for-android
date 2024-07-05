@@ -18,7 +18,7 @@ android {
         }
         cp2102 { // and cp2105 first port
             dimension 'device'
-            testInstrumentationRunnerArguments = ['test_device_driver': 'Cp21xx']
+            testInstrumentationRunnerArguments = ['test_device_driver': 'Cp21xx', 'test_device_port': '0']
         }
         cp2105 { // second port
             dimension 'device'
@@ -26,7 +26,7 @@ android {
         }
         ft232 { // and ft2232 first port
             dimension 'device'
-            testInstrumentationRunnerArguments = ['test_device_driver': 'Ftdi']
+            testInstrumentationRunnerArguments = ['test_device_driver': 'Ftdi', 'test_device_port': '0']
         }
         ft2232 { // second port
             dimension 'device'

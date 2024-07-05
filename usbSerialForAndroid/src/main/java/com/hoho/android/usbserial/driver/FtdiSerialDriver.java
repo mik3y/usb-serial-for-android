@@ -64,6 +64,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
         private static final int RESET_REQUEST = 0;
         private static final int MODEM_CONTROL_REQUEST = 1;
+        private static final int SET_FLOW_CONTROL_REQUEST = 2;
         private static final int SET_BAUD_RATE_REQUEST = 3;
         private static final int SET_DATA_REQUEST = 4;
         private static final int GET_MODEM_STATUS_REQUEST = 5;
@@ -120,6 +121,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             if (result != 0) {
                 throw new IOException("Init RTS,DTR failed: result=" + result);
             }
+            setFlowControl(mFlowControl);
 
             // mDevice.getVersion() would require API 23
             byte[] rawDescriptors = mConnection.getRawDescriptors();
@@ -375,6 +377,38 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         @Override
         public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
             return EnumSet.allOf(ControlLine.class);
+        }
+
+        @Override
+        public void setFlowControl(FlowControl flowControl) throws IOException {
+            int value = 0;
+            int index = mPortNumber+1;
+            switch (flowControl) {
+                case NONE:
+                    break;
+                case RTS_CTS:
+                    index |= 0x100;
+                    break;
+                case DTR_DSR:
+                    index |= 0x200;
+                    break;
+                case XON_XOFF_INLINE:
+                    value = CHAR_XON + (CHAR_XOFF << 8);
+                    index |= 0x400;
+                    break;
+                default:
+                    throw new UnsupportedOperationException();
+            }
+            int result = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SET_FLOW_CONTROL_REQUEST,
+                    value, index, null, 0, USB_WRITE_TIMEOUT_MILLIS);
+            if (result != 0)
+                throw new IOException("Set flow control failed: result=" + result);
+            mFlowControl = flowControl;
+        }
+
+        @Override
+        public EnumSet<FlowControl> getSupportedFlowControl() {
+            return EnumSet.of(FlowControl.NONE, FlowControl.RTS_CTS, FlowControl.DTR_DSR, FlowControl.XON_XOFF_INLINE);
         }
 
         @Override
