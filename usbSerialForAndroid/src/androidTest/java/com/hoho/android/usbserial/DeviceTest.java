@@ -1998,6 +1998,22 @@ public class DeviceTest {
     }
 
     @Test
+    public void flowControlBase() throws Exception {
+        usb.open();
+        usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        assertEquals(FlowControl.NONE, usb.serialPort.getFlowControl());
+        assertTrue(usb.serialPort.getSupportedFlowControl().contains(FlowControl.NONE));
+        for(FlowControl flowControl : FlowControl.values()) {
+            if(usb.serialPort.getSupportedFlowControl().contains(flowControl)) {
+                usb.serialPort.setFlowControl(flowControl);
+                assertEquals(flowControl, usb.serialPort.getFlowControl());
+            } else {
+                assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.setFlowControl(flowControl));
+            }
+        }
+    }
+
+    @Test
     public void flowControlXonXoff() throws Exception {
         final byte[] off_on = new byte[]{'x',CommonUsbSerialPort.CHAR_XOFF,'y',CommonUsbSerialPort.CHAR_XON,'z'};
         final byte[] off_on_filtered = "xyz".getBytes();
@@ -2006,12 +2022,11 @@ public class DeviceTest {
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD, UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
         telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
-        assertEquals(FlowControl.NONE, usb.serialPort.getFlowControl());
-        if (!usb.serialPort.getSupportedFlowControl().contains(FlowControl.XON_XOFF_INLINE) &&
-                !usb.serialPort.getSupportedFlowControl().contains(FlowControl.XON_XOFF)) {
-            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.setFlowControl(FlowControl.XON_XOFF_INLINE));
-            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.setFlowControl(FlowControl.XON_XOFF));
+        if(!usb.serialPort.getSupportedFlowControl().contains(FlowControl.XON_XOFF)) {
             assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.getXON());
+        }
+        if (!usb.serialPort.getSupportedFlowControl().contains(FlowControl.XON_XOFF_INLINE) &&
+            !usb.serialPort.getSupportedFlowControl().contains(FlowControl.XON_XOFF)) {
             Assume.assumeTrue("flow control not supported", false);
         }
         if (usb.serialPort.getSupportedFlowControl().contains(FlowControl.XON_XOFF_INLINE) &&
@@ -2020,11 +2035,8 @@ public class DeviceTest {
         }
         if (usb.serialPort.getSupportedFlowControl().contains(FlowControl.XON_XOFF_INLINE)) {
             filter = new XonXoffFilter();
-            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.setFlowControl(FlowControl.XON_XOFF));
             usb.serialPort.setFlowControl(FlowControl.XON_XOFF_INLINE);
             assertEquals(FlowControl.XON_XOFF_INLINE, usb.serialPort.getFlowControl());
-            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.getXON());
-
             assertTrue(filter.getXON());
             assertThat(filter.filter(off_on), equalTo(off_on_filtered));
             assertTrue(filter.getXON());
@@ -2034,7 +2046,6 @@ public class DeviceTest {
             assertTrue(filter.getXON());
         } else {
             filter = null;
-            assertThrows(UnsupportedOperationException.class, () -> usb.serialPort.setFlowControl(FlowControl.XON_XOFF_INLINE));
             usb.serialPort.setFlowControl(FlowControl.XON_XOFF);
             assertEquals(FlowControl.XON_XOFF, usb.serialPort.getFlowControl());
             assertTrue(usb.serialPort.getXON());
@@ -2203,17 +2214,10 @@ public class DeviceTest {
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
 
         // early exit, if flow control not supported
+        if (!usb.serialPort.getSupportedFlowControl().contains(flowControl))
+            Assume.assumeTrue("flow control not supported", false);
         assertEquals(usb.inputLinesConnected ? EnumSet.of(ControlLine.RI) : EnumSet.noneOf(ControlLine.class), usb.serialPort.getControlLines()); // [1]
-        assertEquals(FlowControl.NONE, usb.serialPort.getFlowControl());
-        try {
-            usb.serialPort.setFlowControl(flowControl);
-        } catch (UnsupportedOperationException ignored) {
-            if (usb.serialPort.getSupportedFlowControl().contains(flowControl)) {
-                assertTrue("flow control support expected", false);
-            } else {
-                Assume.assumeTrue("flow control not supported", false);
-            }
-        }
+        usb.serialPort.setFlowControl(flowControl);
         assertEquals(flowControl, usb.serialPort.getFlowControl());
         if (!usb.inputLinesConnected)
             Assume.assumeTrue("flow control lines not connected", false);
@@ -2528,7 +2532,8 @@ public class DeviceTest {
         assertThrows(UnsupportedOperationException.class, wrongSerialPort::getControlLines);
         assertEquals(EnumSet.of(FlowControl.NONE), wrongSerialPort.getSupportedFlowControl());
         assertEquals(FlowControl.NONE, wrongSerialPort.getFlowControl());
-        assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.setFlowControl(FlowControl.NONE));
+        wrongSerialPort.setFlowControl(FlowControl.NONE);
+        assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.setFlowControl(FlowControl.RTS_CTS));
         assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.purgeHwBuffers(true, true));
         assertThrows(UnsupportedOperationException.class, () -> wrongSerialPort.setBreak(true));
     }

@@ -16,7 +16,6 @@ import com.hoho.android.usbserial.util.MonotonicClock;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.security.InvalidParameterException;
 import java.util.EnumSet;
 
 /**
@@ -334,7 +333,10 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public EnumSet<ControlLine> getSupportedControlLines() throws IOException { return EnumSet.noneOf(ControlLine.class); }
 
     @Override
-    public void setFlowControl(FlowControl flowcontrol) throws IOException { throw new UnsupportedOperationException(); }
+    public void setFlowControl(FlowControl flowcontrol) throws IOException {
+        if (flowcontrol != FlowControl.NONE)
+            throw new UnsupportedOperationException();
+    }
 
     @Override
     public FlowControl getFlowControl() { return mFlowControl; }
