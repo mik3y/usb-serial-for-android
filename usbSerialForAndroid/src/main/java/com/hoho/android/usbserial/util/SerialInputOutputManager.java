@@ -203,7 +203,7 @@ public class SerialInputOutputManager implements Runnable {
                 }
                 step();
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             if(mSerialPort.isOpen()) {
                 Log.w(TAG, "Run ending due to exception: " + e.getMessage(), e);
             } else {
@@ -211,7 +211,15 @@ public class SerialInputOutputManager implements Runnable {
             }
             final Listener listener = getListener();
             if (listener != null) {
-              listener.onRunError(e);
+                try {
+                    if (e instanceof Exception) {
+                        listener.onRunError((Exception) e);
+                    } else {
+                        listener.onRunError(new Exception(e));
+                    }
+                } catch (Throwable t) {
+                    Log.w(TAG, "Exception in onRunError: " + t.getMessage(), t);
+                }
             }
         } finally {
             synchronized (this) {
