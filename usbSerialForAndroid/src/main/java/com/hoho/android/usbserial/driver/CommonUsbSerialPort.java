@@ -10,6 +10,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbRequest;
+import android.os.Build;
 import android.util.Log;
 
 import com.hoho.android.usbserial.util.MonotonicClock;
@@ -28,7 +29,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public static boolean DEBUG = false;
 
     private static final String TAG = CommonUsbSerialPort.class.getSimpleName();
-    private static final int MAX_READ_SIZE = 16 * 1024; // = old bulkTransfer limit
+    private static final int MAX_READ_SIZE = 16 * 1024; // = old bulkTransfer limit prior to Android 9
 
     protected final UsbDevice mDevice;
     protected final int mPortNumber;
@@ -207,7 +208,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             //     /system/lib64/libandroid_runtime.so (android_hardware_UsbDeviceConnection_request_wait(_JNIEnv*, _jobject*, long)+84)
             // data loss / crashes were observed with timeout up to 200 msec
             long endTime = testConnection ? MonotonicClock.millis() + timeout : 0;
-            int readMax = Math.min(length, MAX_READ_SIZE);
+            int readMax = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) ? length : Math.min(length, MAX_READ_SIZE);
             nread = mConnection.bulkTransfer(mReadEndpoint, dest, readMax, timeout);
             // Android error propagation is improvable:
             //  nread == -1 can be: timeout, connection lost, buffer to small, ???
