@@ -175,7 +175,7 @@ public interface UsbSerialPort extends Closeable {
      * @param parity one of {@link #PARITY_NONE}, {@link #PARITY_ODD},
      *               {@link #PARITY_EVEN}, {@link #PARITY_MARK}, or {@link #PARITY_SPACE}.
      * @throws IOException on error setting the port parameters
-     * @throws UnsupportedOperationException if values are not supported by a specific device
+     * @throws UnsupportedOperationException if not supported or values are not supported by a specific device
      */
     void setParameters(int baudRate, int dataBits, int stopBits, @Parity int parity) throws IOException;
 
@@ -257,6 +257,7 @@ public interface UsbSerialPort extends Closeable {
      *
      * @return EnumSet.contains(...) is {@code true} if set, else {@code false}
      * @throws IOException if an error occurred during reading
+     * @throws UnsupportedOperationException if not supported
      */
     EnumSet<ControlLine> getControlLines() throws IOException;
 
