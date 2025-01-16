@@ -171,7 +171,7 @@ public class SerialInputOutputManager {
     }
 
     /**
-     * start SerialInputOutputManager in separate thread
+     * start SerialInputOutputManager in separate threads
      */
     public void start() {
         if(mState.compareAndSet(State.STOPPED, State.STARTING)) {
@@ -189,7 +189,7 @@ public class SerialInputOutputManager {
     }
 
     /**
-     * stop SerialInputOutputManager thread
+     * stop SerialInputOutputManager threads
      *
      * when using readTimeout == 0 (default), additionally use usbSerialPort.close() to
      * interrupt blocking read
