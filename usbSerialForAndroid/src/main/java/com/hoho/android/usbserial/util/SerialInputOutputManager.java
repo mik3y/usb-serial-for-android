@@ -213,6 +213,15 @@ public class SerialInputOutputManager {
     }
 
     /**
+     * @return true if the thread is still running
+     */
+    private boolean isStillRunning() {
+        State state = mState.get();
+        return ((state == State.RUNNING) || (state == State.STARTING))
+            && !Thread.currentThread().isInterrupted();
+    }
+
+    /**
      * Continuously services the read buffers until {@link #stop()} is called, or until a driver exception is
      * raised.
      */
@@ -237,13 +246,10 @@ public class SerialInputOutputManager {
                 request.initialize(mSerialPort.getConnection(), mSerialPort.getReadEndpoint());
                 request.queue(buffer, buffer.capacity());
             }
-            while (true) {
+            do {
                 stepRead();
-                if ((getState() != State.RUNNING) && (getState() != State.STARTING)) {
-                    Log.i(TAG, "Stopping mState=" + getState());
-                    break;
-                }
-            }
+            } while (isStillRunning());
+            Log.i(TAG, "runRead: Stopping mState=" + getState());
         } catch (Throwable e) {
             Log.w(TAG, "Run ending due to exception: " + e.getMessage(), e);
             final Listener listener = getListener();
@@ -274,13 +280,10 @@ public class SerialInputOutputManager {
             if (mThreadPriority != Process.THREAD_PRIORITY_DEFAULT) {
                 Process.setThreadPriority(mThreadPriority);
             }
-            while (true) {
+            do {
                 stepWrite();
-                if ((getState() != State.RUNNING) && (getState() != State.STARTING)) {
-                    Log.i(TAG, "Stopping mState=" + getState());
-                    break;
-                }
-            }
+            } while (isStillRunning());
+            Log.i(TAG, "runWrite: Stopping mState=" + getState());
         } catch (Throwable e) {
             Log.w(TAG, "Run ending due to exception: " + e.getMessage(), e);
             final Listener listener = getListener();
