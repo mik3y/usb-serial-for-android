@@ -255,6 +255,7 @@ public class SerialInputOutputManager {
         Log.i(TAG, "runRead running ...");
         try {
             setThreadPriority();
+            mStartuplatch.countDown();
             // Initialize buffers and requests
             for (int i = 0; i < mReadBufferCount; i++) {
                 ByteBuffer buffer = ByteBuffer.allocate(mReadBufferSize);
@@ -263,7 +264,6 @@ public class SerialInputOutputManager {
                 request.initialize(mSerialPort.getConnection(), mSerialPort.getReadEndpoint());
                 request.queue(buffer, buffer.capacity());
             }
-            mStartuplatch.countDown();
             do {
                 stepRead();
             } while (isStillRunning());
