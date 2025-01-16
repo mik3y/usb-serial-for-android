@@ -1209,13 +1209,13 @@ public class DeviceTest {
         // Android is not a real time OS, so there is no guarantee that the USB thread is scheduled, or it might be blocked by Java garbage collection.
         // Using SERIAL_INPUT_OUTPUT_MANAGER_THREAD_PRIORITY=THREAD_PRIORITY_URGENT_AUDIO sometimes reduced errors by factor 10, sometimes not at all!
         //
-        int diffLen = readSpeedInt(5, -1, 0);
+        int diffLen = readSpeedInt(5, -1);
         if(usb.serialDriver instanceof Ch34xSerialDriver && diffLen == -1)
              diffLen = 0; // todo: investigate last packet loss
         assertEquals(0, diffLen);
     }
 
-    private int readSpeedInt(int writeSeconds, int readBufferSize, int readTimeout) throws Exception {
+    private int readSpeedInt(int writeSeconds, int readBufferSize) throws Exception {
         int baudrate = 115200;
         if(usb.serialDriver instanceof Ch34xSerialDriver)
             baudrate = 38400;
@@ -1224,7 +1224,6 @@ public class DeviceTest {
             writeAhead = 50;
 
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
-        usb.ioManager.setReadTimeout(readTimeout);
         if(readBufferSize > 0)
             usb.ioManager.setReadBufferSize(readBufferSize);
         usb.ioManager.start();
@@ -1401,9 +1400,6 @@ public class DeviceTest {
         usb.ioManager = new SerialInputOutputManager(usb.serialPort, usb);
         assertEquals(usb, usb.ioManager.getListener());
 
-        assertEquals(0, usb.ioManager.getReadTimeout());
-        usb.ioManager.setReadTimeout(10);
-        assertEquals(10, usb.ioManager.getReadTimeout());
         assertEquals(0, usb.ioManager.getWriteTimeout());
         usb.ioManager.setWriteTimeout(11);
         assertEquals(11, usb.ioManager.getWriteTimeout());
@@ -1417,7 +1413,6 @@ public class DeviceTest {
 
         usb.ioManager.setReadBufferSize(usb.ioManager.getReadBufferSize());
         usb.ioManager.setWriteBufferSize(usb.ioManager.getWriteBufferSize());
-        usb.ioManager.setReadTimeout(usb.ioManager.getReadTimeout());
         usb.ioManager.setWriteTimeout(usb.ioManager.getWriteTimeout());
         usb.close();
 
@@ -1434,7 +1429,12 @@ public class DeviceTest {
         } catch (IllegalStateException ignored) {
         }
         try {
-            usb.ioManager.run();
+            usb.ioManager.runRead();
+            fail("already running error expected");
+        } catch (IllegalStateException ignored) {
+        }
+        try {
+            usb.ioManager.runWrite();
             fail("already running error expected");
         } catch (IllegalStateException ignored) {
         }
@@ -1442,11 +1442,6 @@ public class DeviceTest {
             usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_LOWEST);
             fail("setThreadPriority IllegalStateException expected");
         } catch (IllegalStateException ignored) {}
-        try {
-            usb.ioManager.setReadTimeout(20);
-            fail("setReadTimeout IllegalStateException expected");
-        } catch (IllegalStateException ignored) {}
-        assertEquals(0, usb.ioManager.getReadTimeout());
         usb.ioManager.setWriteTimeout(21);
         assertEquals(21, usb.ioManager.getWriteTimeout());
         usb.ioManager.setReadBufferSize(22);
@@ -1502,7 +1497,7 @@ public class DeviceTest {
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);
-        Executors.newSingleThreadExecutor().submit(usb.ioManager);
+        usb.ioManager.start();
         usb.waitForIoManagerStarted();
         try {
             usb.ioManager.start();
@@ -1529,18 +1524,6 @@ public class DeviceTest {
         data = telnet.read(2);
         assertEquals(2, data.length);
         usb.close();
-
-        // with timeout: write after timeout
-        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
-        usb.ioManager.setReadTimeout(100);
-        usb.ioManager.start();
-        usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
-        telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
-        usb.ioManager.writeAsync(buf);
-        usb.ioManager.writeAsync(buf);
-        data = telnet.read(2);
-        assertEquals(2, data.length);
-        usb.ioManager.setReadTimeout(200);
 
         // with internal SerialTimeoutException
         TestBuffer tbuf = new TestBuffer(usb.writeBufferSize + 2*usb.writePacketSize);
@@ -1626,13 +1609,13 @@ public class DeviceTest {
             int diffLen;
             usb.close();
             // no issue with high transfer rate and long read timeout
-            diffLen = readSpeedInt(5, -1, longTimeout);
+            diffLen = readSpeedInt(5, -1);
             if(usb.serialDriver instanceof Ch34xSerialDriver && diffLen == -1)
                 diffLen = 0; // todo: investigate last packet loss
             assertEquals(0, diffLen);
             usb.close();
             // date loss with high transfer rate and short read timeout !!!
-            diffLen = readSpeedInt(5, -1, shortTimeout);
+            diffLen = readSpeedInt(5, -1);
 
             assertNotEquals("sporadic issue!", 0, diffLen);
 

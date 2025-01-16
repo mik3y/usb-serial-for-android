@@ -354,4 +354,9 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     @Override
     public void setBreak(boolean value) throws IOException { throw new UnsupportedOperationException(); }
 
+    @Override
+    public UsbDeviceConnection getConnection() {
+        return mConnection;
+    }
+
 }
