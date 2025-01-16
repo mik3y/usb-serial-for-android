@@ -175,6 +175,8 @@ public class SerialInputOutputManager {
      */
     public void start() {
         if(mState.compareAndSet(State.STOPPED, State.STARTING)) {
+            mStartuplatch = new CountDownLatch(2);
+            mShutdownlatch = new CountDownLatch(2);
             new Thread(this::runRead, this.getClass().getSimpleName() + "_read").start();
             new Thread(this::runWrite, this.getClass().getSimpleName() + "_write").start();
             try {
@@ -199,9 +201,6 @@ public class SerialInputOutputManager {
             Log.i(TAG, "Stop requested");
             try {
                 mShutdownlatch.await();
-                mStartuplatch = new CountDownLatch(2);
-                mShutdownlatch = new CountDownLatch(2);
-                mState.set(State.STOPPED);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -218,6 +217,7 @@ public class SerialInputOutputManager {
     private boolean isStillRunning() {
         State state = mState.get();
         return ((state == State.RUNNING) || (state == State.STARTING))
+            && (mShutdownlatch.getCount() == 2)
             && !Thread.currentThread().isInterrupted();
     }
 
@@ -252,7 +252,7 @@ public class SerialInputOutputManager {
      */
     @SuppressLint("ObsoleteSdkInt")
     public void runRead() {
-        Log.i(TAG, "Running ...");
+        Log.i(TAG, "runRead running ...");
         try {
             setThreadPriority();
             // Initialize buffers and requests
@@ -276,6 +276,11 @@ public class SerialInputOutputManager {
                 notifyErrorListener(e);
             }
         } finally {
+            if (!mState.compareAndSet(State.RUNNING, State.STOPPING)) {
+                if (mState.compareAndSet(State.STOPPING, State.STOPPED)) {
+                    Log.i(TAG, "runRead: Stopped mState=" + getState());
+                }
+            }
             mShutdownlatch.countDown();
         }
     }
@@ -285,7 +290,7 @@ public class SerialInputOutputManager {
      * raised.
      */
     public void runWrite() {
-        Log.i(TAG, "Running ...");
+        Log.i(TAG, "runWrite running ...");
         try {
             setThreadPriority();
             mStartuplatch.countDown();
@@ -301,11 +306,16 @@ public class SerialInputOutputManager {
                 notifyErrorListener(e);
             }
         } finally {
+            if (!mState.compareAndSet(State.RUNNING, State.STOPPING)) {
+                if (mState.compareAndSet(State.STOPPING, State.STOPPED)) {
+                    Log.i(TAG, "runWrite: Stopped mState=" + getState());
+                }
+            }
             mShutdownlatch.countDown();
         }
     }
 
-    private void stepRead() {
+    private void stepRead() throws IOException {
         // Wait for the request to complete
         final UsbRequest completedRequest = mSerialPort.getConnection().requestWait();
         if (completedRequest != null) {
@@ -321,9 +331,11 @@ public class SerialInputOutputManager {
             // Requeue the buffer and handle potential failures
             if (!completedRequest.queue(completedBuffer, completedBuffer.capacity())) {
                 Log.e(TAG, "Failed to requeue the buffer");
+                throw new IOException("Failed to requeue the buffer");
             }
         } else {
             Log.e(TAG, "Error waiting for request");
+            throw new IOException("Error waiting for request");
         }
     }
 
