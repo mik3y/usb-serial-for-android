@@ -222,47 +222,58 @@ public class SerialInputOutputManager {
     }
 
     /**
+     * Notify listener of an error
+     *
+     * @param e the exception
+     */
+    private void notifyErrorListener(Throwable e) {
+        Listener listener = getListener();
+        if (listener != null) {
+            try {
+                listener.onRunError(e instanceof Exception ? (Exception) e : new Exception(e));
+            } catch (Throwable t) {
+                Log.w(TAG, "Exception in onRunError: " + t.getMessage(), t);
+            }
+        }
+    }
+
+    /**
+     * Set the thread priority
+     */
+    private void setThreadPriority() {
+        if (mThreadPriority != Process.THREAD_PRIORITY_DEFAULT) {
+            Process.setThreadPriority(mThreadPriority);
+        }
+    }
+
+    /**
      * Continuously services the read buffers until {@link #stop()} is called, or until a driver exception is
      * raised.
      */
     @SuppressLint("ObsoleteSdkInt")
     public void runRead() {
-        mStartuplatch.countDown();
         Log.i(TAG, "Running ...");
         try {
-            if (mThreadPriority != Process.THREAD_PRIORITY_DEFAULT) {
-                Process.setThreadPriority(mThreadPriority);
-            }
+            setThreadPriority();
             // Initialize buffers and requests
             for (int i = 0; i < mReadBufferCount; i++) {
-                final ByteBuffer buffer = ByteBuffer.allocate(mReadBufferSize);
-                final UsbRequest request;
-                if (VERSION.SDK_INT == 0) {
-                    request = mRequestSupplier.get();
-                } else {
-                    request = new UsbRequest();
-                }
+                ByteBuffer buffer = ByteBuffer.allocate(mReadBufferSize);
+                UsbRequest request = (VERSION.SDK_INT == 0) ? mRequestSupplier.get() : new UsbRequest();
                 request.setClientData(buffer);
                 request.initialize(mSerialPort.getConnection(), mSerialPort.getReadEndpoint());
                 request.queue(buffer, buffer.capacity());
             }
+            mStartuplatch.countDown();
             do {
                 stepRead();
             } while (isStillRunning());
             Log.i(TAG, "runRead: Stopping mState=" + getState());
         } catch (Throwable e) {
-            Log.w(TAG, "Run ending due to exception: " + e.getMessage(), e);
-            final Listener listener = getListener();
-            if (listener != null) {
-                try {
-                    if (e instanceof Exception) {
-                        listener.onRunError((Exception) e);
-                    } else {
-                        listener.onRunError(new Exception(e));
-                    }
-                } catch (Throwable t) {
-                    Log.w(TAG, "Exception in onRunError: " + t.getMessage(), t);
-                }
+            if (Thread.currentThread().isInterrupted()) {
+                Log.w(TAG, "Thread interrupted, stopping runRead.");
+            } else {
+                Log.w(TAG, "runRead ending due to exception: " + e.getMessage(), e);
+                notifyErrorListener(e);
             }
         } finally {
             mShutdownlatch.countDown();
@@ -274,36 +285,27 @@ public class SerialInputOutputManager {
      * raised.
      */
     public void runWrite() {
-        mStartuplatch.countDown();
         Log.i(TAG, "Running ...");
         try {
-            if (mThreadPriority != Process.THREAD_PRIORITY_DEFAULT) {
-                Process.setThreadPriority(mThreadPriority);
-            }
+            setThreadPriority();
+            mStartuplatch.countDown();
             do {
                 stepWrite();
             } while (isStillRunning());
             Log.i(TAG, "runWrite: Stopping mState=" + getState());
         } catch (Throwable e) {
-            Log.w(TAG, "Run ending due to exception: " + e.getMessage(), e);
-            final Listener listener = getListener();
-            if (listener != null) {
-                try {
-                    if (e instanceof Exception) {
-                        listener.onRunError((Exception) e);
-                    } else {
-                        listener.onRunError(new Exception(e));
-                    }
-                } catch (Throwable t) {
-                    Log.w(TAG, "Exception in onRunError: " + t.getMessage(), t);
-                }
+            if (Thread.currentThread().isInterrupted()) {
+                Log.w(TAG, "Thread interrupted, stopping runWrite.");
+            } else {
+                Log.w(TAG, "runWrite ending due to exception: " + e.getMessage(), e);
+                notifyErrorListener(e);
             }
         } finally {
             mShutdownlatch.countDown();
         }
     }
 
-    private void stepRead() throws IOException {
+    private void stepRead() {
         // Wait for the request to complete
         final UsbRequest completedRequest = mSerialPort.getConnection().requestWait();
         if (completedRequest != null) {
