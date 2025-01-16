@@ -198,13 +198,13 @@ public class SerialInputOutputManager {
         if(mState.compareAndSet(State.RUNNING, State.STOPPING)) {
             Log.i(TAG, "Stop requested");
             try {
-                mStartuplatch.await();
+                mShutdownlatch.await();
+                mStartuplatch = new CountDownLatch(2);
+                mShutdownlatch = new CountDownLatch(2);
                 mState.set(State.STOPPED);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            mStartuplatch = new CountDownLatch(2);
-            mShutdownlatch = new CountDownLatch(2);
         }
     }
 
