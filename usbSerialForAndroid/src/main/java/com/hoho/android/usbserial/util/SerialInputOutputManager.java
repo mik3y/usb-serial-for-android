@@ -239,7 +239,7 @@ public class SerialInputOutputManager {
             }
             while (true) {
                 stepRead();
-                if (getState() != State.RUNNING) {
+                if ((getState() != State.RUNNING) && (getState() != State.STARTING)) {
                     Log.i(TAG, "Stopping mState=" + getState());
                     break;
                 }
@@ -276,7 +276,7 @@ public class SerialInputOutputManager {
             }
             while (true) {
                 stepWrite();
-                if (getState() != State.RUNNING) {
+                if ((getState() != State.RUNNING) && (getState() != State.STARTING)) {
                     Log.i(TAG, "Stopping mState=" + getState());
                     break;
                 }
