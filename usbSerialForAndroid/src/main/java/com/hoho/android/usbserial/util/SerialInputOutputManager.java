@@ -302,7 +302,7 @@ public class SerialInputOutputManager {
 
     private void stepRead() throws IOException {
         // Wait for the request to complete
-        UsbRequest completedRequest = mSerialPort.getConnection().requestWait();
+        final UsbRequest completedRequest = mSerialPort.getConnection().requestWait();
         if (completedRequest != null) {
             final ByteBuffer completedBuffer = (ByteBuffer) completedRequest.getClientData();
             completedBuffer.flip(); // Prepare for reading
@@ -325,9 +325,8 @@ public class SerialInputOutputManager {
     private void stepWrite() throws IOException {
         // Handle outgoing data.
         byte[] buffer = null;
-        int len;
         synchronized (mWriteBufferLock) {
-            len = mWriteBuffer.position();
+            int len = mWriteBuffer.position();
             if (len > 0) {
                 buffer = new byte[len];
                 mWriteBuffer.rewind();
@@ -337,7 +336,7 @@ public class SerialInputOutputManager {
         }
         if (buffer != null) {
             if (DEBUG) {
-                Log.d(TAG, "Writing data len=" + len);
+                Log.d(TAG, "Writing data len=" + buffer.length);
             }
             mSerialPort.write(buffer, mWriteTimeout);
         }
