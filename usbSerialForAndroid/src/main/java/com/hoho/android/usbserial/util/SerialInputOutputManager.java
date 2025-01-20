@@ -325,6 +325,9 @@ public class SerialInputOutputManager {
             if ((listener != null) && (data.length > 0)) {
                 listener.onNewData(data); // Handle data
             }
+            if (data.length == 0) {
+              mSerialPort.testConnection(true);
+            }
             completedBuffer.clear(); // Prepare for reuse
             // Requeue the buffer and handle potential failures
             if (!completedRequest.queue(completedBuffer, completedBuffer.capacity())) {
