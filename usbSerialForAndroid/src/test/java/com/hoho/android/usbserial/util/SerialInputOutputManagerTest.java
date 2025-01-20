@@ -12,14 +12,31 @@ import android.hardware.usb.UsbRequest;
 import android.os.Process;
 
 import com.hoho.android.usbserial.driver.CommonUsbSerialPort;
+import com.hoho.android.usbserial.driver.UsbSerialPort;
 
 import org.junit.Test;
-import org.mockito.Mock;
 
 public class SerialInputOutputManagerTest {
 
-    @Mock
-    private UsbRequest mRequest;
+    private static class TestSerialInputOutputManager extends SerialInputOutputManager {
+
+      private final UsbRequest mRequest;
+
+      public TestSerialInputOutputManager(UsbSerialPort serialPort, UsbRequest mRequest) {
+        super(serialPort);
+        this.mRequest = mRequest;
+      }
+
+      public TestSerialInputOutputManager(UsbSerialPort serialPort, Listener listener, UsbRequest mRequest) {
+        super(serialPort, listener);
+        this.mRequest = mRequest;
+      }
+
+      @Override
+      protected UsbRequest getUsbRequest() {
+        return mRequest;
+      }
+    }
 
     // catch all Throwables in onNewData() and onRunError()
     @Test
@@ -45,9 +62,8 @@ public class SerialInputOutputManagerTest {
         when(port.getConnection()).thenReturn(connection);
         when(connection.requestWait()).thenReturn(request);
         when(request.getClientData()).thenReturn(ByteBuffer.wrap(new byte[16]).put((byte) 0x00));
-        SerialInputOutputManager manager = new SerialInputOutputManager(port);
+        SerialInputOutputManager manager = new TestSerialInputOutputManager(port, request);
         manager.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);
-        manager.setRequestSupplier(() -> request);
 
         ExceptionListener exceptionListener = new ExceptionListener();
         manager.setListener(exceptionListener);

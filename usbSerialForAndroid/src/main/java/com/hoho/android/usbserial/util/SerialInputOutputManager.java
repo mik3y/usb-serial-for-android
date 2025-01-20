@@ -8,7 +8,6 @@ package com.hoho.android.usbserial.util;
 
 import android.annotation.SuppressLint;
 import android.hardware.usb.UsbRequest;
-import android.os.Build.VERSION;
 import android.os.Process;
 import android.util.Log;
 import androidx.annotation.VisibleForTesting;
@@ -19,7 +18,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
 /**
  * Utility class which services a {@link UsbSerialPort} in its {@link #runWrite()} ()} and {@link #runRead()} ()} ()} methods.
@@ -54,7 +52,6 @@ public class SerialInputOutputManager {
     private CountDownLatch mShutdownlatch = new CountDownLatch(2);
     private Listener mListener; // Synchronized by 'this'
     private final UsbSerialPort mSerialPort;
-    private Supplier<UsbRequest> mRequestSupplier = UsbRequest::new;
 
     public interface Listener {
         /**
@@ -140,10 +137,6 @@ public class SerialInputOutputManager {
         return mReadBufferSize;
     }
 
-    @VisibleForTesting
-    void setRequestSupplier(Supplier<UsbRequest> mRequestSupplier) {
-        this.mRequestSupplier = mRequestSupplier;
-    }
 
     public void setWriteBufferSize(int bufferSize) {
         if(getWriteBufferSize() == bufferSize)
@@ -246,6 +239,11 @@ public class SerialInputOutputManager {
         }
     }
 
+    @VisibleForTesting
+    protected UsbRequest getUsbRequest() {
+        return new UsbRequest();
+    }
+
     /**
      * Continuously services the read buffers until {@link #stop()} is called, or until a driver exception is
      * raised.
@@ -259,7 +257,7 @@ public class SerialInputOutputManager {
             // Initialize buffers and requests
             for (int i = 0; i < mReadBufferCount; i++) {
                 ByteBuffer buffer = ByteBuffer.allocate(mReadBufferSize);
-                UsbRequest request = (VERSION.SDK_INT == 0) ? mRequestSupplier.get() : new UsbRequest();
+                UsbRequest request = getUsbRequest();
                 request.setClientData(buffer);
                 request.initialize(mSerialPort.getConnection(), mSerialPort.getReadEndpoint());
                 request.queue(buffer, buffer.capacity());
