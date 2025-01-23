@@ -1434,7 +1434,7 @@ public class DeviceTest {
         } catch (IllegalStateException ignored) {
         }
         try {
-            usb.ioManager.run();
+            usb.ioManager.runRead();
             fail("already running error expected");
         } catch (IllegalStateException ignored) {
         }
@@ -1502,7 +1502,7 @@ public class DeviceTest {
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);
-        Executors.newSingleThreadExecutor().submit(usb.ioManager);
+        usb.ioManager.start();
         usb.waitForIoManagerStarted();
         try {
             usb.ioManager.start();

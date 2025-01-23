@@ -39,13 +39,13 @@ public class SerialInputOutputManagerTest {
 
         ExceptionListener exceptionListener = new ExceptionListener();
         manager.setListener(exceptionListener);
-        manager.run();
+        manager.runRead();
         assertEquals(RuntimeException.class, exceptionListener.e.getClass());
         assertEquals("exception1", exceptionListener.e.getMessage());
 
         ErrorListener errorListener = new ErrorListener();
         manager.setListener(errorListener);
-        manager.run();
+        manager.runRead();
         assertEquals(Exception.class, errorListener.e.getClass());
         assertEquals("java.lang.UnknownError: error1", errorListener.e.getMessage());
         assertEquals(UnknownError.class, errorListener.e.getCause().getClass());
