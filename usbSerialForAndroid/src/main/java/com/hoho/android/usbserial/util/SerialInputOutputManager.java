@@ -243,9 +243,11 @@ public class SerialInputOutputManager {
         } catch (Throwable e) {
             if (Thread.currentThread().isInterrupted()) {
                 Log.w(TAG, "Thread interrupted, stopping runRead.");
-            } else {
+            } else if(mSerialPort.isOpen()) {
                 Log.w(TAG, "runRead ending due to exception: " + e.getMessage(), e);
                 notifyErrorListener(e);
+            } else {
+                Log.i(TAG, "runRead: Socket closed");
             }
         } finally {
             if (!mState.compareAndSet(State.RUNNING, State.STOPPING)) {
@@ -273,9 +275,11 @@ public class SerialInputOutputManager {
         } catch (Throwable e) {
             if (Thread.currentThread().isInterrupted()) {
                 Log.w(TAG, "Thread interrupted, stopping runWrite.");
-            } else {
+            } else if(mSerialPort.isOpen()) {
                 Log.w(TAG, "runWrite ending due to exception: " + e.getMessage(), e);
                 notifyErrorListener(e);
+            } else {
+                Log.i(TAG, "runWrite: Socket closed");
             }
         } finally {
             if (!mState.compareAndSet(State.RUNNING, State.STOPPING)) {

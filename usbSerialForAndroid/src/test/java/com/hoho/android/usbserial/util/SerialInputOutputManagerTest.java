@@ -34,6 +34,7 @@ public class SerialInputOutputManagerTest {
         CommonUsbSerialPort port = mock(CommonUsbSerialPort.class);
         when(port.getReadEndpoint()).thenReturn(readEndpoint);
         when(port.read(new byte[16], 0)).thenReturn(1);
+        when(port.isOpen()).thenReturn(true);
         SerialInputOutputManager manager = new SerialInputOutputManager(port);
         manager.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);
 
