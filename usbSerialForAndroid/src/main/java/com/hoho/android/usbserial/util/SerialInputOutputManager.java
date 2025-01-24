@@ -95,21 +95,6 @@ public class SerialInputOutputManager {
     }
 
     /**
-     * read/write buffer size
-     */
-    public void setReadBufferSize(int bufferSize) {
-        if (getReadBufferSize() == bufferSize)
-            return;
-        synchronized (mReadBufferLock) {
-            mReadBuffer = ByteBuffer.allocate(bufferSize);
-        }
-    }
-
-    public int getReadBufferSize() {
-        return mReadBuffer.capacity();
-    }
-
-    /**
      * read/write timeout
      */
     public void setReadTimeout(int timeout) {
@@ -129,6 +114,21 @@ public class SerialInputOutputManager {
 
     public int getWriteTimeout() {
         return mWriteTimeout;
+    }
+
+    /**
+     * read/write buffer size
+     */
+    public void setReadBufferSize(int bufferSize) {
+        if (getReadBufferSize() == bufferSize)
+            return;
+        synchronized (mReadBufferLock) {
+            mReadBuffer = ByteBuffer.allocate(bufferSize);
+        }
+    }
+
+    public int getReadBufferSize() {
+        return mReadBuffer.capacity();
     }
 
     public void setWriteBufferSize(int bufferSize) {
