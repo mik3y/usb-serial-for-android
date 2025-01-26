@@ -231,7 +231,7 @@ public class SerialInputOutputManager {
      * Continuously services the read buffers until {@link #stop()} is called, or until a driver exception is
      * raised.
      */
-    public void runRead() {
+    private void runRead() {
         Log.i(TAG, "runRead running ...");
         try {
             setThreadPriority();
@@ -242,13 +242,13 @@ public class SerialInputOutputManager {
             Log.i(TAG, "runRead: Stopping mState=" + getState());
         } catch (Throwable e) {
             if (Thread.currentThread().isInterrupted()) {
-                Log.w(TAG, "Thread interrupted, stopping runRead.");
+                Log.w(TAG, "runRead: interrupted");
             } else if(mSerialPort.isOpen()) {
                 Log.w(TAG, "runRead ending due to exception: " + e.getMessage(), e);
-                notifyErrorListener(e);
             } else {
                 Log.i(TAG, "runRead: Socket closed");
             }
+            notifyErrorListener(e);
         } finally {
             if (!mState.compareAndSet(State.RUNNING, State.STOPPING)) {
                 if (mState.compareAndSet(State.STOPPING, State.STOPPED)) {
@@ -263,7 +263,7 @@ public class SerialInputOutputManager {
      * Continuously services the write buffers until {@link #stop()} is called, or until a driver exception is
      * raised.
      */
-    public void runWrite() {
+    private void runWrite() {
         Log.i(TAG, "runWrite running ...");
         try {
             setThreadPriority();
@@ -274,13 +274,13 @@ public class SerialInputOutputManager {
             Log.i(TAG, "runWrite: Stopping mState=" + getState());
         } catch (Throwable e) {
             if (Thread.currentThread().isInterrupted()) {
-                Log.w(TAG, "Thread interrupted, stopping runWrite.");
+                Log.w(TAG, "runWrite: interrupted");
             } else if(mSerialPort.isOpen()) {
                 Log.w(TAG, "runWrite ending due to exception: " + e.getMessage(), e);
-                notifyErrorListener(e);
             } else {
                 Log.i(TAG, "runWrite: Socket closed");
             }
+            notifyErrorListener(e);
         } finally {
             if (!mState.compareAndSet(State.RUNNING, State.STOPPING)) {
                 if (mState.compareAndSet(State.STOPPING, State.STOPPED)) {
