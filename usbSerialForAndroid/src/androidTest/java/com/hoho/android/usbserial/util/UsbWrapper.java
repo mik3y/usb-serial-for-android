@@ -256,12 +256,15 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         throw new IOException("IoManager not started");
     }
 
-    public boolean hasIoManagerThread() {
+    public boolean hasIoManagerThreads() {
+        int c = 0;
         for (Thread thread : Thread.getAllStackTraces().keySet()) {
-            if (thread.getName().equals(SerialInputOutputManager.class.getSimpleName()))
-                return true;
+            if (thread.getName().equals(SerialInputOutputManager.class.getSimpleName() + "_read"))
+                c += 1;
+            if (thread.getName().equals(SerialInputOutputManager.class.getSimpleName() + "_write"))
+                c += 1;
         }
-        return false;
+        return c == 2;
     }
 
     // wait full time
