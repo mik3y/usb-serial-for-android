@@ -153,14 +153,14 @@ public class SerialInputOutputManager {
         synchronized (mWriteBufferLock) {
             while (mWriteBuffer.remaining() < data.length) {
                 try {
-                    wait(); // Block until space is available in the buffer
+                    mWriteBufferLock.wait(); // Block until space is available in the buffer
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt(); // Restore the interrupt flag
                     return; // Exit gracefully
                 }
             }
             mWriteBuffer.put(data);
-            notifyAll(); // Notify waiting threads
+            mWriteBufferLock.notifyAll(); // Notify waiting threads
         }
     }
 
@@ -192,7 +192,7 @@ public class SerialInputOutputManager {
     public void stop() {
         if(mState.compareAndSet(State.RUNNING, State.STOPPING)) {
             synchronized (mWriteBufferLock) {
-                notifyAll(); // Wake up any waiting thread to check the stop condition
+                mWriteBufferLock.notifyAll(); // Wake up any waiting thread to check the stop condition
             }
             Log.i(TAG, "Stop requested");
         }
@@ -328,15 +328,15 @@ public class SerialInputOutputManager {
                 mWriteBuffer.rewind();
                 mWriteBuffer.get(buffer, 0, len);
                 mWriteBuffer.clear();
+                mWriteBufferLock.notifyAll(); // Notify writeAsync that there is space in the buffer
             } else {
-                wait();
+                mWriteBufferLock.wait();
             }
         }
         if (buffer != null) {
             if (DEBUG) {
                 Log.d(TAG, "Writing data len=" + buffer.length);
             }
-            notifyAll(); // Notify writeAsync that there is space in the buffer
             mSerialPort.write(buffer, mWriteTimeout);
         }
     }
