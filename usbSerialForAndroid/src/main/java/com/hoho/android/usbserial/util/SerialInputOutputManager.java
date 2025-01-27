@@ -47,7 +47,6 @@ public class SerialInputOutputManager {
     private int mThreadPriority = Process.THREAD_PRIORITY_URGENT_AUDIO;
     private final AtomicReference<State> mState = new AtomicReference<>(State.STOPPED);
     private CountDownLatch mStartuplatch = new CountDownLatch(2);
-    private CountDownLatch mShutdownlatch = new CountDownLatch(2);
     private Listener mListener; // Synchronized by 'this'
     private final UsbSerialPort mSerialPort;
 
@@ -171,7 +170,6 @@ public class SerialInputOutputManager {
     public void start() {
         if(mState.compareAndSet(State.STOPPED, State.STARTING)) {
             mStartuplatch = new CountDownLatch(2);
-            mShutdownlatch = new CountDownLatch(2);
             new Thread(this::runRead, this.getClass().getSimpleName() + "_read").start();
             new Thread(this::runWrite, this.getClass().getSimpleName() + "_write").start();
             try {
@@ -210,7 +208,6 @@ public class SerialInputOutputManager {
     private boolean isStillRunning() {
         State state = mState.get();
         return ((state == State.RUNNING) || (state == State.STARTING))
-            && (mShutdownlatch.getCount() == 2)
             && !Thread.currentThread().isInterrupted();
     }
 
@@ -267,7 +264,6 @@ public class SerialInputOutputManager {
                     Log.i(TAG, "runRead: Stopped mState=" + getState());
                 }
             }
-            mShutdownlatch.countDown();
         }
     }
 
@@ -299,7 +295,6 @@ public class SerialInputOutputManager {
                     Log.i(TAG, "runWrite: Stopped mState=" + getState());
                 }
             }
-            mShutdownlatch.countDown();
         }
     }
 
