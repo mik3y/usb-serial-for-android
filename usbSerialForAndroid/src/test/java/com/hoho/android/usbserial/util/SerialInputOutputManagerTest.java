@@ -34,18 +34,19 @@ public class SerialInputOutputManagerTest {
         CommonUsbSerialPort port = mock(CommonUsbSerialPort.class);
         when(port.getReadEndpoint()).thenReturn(readEndpoint);
         when(port.read(new byte[16], 0)).thenReturn(1);
+        when(port.isOpen()).thenReturn(true);
         SerialInputOutputManager manager = new SerialInputOutputManager(port);
         manager.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);
 
         ExceptionListener exceptionListener = new ExceptionListener();
         manager.setListener(exceptionListener);
-        manager.run();
+        manager.runRead();
         assertEquals(RuntimeException.class, exceptionListener.e.getClass());
         assertEquals("exception1", exceptionListener.e.getMessage());
 
         ErrorListener errorListener = new ErrorListener();
         manager.setListener(errorListener);
-        manager.run();
+        manager.runRead();
         assertEquals(Exception.class, errorListener.e.getClass());
         assertEquals("java.lang.UnknownError: error1", errorListener.e.getMessage());
         assertEquals(UnknownError.class, errorListener.e.getCause().getClass());
