@@ -146,19 +146,10 @@ public class SerialInputOutputManager {
     }
 
     /**
-     * when using writeAsync, it is recommended to use readTimeout != 0,
-     * else the write will be delayed until read data is available
+     * write data asynchronously
      */
     public void writeAsync(byte[] data) {
         synchronized (mWriteBufferLock) {
-            while (mWriteBuffer.remaining() < data.length) {
-                try {
-                    mWriteBufferLock.wait(); // Block until space is available in the buffer
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt(); // Restore the interrupt flag
-                    return; // Exit gracefully
-                }
-            }
             mWriteBuffer.put(data);
             mWriteBufferLock.notifyAll(); // Notify waiting threads
         }
