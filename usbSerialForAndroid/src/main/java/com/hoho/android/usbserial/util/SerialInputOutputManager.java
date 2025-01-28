@@ -6,7 +6,6 @@
 
 package com.hoho.android.usbserial.util;
 
-import android.annotation.SuppressLint;
 import android.hardware.usb.UsbRequest;
 import android.os.Process;
 import android.util.Log;
@@ -49,7 +48,6 @@ public class SerialInputOutputManager {
     private int mThreadPriority = Process.THREAD_PRIORITY_URGENT_AUDIO;
     private final AtomicReference<State> mState = new AtomicReference<>(State.STOPPED);
     private CountDownLatch mStartuplatch = new CountDownLatch(2);
-    private CountDownLatch mShutdownlatch = new CountDownLatch(2);
     private Listener mListener; // Synchronized by 'this'
     private final UsbSerialPort mSerialPort;
 
@@ -154,12 +152,12 @@ public class SerialInputOutputManager {
     }
 
     /**
-     * when using writeAsync, it is recommended to use readTimeout != 0,
-     * else the write will be delayed until read data is available
+     * write data asynchronously
      */
     public void writeAsync(byte[] data) {
         synchronized (mWriteBufferLock) {
             mWriteBuffer.put(data);
+            mWriteBufferLock.notifyAll(); // Notify waiting threads
         }
     }
 
@@ -169,7 +167,6 @@ public class SerialInputOutputManager {
     public void start() {
         if(mState.compareAndSet(State.STOPPED, State.STARTING)) {
             mStartuplatch = new CountDownLatch(2);
-            mShutdownlatch = new CountDownLatch(2);
             new Thread(this::runRead, this.getClass().getSimpleName() + "_read").start();
             new Thread(this::runWrite, this.getClass().getSimpleName() + "_write").start();
             try {
@@ -191,6 +188,9 @@ public class SerialInputOutputManager {
      */
     public void stop() {
         if(mState.compareAndSet(State.RUNNING, State.STOPPING)) {
+            synchronized (mWriteBufferLock) {
+                mWriteBufferLock.notifyAll(); // Wake up any waiting thread to check the stop condition
+            }
             Log.i(TAG, "Stop requested");
         }
     }
@@ -205,7 +205,6 @@ public class SerialInputOutputManager {
     private boolean isStillRunning() {
         State state = mState.get();
         return ((state == State.RUNNING) || (state == State.STARTING))
-            && (mShutdownlatch.getCount() == 2)
             && !Thread.currentThread().isInterrupted();
     }
 
@@ -243,7 +242,6 @@ public class SerialInputOutputManager {
      * Continuously services the read buffers until {@link #stop()} is called, or until a driver exception is
      * raised.
      */
-    @SuppressLint("ObsoleteSdkInt")
     public void runRead() {
         Log.i(TAG, "runRead running ...");
         try {
@@ -274,7 +272,6 @@ public class SerialInputOutputManager {
                     Log.i(TAG, "runRead: Stopped mState=" + getState());
                 }
             }
-            mShutdownlatch.countDown();
         }
     }
 
@@ -293,18 +290,19 @@ public class SerialInputOutputManager {
             Log.i(TAG, "runWrite: Stopping mState=" + getState());
         } catch (Throwable e) {
             if (Thread.currentThread().isInterrupted()) {
-                Log.w(TAG, "Thread interrupted, stopping runWrite.");
-            } else {
+                Log.w(TAG, "runWrite: interrupted");
+            } else if(mSerialPort.isOpen()) {
                 Log.w(TAG, "runWrite ending due to exception: " + e.getMessage(), e);
-                notifyErrorListener(e);
+            } else {
+                Log.i(TAG, "runWrite: Socket closed");
             }
+            notifyErrorListener(e);
         } finally {
             if (!mState.compareAndSet(State.RUNNING, State.STOPPING)) {
                 if (mState.compareAndSet(State.STOPPING, State.STOPPED)) {
                     Log.i(TAG, "runWrite: Stopped mState=" + getState());
                 }
             }
-            mShutdownlatch.countDown();
         }
     }
 
@@ -335,7 +333,7 @@ public class SerialInputOutputManager {
         }
     }
 
-    private void stepWrite() throws IOException {
+    private void stepWrite() throws IOException, InterruptedException {
         // Handle outgoing data.
         byte[] buffer = null;
         synchronized (mWriteBufferLock) {
@@ -345,6 +343,9 @@ public class SerialInputOutputManager {
                 mWriteBuffer.rewind();
                 mWriteBuffer.get(buffer, 0, len);
                 mWriteBuffer.clear();
+                mWriteBufferLock.notifyAll(); // Notify writeAsync that there is space in the buffer
+            } else {
+                mWriteBufferLock.wait();
             }
         }
         if (buffer != null) {

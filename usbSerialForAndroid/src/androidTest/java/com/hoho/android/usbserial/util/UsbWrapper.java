@@ -33,6 +33,8 @@ import java.util.concurrent.Callable;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import androidx.core.content.ContextCompat;
+
 public class UsbWrapper implements SerialInputOutputManager.Listener {
 
     public final static int     USB_READ_WAIT = 500;
@@ -92,7 +94,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
             intent.setPackage(context.getPackageName());
             PendingIntent permissionIntent = PendingIntent.getBroadcast(context, 0, intent, flags);
             IntentFilter filter = new IntentFilter("com.android.example.USB_PERMISSION");
-            context.registerReceiver(usbReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            ContextCompat.registerReceiver(context, usbReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
             usbManager.requestPermission(serialDriver.getDevice(), permissionIntent);
             for(int i=0; i<5000; i++) {
                 if(granted[0] != null) break;
@@ -256,12 +258,15 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         throw new IOException("IoManager not started");
     }
 
-    public boolean hasIoManagerThread() {
+    public boolean hasIoManagerThreads() {
+        int c = 0;
         for (Thread thread : Thread.getAllStackTraces().keySet()) {
-            if (thread.getName().equals(SerialInputOutputManager.class.getSimpleName()))
-                return true;
+            if (thread.getName().equals(SerialInputOutputManager.class.getSimpleName() + "_read"))
+                c += 1;
+            if (thread.getName().equals(SerialInputOutputManager.class.getSimpleName() + "_write"))
+                c += 1;
         }
-        return false;
+        return c == 2;
     }
 
     // wait full time
