@@ -31,13 +31,13 @@ android {
 }
 
 dependencies {
-    implementation "androidx.annotation:annotation:1.8.0"
+    implementation "androidx.annotation:annotation:1.9.1"
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.mockito:mockito-core:5.12.0'
-    androidTestImplementation 'androidx.appcompat:appcompat:1.6.1'
-    androidTestImplementation 'androidx.test:core:1.5.0'
-    androidTestImplementation 'androidx.test:runner:1.5.2'
-    androidTestImplementation 'commons-net:commons-net:3.9.0' // later version fails on old Android devices with missing java.time.Duration class
+    testImplementation 'org.mockito:mockito-core:5.15.2'
+    androidTestImplementation 'androidx.appcompat:appcompat:1.6.1' // later versions have minsdk 21
+    androidTestImplementation 'androidx.test:core:1.5.0' // later versions have minsdk 19
+    androidTestImplementation 'androidx.test:runner:1.5.2' // later versions have minsdk 19
+    androidTestImplementation 'commons-net:commons-net:3.9.0' // later versions fail on old Android devices with missing java.time.Duration class
     androidTestImplementation 'org.apache.commons:commons-lang3:3.14.0'
 }
 
