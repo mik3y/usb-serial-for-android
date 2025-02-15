@@ -183,7 +183,7 @@ public class SerialInputOutputManager {
     public void stop() {
         if(mState.compareAndSet(State.RUNNING, State.STOPPING)) {
             synchronized (mWriteBufferLock) {
-                mWriteBufferLock.notifyAll(); // Wake up any waiting thread to check the stop condition
+                mWriteBufferLock.notifyAll(); // wake up write thread to check the stop condition
             }
             Log.i(TAG, "Stop requested");
         }
@@ -250,10 +250,12 @@ public class SerialInputOutputManager {
             }
             notifyErrorListener(e);
         } finally {
-            if (!mState.compareAndSet(State.RUNNING, State.STOPPING)) {
-                if (mState.compareAndSet(State.STOPPING, State.STOPPED)) {
-                    Log.i(TAG, "runRead: Stopped mState=" + getState());
+            if (mState.compareAndSet(State.RUNNING, State.STOPPING)) {
+                synchronized (mWriteBufferLock) {
+                    mWriteBufferLock.notifyAll(); // wake up write thread to check the stop condition
                 }
+            } else if (mState.compareAndSet(State.STOPPING, State.STOPPED)) {
+                Log.i(TAG, "runRead: Stopped mState=" + getState());
             }
         }
     }

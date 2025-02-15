@@ -1485,6 +1485,17 @@ public class DeviceTest {
         assertFalse("iomanager threads", usb.hasIoManagerThreads());
         assertNull(usb.ioManager);
         assertEquals(SerialInputOutputManager.State.STOPPED, ioManager.getState());
+
+        usb.open();
+        ioManager = usb.ioManager;
+        assertEquals(SerialInputOutputManager.State.RUNNING, usb.ioManager.getState());
+        usb.serialPort.close(); // stop before ioManager
+        for (int i = 0; i < 100 && usb.hasIoManagerThreads(); i++) {
+            Thread.sleep(1);
+        }
+        assertFalse("iomanager threads", usb.hasIoManagerThreads());
+        assertEquals(SerialInputOutputManager.State.STOPPED, usb.ioManager.getState());
+
         SerialInputOutputManager.DEBUG = false;
     }
 
