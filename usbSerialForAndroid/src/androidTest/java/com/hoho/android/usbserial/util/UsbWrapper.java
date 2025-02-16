@@ -41,7 +41,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
     public final static int     USB_WRITE_WAIT = 500;
     private static final String TAG = UsbWrapper.class.getSimpleName();
 
-    public enum OpenCloseFlags { NO_IOMANAGER_THREAD, NO_IOMANAGER_START, NO_CONTROL_LINE_INIT, NO_DEVICE_CONNECTION };
+    public enum OpenCloseFlags { NO_IOMANAGER_THREAD, NO_IOMANAGER_READQUEUE, NO_IOMANAGER_START, NO_CONTROL_LINE_INIT, NO_DEVICE_CONNECTION };
 
     // constructor
     final Context context;
@@ -198,7 +198,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
                 serialPort.close();
             } catch (Exception ignored) {
             }
-            //usbSerialPort = null;
+            ((CommonUsbSerialPort)serialPort).setReadQueue(0, 0);
         }
         if(!flags.contains(OpenCloseFlags.NO_DEVICE_CONNECTION)) {
             deviceConnection = null; // closed in usbSerialPort.close()
@@ -233,6 +233,8 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         }
         if(!flags.contains(OpenCloseFlags.NO_IOMANAGER_THREAD)) {
             ioManager = new SerialInputOutputManager(serialPort, this);
+            if(flags.contains(OpenCloseFlags.NO_IOMANAGER_READQUEUE))
+                ioManager.setReadQueue(0);
             if(!flags.contains(OpenCloseFlags.NO_IOMANAGER_START))
                 ioManager.start();
         }

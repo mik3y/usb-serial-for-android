@@ -14,6 +14,7 @@ import android.content.Context;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.hardware.usb.UsbRequest;
 import android.os.Process;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -43,7 +44,6 @@ import com.hoho.android.usbserial.driver.UsbSerialPort.ControlLine;
 import com.hoho.android.usbserial.driver.UsbSerialPort.FlowControl;
 import com.hoho.android.usbserial.util.XonXoffFilter;
 
-
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assume;
@@ -60,11 +60,13 @@ import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -1148,7 +1150,7 @@ public class DeviceTest {
     public void readBufferOverflow() throws Exception {
         if(usb.serialDriver instanceof CdcAcmSerialDriver)
             telnet.writeDelay = 10; // arduino_leonardo_bridge.ino sends each byte in own USB packet, which is horribly slow
-        usb.open();
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_READQUEUE));
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
 
@@ -1199,6 +1201,64 @@ public class DeviceTest {
     }
 
     @Test
+    public void readQueue() throws Exception {
+        class CountingUsbRequest extends UsbRequest {
+            int count;
+            @Override public Object getClientData() { count += 1; return super.getClientData(); }
+        }
+
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
+        int len = usb.serialPort.getReadEndpoint().getMaxPacketSize();
+        usb.close();
+        CommonUsbSerialPortWrapper.setReadQueueRequestSupplier(usb.serialPort, CountingUsbRequest::new);
+        CommonUsbSerialPort port = (CommonUsbSerialPort) usb.serialPort;
+
+        port.setReadQueue(2, len);
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
+        usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        assertEquals(2, port.getReadQueueBufferCount());
+        assertEquals(4, usb.ioManager.getReadQueueBufferCount()); // not set at port yet
+        assertThrows(IllegalStateException.class, () -> usb.ioManager.setReadQueue(1)); // cannot reduce bufferCount
+        usb.ioManager.setReadQueue(2);
+        usb.ioManager.start();
+        port.setReadQueue(4, len);
+
+        // linux kernel does round-robin
+        LinkedList<UsbRequest> requests = CommonUsbSerialPortWrapper.getReadQueueRequests(usb.serialPort);
+        assertNotNull(requests);
+        for (int i=0; i<16; i++) {
+            telnet.write(new byte[1]);
+            usb.read(1);
+        }
+        List<Integer> requestCounts;
+        if(usb.serialDriver instanceof FtdiSerialDriver) {
+            for (UsbRequest request : requests) {
+                int count = ((CountingUsbRequest)request).count;
+                assertTrue(String.valueOf(count), count >= 4);
+            }
+        } else {
+            requestCounts = requests.stream().map(r -> ((CountingUsbRequest)r).count).collect(Collectors.toList());
+            assertThat(requestCounts, equalTo(Arrays.asList(4, 4, 4, 4)));
+        }
+        usb.ioManager.setReadQueue(6);
+        for (int i=0; i<18; i++) {
+            telnet.write(new byte[1]);
+            usb.read(1);
+        }
+        requestCounts = requests.stream().map(r -> ((CountingUsbRequest)r).count).collect(Collectors.toList());
+        if(!(usb.serialDriver instanceof FtdiSerialDriver)) {
+            assertThat(requestCounts, equalTo(Arrays.asList(7, 7, 7, 7, 3, 3)));
+        }
+        usb.close();
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
+        port.setReadQueue(8, len);
+        assertThrows(IllegalStateException.class, () -> usb.serialPort.read(new byte[len], 1) ); // cannot use timeout != 0
+        assertThrows(IllegalStateException.class, () -> usb.serialPort.read(new byte[4], 0) ); // cannot use different length
+        assertThrows(IllegalStateException.class, () -> usb.ioManager.start()); // cannot reduce bufferCount
+    }
+
+    @Test
     public void readSpeed() throws Exception {
         // see logcat for performance results
         //
@@ -1223,7 +1283,7 @@ public class DeviceTest {
         if(usb.serialDriver instanceof CdcAcmSerialDriver)
             writeAhead = 50;
 
-        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_READQUEUE));
         usb.ioManager.setReadTimeout(readTimeout);
         if(readBufferSize > 0)
             usb.ioManager.setReadBufferSize(readBufferSize);
@@ -1421,7 +1481,7 @@ public class DeviceTest {
         usb.ioManager.setWriteTimeout(usb.ioManager.getWriteTimeout());
         usb.close();
 
-        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START)); // creates new IoManager
+        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_READQUEUE)); // creates new IoManager
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.ioManager.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);

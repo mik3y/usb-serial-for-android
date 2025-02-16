@@ -9,6 +9,7 @@ package com.hoho.android.usbserial.util;
 import android.os.Process;
 import android.util.Log;
 
+import com.hoho.android.usbserial.driver.CommonUsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 
 import java.io.IOException;
@@ -33,16 +34,18 @@ public class SerialInputOutputManager {
     public static boolean DEBUG = false;
 
     private static final String TAG = SerialInputOutputManager.class.getSimpleName();
-    private static final int BUFSIZ = 4096;
+    private static final int WRITE_BUFFER_SIZE = 4096;
+    private static final int READ_QUEUE_BUFFER_COUNT = 4;
 
     private int mReadTimeout = 0;
     private int mWriteTimeout = 0;
+    private int mReadQueueBufferCount; // = READ_QUEUE_BUFFER_COUNT
 
     private final Object mReadBufferLock = new Object();
     private final Object mWriteBufferLock = new Object();
 
     private ByteBuffer mReadBuffer; // default size = getReadEndpoint().getMaxPacketSize()
-    private ByteBuffer mWriteBuffer = ByteBuffer.allocate(BUFSIZ);
+    private ByteBuffer mWriteBuffer = ByteBuffer.allocate(WRITE_BUFFER_SIZE);
 
     private int mThreadPriority = Process.THREAD_PRIORITY_URGENT_AUDIO;
     private final AtomicReference<State> mState = new AtomicReference<>(State.STOPPED);
@@ -65,12 +68,13 @@ public class SerialInputOutputManager {
     public SerialInputOutputManager(UsbSerialPort serialPort) {
         mSerialPort = serialPort;
         mReadBuffer = ByteBuffer.allocate(serialPort.getReadEndpoint().getMaxPacketSize());
+        mReadQueueBufferCount = serialPort instanceof CommonUsbSerialPort ? READ_QUEUE_BUFFER_COUNT : 0;
+        //readQueueBufferSize fixed to getMaxPacketSize()
     }
 
     public SerialInputOutputManager(UsbSerialPort serialPort, Listener listener) {
-        mSerialPort = serialPort;
+        this(serialPort);
         mListener = listener;
-        mReadBuffer = ByteBuffer.allocate(serialPort.getReadEndpoint().getMaxPacketSize());
     }
 
     public synchronized void setListener(Listener listener) {
@@ -146,6 +150,22 @@ public class SerialInputOutputManager {
     }
 
     /**
+     * Set read queue. Set buffer size before.
+     * @param bufferCount number of buffers to use for readQueue
+     *                    disable with value 0,
+     *                    default enabled as value 4 (READ_QUEUE_BUFFER_COUNT)
+     */
+    public void setReadQueue(int bufferCount) {
+        if (!(mSerialPort instanceof CommonUsbSerialPort)) {
+            throw new IllegalArgumentException("only for CommonUsbSerialPort based drivers");
+        }
+        mReadQueueBufferCount = bufferCount;
+        ((CommonUsbSerialPort) mSerialPort).setReadQueue(getReadQueueBufferCount(), getReadBufferSize());
+    }
+
+    public int getReadQueueBufferCount() { return mReadQueueBufferCount; }
+
+    /**
      * write data asynchronously
      */
     public void writeAsync(byte[] data) {
@@ -159,6 +179,9 @@ public class SerialInputOutputManager {
      * start SerialInputOutputManager in separate threads
      */
     public void start() {
+        if(mSerialPort instanceof CommonUsbSerialPort) {
+            ((CommonUsbSerialPort) mSerialPort).setReadQueue(mReadQueueBufferCount, getReadBufferSize());
+        }
         if(mState.compareAndSet(State.STOPPED, State.STARTING)) {
             mStartuplatch = new CountDownLatch(2);
             new Thread(this::runRead, this.getClass().getSimpleName() + "_read").start();

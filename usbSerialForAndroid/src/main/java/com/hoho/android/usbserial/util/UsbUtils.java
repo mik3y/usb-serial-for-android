@@ -6,6 +6,11 @@ import java.util.ArrayList;
 
 public class UsbUtils {
 
+    // copied from java.util.function.Supplier which is not available < API 24
+    public interface Supplier<T> {
+        T get();
+    }
+
     private UsbUtils() {
     }
 
@@ -28,6 +33,5 @@ public class UsbUtils {
         }
         return descriptors;
     }
-
 
 }
