@@ -12,6 +12,7 @@ import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbRequest;
 import android.os.Build;
 import android.util.Log;
+import androidx.annotation.NonNull;
 
 import com.hoho.android.usbserial.util.MonotonicClock;
 import com.hoho.android.usbserial.util.UsbUtils;
@@ -62,6 +63,7 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         mPortNumber = portNumber;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return String.format("<%s device_name=%s device_id=%s port_number=%s>",
@@ -205,8 +207,10 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
             for(UsbRequest readQueueRequest : mReadQueueRequests) {
                 try {
                     readQueueRequest.cancel();
+                    readQueueRequest.close();
                 } catch(Exception ignored) {}
             }
+            mReadQueueRequests.clear();
             mReadQueueRequests = null;
         }
         try {
