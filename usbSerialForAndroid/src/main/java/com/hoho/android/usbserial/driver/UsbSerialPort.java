@@ -105,6 +105,23 @@ public interface UsbSerialPort extends Closeable {
     String getSerial();
 
     /**
+     * Applications doing permanent {@link #read} with timeout=0 can reduce data loss likelihood
+     * at high baud rate and continuous data transfer by using multiple buffers to copy next data
+     * from Linux kernel, while the current data is processed.
+     * When enabled, {@link #read} can not be called with timeout!=0 or different buffer size.
+     *
+     * @param bufferCount number of buffers to use for readQueue.
+     *                    Use 0 to disable.
+     * @param bufferSize size of each buffer.
+     *                   Use 0 for optimal size (= getReadEndpoint().getMaxPacketSize()).
+     * @throws IllegalStateException if port is open and buffer count should be lowered or
+     *                               buffer size should be changed.
+     */
+    void setReadQueue(int bufferCount, int bufferSize);
+    int getReadQueueBufferCount();
+    int getReadQueueBufferSize();
+
+    /**
      * Opens and initializes the port. Upon success, caller must ensure that
      * {@link #close()} is eventually called.
      *

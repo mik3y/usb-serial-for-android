@@ -71,9 +71,8 @@ public class CommonUsbSerialPortTest {
 
         // set before open
         port.setReadQueue(0, 0);
-        port.setReadQueue(0, -1);
         assertThrows(IllegalArgumentException.class, () -> port.setReadQueue(-1, 1));
-        assertThrows(IllegalArgumentException.class, () -> port.setReadQueue(1, 0));
+        assertThrows(IllegalArgumentException.class, () -> port.setReadQueue(1, -1));
         port.setReadQueue(2, 256);
         assertNull(port.mReadQueueRequests);
 

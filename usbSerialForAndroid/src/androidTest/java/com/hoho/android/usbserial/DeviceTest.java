@@ -1207,52 +1207,54 @@ public class DeviceTest {
             @Override public Object getClientData() { count += 1; return super.getClientData(); }
         }
 
-        usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
-        int len = usb.serialPort.getReadEndpoint().getMaxPacketSize();
-        usb.close();
         CommonUsbSerialPortWrapper.setReadQueueRequestSupplier(usb.serialPort, CountingUsbRequest::new);
-        CommonUsbSerialPort port = (CommonUsbSerialPort) usb.serialPort;
-
-        port.setReadQueue(2, len);
+        usb.serialPort.setReadQueue(2, 0);
+        assertEquals(0, usb.serialPort.getReadQueueBufferSize());
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
-        usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
-        telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
-        assertEquals(2, port.getReadQueueBufferCount());
+        int len = usb.serialPort.getReadEndpoint().getMaxPacketSize();
+        assertEquals(len, usb.serialPort.getReadQueueBufferSize());
+        assertEquals(2, usb.serialPort.getReadQueueBufferCount());
         assertEquals(4, usb.ioManager.getReadQueueBufferCount()); // not set at port yet
         assertThrows(IllegalStateException.class, () -> usb.ioManager.setReadQueue(1)); // cannot reduce bufferCount
         usb.ioManager.setReadQueue(2);
         usb.ioManager.start();
-        port.setReadQueue(4, len);
+        usb.serialPort.setReadQueue(3, 0);
+        usb.serialPort.setReadQueue(3, len);
+        usb.ioManager.setReadQueue(4);
 
+        usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
         // linux kernel does round-robin
         LinkedList<UsbRequest> requests = CommonUsbSerialPortWrapper.getReadQueueRequests(usb.serialPort);
         assertNotNull(requests);
-        for (int i=0; i<16; i++) {
+        for (int i=0; i<4*4; i++) {
             telnet.write(new byte[1]);
             usb.read(1);
         }
-        List<Integer> requestCounts;
-        if(usb.serialDriver instanceof FtdiSerialDriver) {
-            for (UsbRequest request : requests) {
-                int count = ((CountingUsbRequest)request).count;
+        for (UsbRequest request : requests) {
+            int count = ((CountingUsbRequest)request).count;
+            if(usb.serialDriver instanceof FtdiSerialDriver) {
                 assertTrue(String.valueOf(count), count >= 4);
+            } else {
+                assertEquals(String.valueOf(count), 4, count);
             }
-        } else {
-            requestCounts = requests.stream().map(r -> ((CountingUsbRequest)r).count).collect(Collectors.toList());
-            assertThat(requestCounts, equalTo(Arrays.asList(4, 4, 4, 4)));
         }
         usb.ioManager.setReadQueue(6);
-        for (int i=0; i<18; i++) {
+        for (int i=0; i<3*6; i++) {
             telnet.write(new byte[1]);
             usb.read(1);
         }
-        requestCounts = requests.stream().map(r -> ((CountingUsbRequest)r).count).collect(Collectors.toList());
-        if(!(usb.serialDriver instanceof FtdiSerialDriver)) {
-            assertThat(requestCounts, equalTo(Arrays.asList(7, 7, 7, 7, 3, 3)));
+        for (UsbRequest request : requests) {
+            int count = ((CountingUsbRequest)request).count;
+            if(usb.serialDriver instanceof FtdiSerialDriver) {
+                assertTrue(String.valueOf(count), count >= 3);
+            } else {
+                assertTrue(String.valueOf(count), count == 7 || count == 3);
+            }
         }
         usb.close();
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
-        port.setReadQueue(8, len);
+        usb.serialPort.setReadQueue(8, len);
         assertThrows(IllegalStateException.class, () -> usb.serialPort.read(new byte[len], 1) ); // cannot use timeout != 0
         assertThrows(IllegalStateException.class, () -> usb.serialPort.read(new byte[4], 0) ); // cannot use different length
         assertThrows(IllegalStateException.class, () -> usb.ioManager.start()); // cannot reduce bufferCount

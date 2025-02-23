@@ -39,7 +39,8 @@ public class SerialInputOutputManager {
 
     private int mReadTimeout = 0;
     private int mWriteTimeout = 0;
-    private int mReadQueueBufferCount; // = READ_QUEUE_BUFFER_COUNT
+    private int mReadQueueBufferCount = READ_QUEUE_BUFFER_COUNT;
+    //       no mReadQueueBufferSize, using mReadBuffer.size instead
 
     private final Object mReadBufferLock = new Object();
     private final Object mWriteBufferLock = new Object();
@@ -68,8 +69,6 @@ public class SerialInputOutputManager {
     public SerialInputOutputManager(UsbSerialPort serialPort) {
         mSerialPort = serialPort;
         mReadBuffer = ByteBuffer.allocate(serialPort.getReadEndpoint().getMaxPacketSize());
-        mReadQueueBufferCount = serialPort instanceof CommonUsbSerialPort ? READ_QUEUE_BUFFER_COUNT : 0;
-        //readQueueBufferSize fixed to getMaxPacketSize()
     }
 
     public SerialInputOutputManager(UsbSerialPort serialPort, Listener listener) {
@@ -150,17 +149,16 @@ public class SerialInputOutputManager {
     }
 
     /**
-     * Set read queue. Set buffer size before.
-     * @param bufferCount number of buffers to use for readQueue
+     * Set read queue, similar to {@link UsbSerialPort#setReadQueue}
+     * except buffer size to be set before with {@link #setReadBufferSize}.
+     *
+     * @param bufferCount number of buffers to use for readQueue,
      *                    disable with value 0,
      *                    default enabled as value 4 (READ_QUEUE_BUFFER_COUNT)
      */
     public void setReadQueue(int bufferCount) {
-        if (!(mSerialPort instanceof CommonUsbSerialPort)) {
-            throw new IllegalArgumentException("only for CommonUsbSerialPort based drivers");
-        }
-        mReadQueueBufferCount = bufferCount;
-        ((CommonUsbSerialPort) mSerialPort).setReadQueue(getReadQueueBufferCount(), getReadBufferSize());
+        mSerialPort.setReadQueue(bufferCount, getReadBufferSize());
+        mReadQueueBufferCount = bufferCount; // only store if set ok
     }
 
     public int getReadQueueBufferCount() { return mReadQueueBufferCount; }
@@ -179,9 +177,7 @@ public class SerialInputOutputManager {
      * start SerialInputOutputManager in separate threads
      */
     public void start() {
-        if(mSerialPort instanceof CommonUsbSerialPort) {
-            ((CommonUsbSerialPort) mSerialPort).setReadQueue(mReadQueueBufferCount, getReadBufferSize());
-        }
+        mSerialPort.setReadQueue(mReadQueueBufferCount, getReadBufferSize());
         if(mState.compareAndSet(State.STOPPED, State.STARTING)) {
             mStartuplatch = new CountDownLatch(2);
             new Thread(this::runRead, this.getClass().getSimpleName() + "_read").start();

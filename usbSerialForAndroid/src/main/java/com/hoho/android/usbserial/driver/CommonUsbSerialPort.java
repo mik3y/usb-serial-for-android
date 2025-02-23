@@ -117,23 +117,23 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         }
     }
 
-    /**
-     * for applications doing permanent read() with timeout=0, multiple buffers can be
-     * used to copy next data from Linux kernel, while the current data is processed.
-     * @param bufferCount number of buffers to use for readQueue
-     *                    disabled with 0
-     * @param bufferSize size of each buffer
-     */
+    @Override
     public void setReadQueue(int bufferCount, int bufferSize) {
         if (bufferCount < 0) {
             throw new IllegalArgumentException("Invalid bufferCount");
         }
-        if (bufferCount > 0 && bufferSize <= 0) {
+        if (bufferSize < 0) {
             throw new IllegalArgumentException("Invalid bufferSize");
         }
         if(isOpen()) {
             if (bufferCount < mReadQueueBufferCount) {
                 throw new IllegalStateException("Cannot reduce bufferCount when port is open");
+            }
+            if (bufferSize == 0) {
+                bufferSize = mReadEndpoint.getMaxPacketSize();
+            }
+            if (mReadQueueBufferSize == 0) {
+                mReadQueueBufferSize = mReadEndpoint.getMaxPacketSize();
             }
             if (mReadQueueBufferCount != 0 && bufferSize != mReadQueueBufferSize) {
                 throw new IllegalStateException("Cannot change bufferSize when port is open");
@@ -156,7 +156,9 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
         mReadQueueBufferSize = bufferSize;
     }
 
+    @Override
     public int getReadQueueBufferCount() { return mReadQueueBufferCount; }
+    @Override
     public int getReadQueueBufferSize() { return mReadQueueBufferSize; }
 
     private boolean useReadQueue() { return mReadQueueBufferCount != 0; }
