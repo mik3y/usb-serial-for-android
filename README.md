@@ -45,7 +45,7 @@ If using gradle kotlin  use line
 Add library to dependencies
 ```gradle
 dependencies {
-    implementation 'com.github.mik3y:usb-serial-for-android:3.8.1'
+    implementation 'com.github.mik3y:usb-serial-for-android:3.9.0'
 }
 ```
 
@@ -145,8 +145,8 @@ UsbSerialProber prober = new UsbSerialProber(customTable);
 List<UsbSerialDriver> drivers = prober.findAllDrivers(usbManager);
 // ...
 ```
-*Note*: as of v3.5.0 this library detects CDC devices by USB interface types instead of fixed VID+PID,
-so custom probers are typically not required any more for CDC devices.
+*Note*: as of v3.5.0 this library detects CDC/ACM devices by USB interface types instead of fixed VID+PID,
+so custom probers are typically not required any more for CDC/ACM devices.
 
 Of course, nothing requires you to use UsbSerialProber at all: you can
 instantiate driver classes directly if you know what you're doing; just supply
@@ -154,21 +154,22 @@ a compatible UsbDevice.
 
 ## Compatible Devices
 
-This library supports USB to serial converter chips:
+This library supports USB to serial converter chips with specific drivers
 * FTDI FT232R, FT232H, FT2232H, FT4232H, FT230X, FT231X, FT234XD
 * Prolific PL2303
 * Silabs CP2102, CP210*
-* Qinheng CH340, CH341A, CH9102
+* Qinheng CH340, CH341A
 
-devices implementing the CDC/ACM protocol like
-* Arduino using ATmega32U4
-* Digispark using V-USB software USB
-* BBC micro:bit using ARM mbed DAPLink firmware
-* ...
-
-and some device specific drivers:
+some other device specific drivers
 * GsmModem devices, e.g. for Unisoc based Fibocom GSM modems
 * Chrome OS CCD (Closed Case Debugging)
+
+and devices implementing the generic CDC/ACM protocol like
+* Qinheng CH9102
+* Microchip MCP2221
+* Arduino using ATmega32U4
+* Digispark using V-USB software USB
+* ...
 
 ## Help & Discussion
 
