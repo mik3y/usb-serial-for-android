@@ -214,7 +214,7 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             status("connection failed: no driver for device");
             return;
         }
-        if(driver.getPorts().size() < portNum) {
+        if(portNum >= driver.getPorts().size()) {
             status("connection failed: not enough ports at device");
             return;
         }
