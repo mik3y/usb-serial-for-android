@@ -321,4 +321,13 @@ public interface UsbSerialPort extends Closeable {
      */
     boolean isOpen();
 
+    /**
+     * Returns the underlying {@link UsbDeviceConnection}.
+     */
+    UsbDeviceConnection getConnection();
+
+    /**
+     * use simple USB request supported by all devices to test if connection is still valid
+     */
+    void testConnection(boolean full)  throws IOException;
 }

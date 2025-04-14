@@ -163,7 +163,8 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     /**
      * use simple USB request supported by all devices to test if connection is still valid
      */
-    protected void testConnection(boolean full) throws IOException {
+    @Override
+    public void testConnection(boolean full) throws IOException {
         testConnection(full, "USB get_status request failed");
     }
 
@@ -353,5 +354,10 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
 
     @Override
     public void setBreak(boolean value) throws IOException { throw new UnsupportedOperationException(); }
+
+    @Override
+    public UsbDeviceConnection getConnection() {
+        return mConnection;
+    }
 
 }
