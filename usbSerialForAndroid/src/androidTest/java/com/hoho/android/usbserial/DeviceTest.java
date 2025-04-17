@@ -645,7 +645,13 @@ public class DeviceTest {
             Thread.sleep(10);
             usb.write(new byte[]{(byte) 0xff});
             data = telnet.read(2);
-            assertThat("19000/7N1", data, equalTo(new byte[]{(byte) 0x80, (byte) 0xff}));
+            if(usb.serialDriver instanceof CdcAcmSerialDriver) {
+                // not supported by MCP2221, other CDC devices might support it
+                assertThat("19000/7N1", data, equalTo(new byte[]{(byte) 0x00, (byte) 0xff}));
+                return;
+            } else {
+                assertThat("19000/7N1", data, equalTo(new byte[]{(byte) 0x80, (byte) 0xff}));
+            }
         } catch (UnsupportedOperationException e) {
                 if(!usb.isCp21xxRestrictedPort)
                     throw e;
@@ -718,18 +724,17 @@ public class DeviceTest {
         usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_ODD);
         usb.write(_8n1);
         data = telnet.read(4);
-        assertThat("19200/7O1", data, equalTo(_7o1));
-
-        usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_EVEN);
-        usb.write(_8n1);
-        data = telnet.read(4);
-        assertThat("19200/7E1", data, equalTo(_7e1));
-
         if (usb.serialDriver instanceof CdcAcmSerialDriver) {
-            // not supported by arduino_leonardo_bridge.ino, other devices might support it
-            usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
-            usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_SPACE);
+            // not supported by MCP2221, other CDC devices might support it
+            assertThat("19200/8N1", data, equalTo(_8n1));
         } else {
+            assertThat("19200/7O1", data, equalTo(_7o1));
+
+            usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_EVEN);
+            usb.write(_8n1);
+            data = telnet.read(4);
+            assertThat("19200/7E1", data, equalTo(_7e1));
+
             usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
             usb.write(_8n1);
             data = telnet.read(4);
@@ -758,19 +763,19 @@ public class DeviceTest {
         data = usb.read(4);
         assertThat("19200/7E1", data, equalTo(_7e1));
 
+        telnet.setParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
+        telnet.write(_8n1);
+        data = usb.read(4);
+        assertThat("19200/7M1", data, equalTo(_7m1));
+
+        telnet.setParameters(19200, 7, 1, UsbSerialPort.PARITY_SPACE);
+        telnet.write(_8n1);
+        data = usb.read(4);
+        assertThat("19200/7S1", data, equalTo(_7s1));
+
         if (usb.serialDriver instanceof CdcAcmSerialDriver) {
-            // not supported by arduino_leonardo_bridge.ino, other devices might support it
+            ; // not supported by MCP2221, other CDC devices might support it
         } else {
-            telnet.setParameters(19200, 7, 1, UsbSerialPort.PARITY_MARK);
-            telnet.write(_8n1);
-            data = usb.read(4);
-            assertThat("19200/7M1", data, equalTo(_7m1));
-
-            telnet.setParameters(19200, 7, 1, UsbSerialPort.PARITY_SPACE);
-            telnet.write(_8n1);
-            data = usb.read(4);
-            assertThat("19200/7S1", data, equalTo(_7s1));
-
             usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_ODD);
             telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
             telnet.write(_8n1);
@@ -792,45 +797,44 @@ public class DeviceTest {
             }
         }
 
-        if (usb.serialDriver instanceof CdcAcmSerialDriver) {
-            usb.setParameters(19200, 8, UsbSerialPort.STOPBITS_1_5, UsbSerialPort.PARITY_NONE);
-            // software based bridge in arduino_leonardo_bridge.ino is to slow for real test, other devices might support it
-        } else {
-            // shift stopbits into next byte, by using different databits
-            // a - start bit (0)
-            // o - stop bit  (1)
-            // d - data bit
+        // shift stopbits into next byte, by using different databits
+        // a - start bit (0)
+        // o - stop bit  (1)
+        // d - data bit
 
-            // out 8N2:   addddddd doaddddddddo
-            //             1000001 0  10001111
-            // in 6N1:    addddddo addddddo
-            //             100000   101000
-            usb.setParameters(19200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
-            telnet.setParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
-            usb.write(new byte[]{(byte)0x41, (byte)0xf1});
-            data = telnet.read(2);
+        // out 8N2:   addddddd doaddddddddo
+        //             1000001 0  10001111
+        // in 6N1:    addddddo addddddo
+        //             100000   101000
+        usb.setParameters(19200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+        telnet.setParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
+        usb.write(new byte[]{(byte)0x41, (byte)0xf1});
+        data = telnet.read(2);
+        if (usb.serialDriver instanceof CdcAcmSerialDriver) {
+            // MCP2221 slightly slower, looks like 2 stop bits. could be different for other CDC devices
+            assertThat("19200/8N1", data, equalTo(new byte[]{1, 11}));
+        } else
             assertThat("19200/8N1", data, equalTo(new byte[]{1, 5}));
 
-            // out 8N2:   addddddd dooaddddddddoo
-            //             1000001 0   10011111
-            // in 6N1:    addddddo addddddo
-            //             100000   110100
-            try {
-                usb.setParameters(19200, 8, UsbSerialPort.STOPBITS_2, UsbSerialPort.PARITY_NONE);
-                telnet.setParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
-                usb.write(new byte[]{(byte) 0x41, (byte) 0xf9});
-                data = telnet.read(2);
-                assertThat("19200/8N1", data, equalTo(new byte[]{1, 11}));
-            } catch(UnsupportedOperationException e) {
-                if(!usb.isCp21xxRestrictedPort)
-                    throw e;
-            }
-            try {
-                usb.setParameters(19200, 8, UsbSerialPort.STOPBITS_1_5, UsbSerialPort.PARITY_NONE);
-                // todo: could create similar test for 1.5 stopbits, by reading at double speed
-                //       but only some devices support 1.5 stopbits and it is basically not used any more
-            } catch(UnsupportedOperationException ignored) {
-            }
+        // out 8N2:   addddddd dooaddddddddoo
+        //             1000001 0   10011111
+        // in 6N1:    addddddo addddddo
+        //             100000   110100
+        try {
+            usb.setParameters(19200, 8, UsbSerialPort.STOPBITS_2, UsbSerialPort.PARITY_NONE);
+            telnet.setParameters(19200, 6, 1, UsbSerialPort.PARITY_NONE);
+            usb.write(new byte[]{(byte) 0x41, (byte) 0xf9});
+            data = telnet.read(2);
+            assertThat("19200/8N1", data, equalTo(new byte[]{1, 11}));
+        } catch(UnsupportedOperationException e) {
+            if(!usb.isCp21xxRestrictedPort)
+                throw e;
+        }
+        try {
+            usb.setParameters(19200, 8, UsbSerialPort.STOPBITS_1_5, UsbSerialPort.PARITY_NONE);
+            // todo: could create similar test for 1.5 stopbits, by reading at double speed
+            //       but only some devices support 1.5 stopbits and it is basically not used any more
+        } catch(UnsupportedOperationException ignored) {
         }
     }
 
@@ -883,8 +887,6 @@ public class DeviceTest {
         usb.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
         int purgeTimeout = 250;
-        if(usb.serialDriver instanceof CdcAcmSerialDriver)
-            purgeTimeout = 500;
         purgeWriteBuffer(purgeTimeout);
 
         // determine write buffer size
@@ -1055,18 +1057,17 @@ public class DeviceTest {
 
     @Test
     public void readBufferSize() throws Exception {
-        // looks like devices perform USB read with full mReadEndpoint.getMaxPacketSize() size (32, 64, 512)
+        // looks like devices perform USB read with full mReadEndpoint.getMaxPacketSize() size (16, 32, 64, 512)
         // if the buffer is smaller than the received result, it is silently lost
         //
         // for buffer > packet size, but not multiple of packet size, the same issue happens, but typically
         // only the last (partly filled) packet is lost.
-        if(usb.serialDriver instanceof CdcAcmSerialDriver)
-            return; // arduino sends each byte individually, so not testable here
         byte[] data;
         boolean purge = true;
 
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
-        usb.ioManager.setReadBufferSize(8);
+        int len = Math.min(16, usb.serialPort.getReadEndpoint().getMaxPacketSize()/2); // 8 for MCP2221, else 16
+        usb.ioManager.setReadBufferSize(len/2);
         usb.ioManager.start();
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -1075,13 +1076,15 @@ public class DeviceTest {
         telnet.write("1aaa".getBytes());
         data = usb.read(4);
         assertThat(data, equalTo("1aaa".getBytes()));
-        telnet.write(new byte[16]);
+
+        telnet.write(new byte[len]);
         try {
-            data = usb.read(16);
+            data = usb.read(len);
             if (usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() == 1)
                 assertNotEquals(0, data.length); // can be shorter or full length
-            else if (usb.serialDriver instanceof ProlificSerialDriver)
-                assertTrue("expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
+            else if (usb.serialDriver instanceof CdcAcmSerialDriver ||
+                     usb.serialDriver instanceof ProlificSerialDriver)
+                assertTrue("expected > 0 and < "+len+" byte, got " + data.length, data.length > 0 && data.length < len);
             else // ftdi, ch340, cp2105
                 assertEquals(0, data.length);
         } catch (IOException ignored) {
@@ -1121,12 +1124,13 @@ public class DeviceTest {
         telnet.write("2aaa".getBytes());
         data = usb.read(4, 8);
         assertThat(data, equalTo("2aaa".getBytes()));
-        telnet.write(new byte[16]);
-        data = usb.read(16, 8);
+        telnet.write(new byte[len]);
+        data = usb.read(len, len/2);
         if (usb.serialDriver instanceof Cp21xxSerialDriver && usb.serialDriver.getPorts().size() == 1)
             assertNotEquals(0, data.length); // can be shorter or full length
-        else if (usb.serialDriver instanceof ProlificSerialDriver)
-            assertTrue("sporadic issue! expected > 0 and < 16 byte, got " + data.length, data.length > 0 && data.length < 16);
+        else if (usb.serialDriver instanceof CdcAcmSerialDriver ||
+                 usb.serialDriver instanceof ProlificSerialDriver)
+            assertTrue("sporadic issue! expected > 0 and < "+len+" byte, got " + data.length, data.length > 0 && data.length < len);
         else // ftdi, ch340, cp2105
             assertEquals(0, data.length);
         telnet.write("2ccc".getBytes());
@@ -1146,8 +1150,6 @@ public class DeviceTest {
     @Test
     // provoke data loss, when data is not read fast enough
     public void readBufferOverflow() throws Exception {
-        if(usb.serialDriver instanceof CdcAcmSerialDriver)
-            telnet.writeDelay = 10; // arduino_leonardo_bridge.ino sends each byte in own USB packet, which is horribly slow
         usb.open();
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -1220,8 +1222,6 @@ public class DeviceTest {
         if(usb.serialDriver instanceof Ch34xSerialDriver)
             baudrate = 38400;
         int writeAhead = 5*baudrate/10; // write ahead for another 5 second read
-        if(usb.serialDriver instanceof CdcAcmSerialDriver)
-            writeAhead = 50;
 
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
         usb.ioManager.setReadTimeout(readTimeout);
@@ -1270,16 +1270,10 @@ public class DeviceTest {
 
     @Test
     public void writeSpeed() throws Exception {
-        // see logcat for performance results
-        //
-        // CDC arduino_leonardo_bridge.ino has transfer speed ~ 100 byte/sec
-        // all other devices can get near physical limit:
-        // longlines=true:, speed is near physical limit at 11.5k
-        // longlines=false: speed is 3-4k for all devices, as more USB packets are required
+        // see logcat for performance results, speed is near physical limit at 11.5k
         usb.open();
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
-        boolean longlines = !(usb.serialDriver instanceof CdcAcmSerialDriver);
 
         int linenr = 0;
         String line="";
@@ -1292,10 +1286,7 @@ public class DeviceTest {
         for(int seconds=1; seconds<=5; seconds++) {
             next += 1000;
             while (System.currentTimeMillis() < next) {
-                if(longlines)
-                    line = String.format("%060d,", linenr++);
-                else
-                    line = String.format("%07d,", linenr++);
+                line = String.format("%060d,", linenr++);
                 usb.write(line.getBytes());
                 expected.append(line);
                 data.append(new String(telnet.read(0)));
@@ -1576,34 +1567,32 @@ public class DeviceTest {
         }
         Log.i(TAG, "average time per read " + (System.currentTimeMillis()-time)/i + " msec");
 
-        if(!(usb.serialDriver instanceof CdcAcmSerialDriver)) {
-            int diffLen;
-            usb.close();
-            // no issue with high transfer rate and long read timeout
-            diffLen = readSpeedInt(5, -1, longTimeout);
-            if(usb.serialDriver instanceof Ch34xSerialDriver && diffLen == -1)
-                diffLen = 0; // todo: investigate last packet loss
-            assertEquals(0, diffLen);
-            usb.close();
-            // date loss with high transfer rate and short read timeout !!!
-            diffLen = readSpeedInt(5, -1, shortTimeout);
+        int diffLen;
+        usb.close();
+        // no issue with high transfer rate and long read timeout
+        diffLen = readSpeedInt(5, -1, longTimeout);
+        if(usb.serialDriver instanceof Ch34xSerialDriver && diffLen == -1)
+            diffLen = 0; // todo: investigate last packet loss
+        assertEquals(0, diffLen);
+        usb.close();
+        // date loss with high transfer rate and short read timeout !!!
+        diffLen = readSpeedInt(5, -1, shortTimeout);
 
-            assertNotEquals("sporadic issue!", 0, diffLen);
+        assertNotEquals("sporadic issue!", 0, diffLen);
 
-            // data loss observed with read timeout up to 200 msec, e.g.
-            //  difference at 181 len 64
-            //        got 000020,0000021,0000030,0000031,0000032,0
-            //   expected 000020,0000021,0000022,0000023,0000024,0
-            // difference at 341 len 128
-            //        got 000048,0000049,0000066,0000067,0000068,0
-            //   expected 000048,0000049,0000050,0000051,0000052,0
-            // difference at 724 len 704
-            //        got 0000112,0000113,0000202,0000203,0000204,
-            //   expected 0000112,0000113,0000114,0000115,0000116,
-            // difference at 974 len 8
-            //        got 00231,0000232,0000234,0000235,0000236,00
-            //   expected 00231,0000232,0000233,0000234,0000235,00
-        }
+        // data loss observed with read timeout up to 200 msec, e.g.
+        //  difference at 181 len 64
+        //        got 000020,0000021,0000030,0000031,0000032,0
+        //   expected 000020,0000021,0000022,0000023,0000024,0
+        // difference at 341 len 128
+        //        got 000048,0000049,0000066,0000067,0000068,0
+        //   expected 000048,0000049,0000050,0000051,0000052,0
+        // difference at 724 len 704
+        //        got 0000112,0000113,0000202,0000203,0000204,
+        //   expected 0000112,0000113,0000114,0000115,0000116,
+        // difference at 974 len 8
+        //        got 00231,0000232,0000234,0000235,0000236,00
+        //   expected 00231,0000232,0000233,0000234,0000235,00
     }
 
     @Test
@@ -1808,12 +1797,7 @@ public class DeviceTest {
         assertThat(usb.getControlLine(usb.serialPort::getCD), equalTo(inputLineFalse));
         assertThat(usb.getControlLine(usb.serialPort::getRI), equalTo(usb.inputLinesOnlyRtsCts ? Boolean.FALSE : inputLineTrue));
         telnet.write(data);
-        if(usb.serialDriver instanceof CdcAcmSerialDriver)
-            // arduino: control line feedback as serial_state notification is not implemented.
-            // It does not send w/o RTS or DTR, so these control lines can be partly checked here.
-            assertEquals(0, usb.read().length);
-        else
-            assertThat(Arrays.toString(data), usb.read(4), equalTo(data));
+        assertThat(Arrays.toString(data), usb.read(4), equalTo(data));
         usb.write(data);
         assertThat(Arrays.toString(data), telnet.read(4), equalTo(data));
 
@@ -2312,20 +2296,25 @@ public class DeviceTest {
     @Test
     public void setBreak() throws Exception {
         usb.open();
+        if (usb.serialDriver instanceof CdcAcmSerialDriver) {
+            // not supported by MCP2221, other CDC devices might support it
+            try {
+                usb.serialPort.setBreak(true);
+                fail("setBreak error expected");
+            } catch (IOException ignored) {
+            }
+            return;
+        }
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         doReadWrite("");
-        usb.serialPort.setBreak(true);
         Thread.sleep(100);
         usb.serialPort.setBreak(false);
         // RFC2217 has SET_CONTROL + REQ_BREAK_STATE request, but this is not supported by pyserial
         // as there is no easy notification on <break> condition. By default break is returned as
         // 0 byte on Linux, see https://man7.org/linux/man-pages/man3/termios.3.html -> BRKINT
         byte[] data = telnet.read(1);
-        if (usb.serialDriver instanceof CdcAcmSerialDriver) {
-            // BREAK forwarding not implemented by arduino_leonardo_bridge.ino
-            assertThat("<break>", data, equalTo(new byte[]{}));
-        } else if(usb.isCp21xxRestrictedPort) {
+        if(usb.isCp21xxRestrictedPort) {
             assertThat("<break>", data, equalTo(new byte[]{0x55})); // send the last byte again?
         } else {
             assertThat("<break>", data, equalTo(new byte[]{0}));

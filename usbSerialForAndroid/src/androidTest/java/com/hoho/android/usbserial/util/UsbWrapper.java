@@ -152,7 +152,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
             if(serialDriver.getDevice().getProductId() == UsbId.FTDI_FT231X)
                 writeBufferSize = 512;
         } else if (serialDriver instanceof CdcAcmSerialDriver) {
-            writePacketSize = 64; writeBufferSize = 128;
+            writePacketSize = 16; writeBufferSize = 32; // MCP2221 values, other devices might be different
         }
 
         readBufferSize = writeBufferSize;
