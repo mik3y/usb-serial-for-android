@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    compileSdkVersion 34
+    compileSdkVersion 35
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         minSdkVersion 17
-        targetSdkVersion 34
+        targetSdkVersion 35
         vectorDrawables.useSupportLibrary = true
 
         missingDimensionStrategy 'device', 'anyDevice'
