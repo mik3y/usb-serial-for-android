@@ -64,10 +64,10 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
         private static final int USB_TIMEOUT_MILLIS = 5000;
 
-        private final int DEFAULT_BAUD_RATE = 9600;
+        private static final int DEFAULT_BAUD_RATE = 9600;
 
-        private boolean dtr = false;
-        private boolean rts = false;
+        private volatile boolean dtr = false;
+        private volatile boolean rts = false;
 
         public Ch340SerialPort(UsbDevice device, int portNumber) {
             super(device, portNumber);
@@ -108,7 +108,9 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
             try {
                 for (int i = 0; i < mDevice.getInterfaceCount(); i++)
                     mConnection.releaseInterface(mDevice.getInterface(i));
-            } catch(Exception ignored) {}
+            } catch (Exception e) {
+                Log.w(TAG, "Error releasing interfaces", e);
+            }
         }
 
         private int controlOut(int request, int value, int index) {
@@ -158,8 +160,8 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
         private byte getStatus() throws IOException {
             byte[] buffer = new byte[2];
             int ret = controlIn(0x95, 0x0706, 0, buffer);
-            if (ret < 0)
-                throw new IOException("Error getting control lines");
+            if (ret != buffer.length)
+                throw new IOException("Error getting control lines, expected " + buffer.length + " bytes, got " + ret);
             return buffer[0];
         }
 

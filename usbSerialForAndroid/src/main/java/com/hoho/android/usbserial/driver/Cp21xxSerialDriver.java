@@ -7,6 +7,7 @@
 package com.hoho.android.usbserial.driver;
 
 import android.hardware.usb.UsbConstants;
+import android.util.Log;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
@@ -97,8 +98,8 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         private static final int STATUS_CD = 0x80;
 
 
-        private boolean dtr = false;
-        private boolean rts = false;
+        private volatile boolean dtr = false;
+        private volatile boolean rts = false;
 
         // second port of Cp2105 has limited baudRate, dataBits, stopBits, parity
         // unsupported baudrate returns error at controlTransfer(), other parameters are silently ignored
@@ -133,10 +134,10 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         protected void openInt() throws IOException {
-            mIsRestrictedPort = mDevice.getInterfaceCount() == 2 && mPortNumber == 1;
             if(mPortNumber >= mDevice.getInterfaceCount()) {
                 throw new IOException("Unknown port number");
             }
+            mIsRestrictedPort = mDevice.getInterfaceCount() == 2 && mPortNumber == 1;
             UsbInterface dataIface = mDevice.getInterface(mPortNumber);
             if (!mConnection.claimInterface(dataIface, true)) {
                 throw new IOException("Could not claim interface " + mPortNumber);
@@ -161,10 +162,14 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         protected void closeInt() {
             try {
                 setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_DISABLE);
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                Log.w(TAG, "Error disabling UART", e);
+            }
             try {
                 mConnection.releaseInterface(mDevice.getInterface(mPortNumber));
-            } catch(Exception ignored) {}
+            } catch (Exception e) {
+                Log.w(TAG, "Error releasing interface", e);
+            }
         }
 
         private void setBaudRate(int baudRate) throws IOException {

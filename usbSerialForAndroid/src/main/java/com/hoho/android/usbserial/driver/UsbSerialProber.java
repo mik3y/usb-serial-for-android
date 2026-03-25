@@ -80,7 +80,7 @@ public class UsbSerialProber {
                 driver = ctor.newInstance(usbDevice);
             } catch (NoSuchMethodException | IllegalArgumentException | InstantiationException |
                      IllegalAccessException | InvocationTargetException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Failed to instantiate " + driverClass.getName(), e);
             }
             return driver;
         }

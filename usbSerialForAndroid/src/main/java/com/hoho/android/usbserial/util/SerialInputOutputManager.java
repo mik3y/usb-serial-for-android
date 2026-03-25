@@ -30,25 +30,25 @@ public class SerialInputOutputManager {
         STOPPING
     }
 
-    public static boolean DEBUG = false;
+    public static volatile boolean DEBUG = false;
 
     private static final String TAG = SerialInputOutputManager.class.getSimpleName();
     private static final int WRITE_BUFFER_SIZE = 4096;
 
-    private int mReadTimeout = 0;
-    private int mWriteTimeout = 0;
+    private volatile int mReadTimeout = 0;
+    private volatile int mWriteTimeout = 0;
     private int mReadQueueBufferCount = 0;
     //       no mReadQueueBufferSize, using mReadBuffer.size instead
 
     private final Object mReadBufferLock = new Object();
     private final Object mWriteBufferLock = new Object();
 
-    private ByteBuffer mReadBuffer; // default size = getReadEndpoint().getMaxPacketSize()
-    private ByteBuffer mWriteBuffer = ByteBuffer.allocate(WRITE_BUFFER_SIZE);
+    private volatile ByteBuffer mReadBuffer; // default size = getReadEndpoint().getMaxPacketSize()
+    private volatile ByteBuffer mWriteBuffer = ByteBuffer.allocate(WRITE_BUFFER_SIZE);
 
-    private int mThreadPriority = Process.THREAD_PRIORITY_URGENT_AUDIO;
+    private volatile int mThreadPriority = Process.THREAD_PRIORITY_URGENT_AUDIO;
     private final AtomicReference<State> mState = new AtomicReference<>(State.STOPPED);
-    private CountDownLatch mStartuplatch = new CountDownLatch(2);
+    private volatile CountDownLatch mStartuplatch = new CountDownLatch(2);
     private Listener mListener; // Synchronized by 'this'
     private final UsbSerialPort mSerialPort;
 
@@ -184,6 +184,10 @@ public class SerialInputOutputManager {
                 mState.set(State.RUNNING);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                mState.set(State.STOPPING);
+                synchronized (mWriteBufferLock) {
+                    mWriteBufferLock.notifyAll();
+                }
             }
         } else {
             throw new IllegalStateException("already started");
@@ -197,9 +201,10 @@ public class SerialInputOutputManager {
      * interrupt blocking read
      */
     public void stop() {
-        if(mState.compareAndSet(State.RUNNING, State.STOPPING)) {
+        if(mState.compareAndSet(State.RUNNING, State.STOPPING)
+                || mState.compareAndSet(State.STARTING, State.STOPPING)) {
             synchronized (mWriteBufferLock) {
-                mWriteBufferLock.notifyAll(); // wake up write thread to check the stop condition
+                mWriteBufferLock.notifyAll();
             }
             Log.i(TAG, "Stop requested");
         }

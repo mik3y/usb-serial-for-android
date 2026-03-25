@@ -10,7 +10,7 @@ import java.io.IOException;
  */
 
 public class XonXoffFilter {
-    private boolean xon = true;
+    private volatile boolean xon = true;
 
     public XonXoffFilter() {
     }

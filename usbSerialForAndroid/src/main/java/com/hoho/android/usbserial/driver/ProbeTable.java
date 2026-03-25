@@ -90,7 +90,7 @@ public class ProbeTable {
             try {
                 Method method = entry.getKey();
                 Object o = method.invoke(null, usbDevice);
-                if((boolean)o)
+                if(Boolean.TRUE.equals(o))
                     return entry.getValue();
             } catch (IllegalArgumentException | IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException(e);

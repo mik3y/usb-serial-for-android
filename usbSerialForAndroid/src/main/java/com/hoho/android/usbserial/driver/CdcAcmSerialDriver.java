@@ -34,7 +34,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
     public static final int USB_SUBCLASS_ACM = 2;
 
-    private final String TAG = CdcAcmSerialDriver.class.getSimpleName();
+    private static final String TAG = CdcAcmSerialDriver.class.getSimpleName();
 
     private final UsbDevice mDevice;
     private final List<UsbSerialPort> mPorts;
@@ -88,8 +88,8 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         private int mControlIndex;
 
-        private boolean mRts = false;
-        private boolean mDtr = false;
+        private volatile boolean mRts = false;
+        private volatile boolean mDtr = false;
 
         private static final int USB_RECIP_INTERFACE = 0x01;
         private static final int USB_RT_ACM = UsbConstants.USB_TYPE_CLASS | USB_RECIP_INTERFACE;
@@ -200,6 +200,9 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             if (!mConnection.claimInterface(mControlInterface, true)) {
                 throw new IOException("Could not claim control interface");
             }
+            if (mControlInterface.getEndpointCount() == 0) {
+                throw new IOException("No endpoint on control interface");
+            }
             mControlEndpoint = mControlInterface.getEndpoint(0);
             if (mControlEndpoint.getDirection() != UsbConstants.USB_DIR_IN || mControlEndpoint.getType() != UsbConstants.USB_ENDPOINT_XFER_INT) {
                 throw new IOException("Invalid control endpoint");
@@ -264,8 +267,12 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         protected void closeInt() {
             try {
                 mConnection.releaseInterface(mControlInterface);
-                mConnection.releaseInterface(mDataInterface);
-            } catch(Exception ignored) {}
+                if (mDataInterface != mControlInterface) {
+                    mConnection.releaseInterface(mDataInterface);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Error releasing interfaces", e);
+            }
         }
 
         @Override
