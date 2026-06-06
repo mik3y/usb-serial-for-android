@@ -14,6 +14,7 @@ import android.util.Log;
 import com.hoho.android.usbserial.BuildConfig;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -25,7 +26,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
     private static final String TAG = Ch34xSerialDriver.class.getSimpleName();
 
     private final UsbDevice mDevice;
-    private final UsbSerialPort mPort;
+    private final List<UsbSerialPort> mPorts;
 
     private static final int LCR_ENABLE_RX   = 0x80;
     private static final int LCR_ENABLE_TX   = 0x40;
@@ -47,7 +48,10 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
     public Ch34xSerialDriver(UsbDevice device) {
         mDevice = device;
-        mPort = new Ch340SerialPort(mDevice, 0);
+        mPorts = new ArrayList<>();
+        for (int port = 0; port < device.getInterfaceCount(); port++) {
+            mPorts.add(new Ch340SerialPort(mDevice, port));
+        }
     }
 
     @Override
@@ -57,7 +61,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
     @Override
     public List<UsbSerialPort> getPorts() {
-        return Collections.singletonList(mPort);
+        return mPorts;
     }
 
     public class Ch340SerialPort extends CommonUsbSerialPort {
@@ -80,14 +84,14 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
         @Override
         protected void openInt() throws IOException {
-            for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
-                UsbInterface usbIface = mDevice.getInterface(i);
-                if (!mConnection.claimInterface(usbIface, true)) {
-                    throw new IOException("Could not claim data interface");
-                }
+            if (mPortNumber >= mDevice.getInterfaceCount()) {
+                throw new IOException("Unknown port number");
+            }
+            UsbInterface dataIface = mDevice.getInterface(mPortNumber);
+            if (!mConnection.claimInterface(dataIface, true)) {
+                throw new IOException("Could not claim interface " + mPortNumber);
             }
 
-            UsbInterface dataIface = mDevice.getInterface(mDevice.getInterfaceCount() - 1);
             for (int i = 0; i < dataIface.getEndpointCount(); i++) {
                 UsbEndpoint ep = dataIface.getEndpoint(i);
                 if (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
@@ -107,8 +111,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
         @Override
         protected void closeInt() {
             try {
-                for (int i = 0; i < mDevice.getInterfaceCount(); i++)
-                    mConnection.releaseInterface(mDevice.getInterface(i));
+                mConnection.releaseInterface(mDevice.getInterface(mPortNumber));
             } catch(Exception ignored) {}
         }
 
@@ -219,6 +222,30 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
                     throw new UnsupportedOperationException("Unsupported baud rate: " + baudRate);
                 }
                 factor = 0x10000 - factor;
+            }
+
+            long effectiveBaudRate;
+            if (baudRate == 921600 || baudRate == 307200) {
+                effectiveBaudRate = baudRate;
+            } else {
+                int a = (int) ((factor & 0xff00) >> 8);
+                long baseClock;
+                if (divisor == 3) {
+                    baseClock = 6000000;
+                } else if (divisor == 2) {
+                    baseClock = 750000;
+                } else if (divisor == 1) {
+                    baseClock = 93750;
+                } else if (divisor == 0) {
+                    baseClock = 11719;
+                } else {
+                    throw new UnsupportedOperationException("Unsupported baud rate: " + baudRate);
+                }
+                effectiveBaudRate = baseClock / (256 - a);
+            }
+            double baudRateError = Math.abs(1.0 - (effectiveBaudRate / (double) baudRate));
+            if (baudRateError >= 0.03) {
+                throw new UnsupportedOperationException(String.format(java.util.Locale.US, "Baud rate deviation %.1f%% is higher than allowed 3%%", baudRateError * 100));
             }
 
             divisor |= 0x0080; // else ch341a waits until buffer full
