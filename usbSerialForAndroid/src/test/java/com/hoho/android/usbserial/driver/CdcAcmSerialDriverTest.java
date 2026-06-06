@@ -543,4 +543,151 @@ public class CdcAcmSerialDriverTest {
         assertNull(port.mWriteEndpoint);
     }
 
+    @Test
+    public void unionDescriptorDevice() throws Exception {
+        UsbDeviceConnection usbDeviceConnection = mock(UsbDeviceConnection.class);
+        UsbDevice usbDevice = mock(UsbDevice.class);
+        UsbInterface controlInterface = mock(UsbInterface.class);
+        UsbInterface dataInterface = mock(UsbInterface.class);
+        UsbEndpoint controlEndpoint = mock(UsbEndpoint.class);
+        UsbEndpoint readEndpoint = mock(UsbEndpoint.class);
+        UsbEndpoint writeEndpoint = mock(UsbEndpoint.class);
+
+        // Union functional descriptor 05 24 06 00 01 (master 0, slave 1)
+        when(usbDeviceConnection.getRawDescriptors()).thenReturn(HexDump.hexStringToByteArray(
+                "12 01 10 01 02 00 00 08 D0 16 7E 08 00 01 01 02 00 01\n" +
+                "09 02 43 00 02 01 00 80 32\n" +
+                "09 04 00 00 01 02 02 01 00\n" +
+                "05 24 00 10 01\n" +
+                "04 24 02 06\n" +
+                "05 24 06 00 01\n" +
+                "07 05 83 03 08 00 FF\n" +
+                "09 04 01 00 02 0A 00 00 00\n" +
+                "07 05 01 02 08 00 00\n" +
+                "07 05 81 02 08 00 00"));
+        when(usbDeviceConnection.claimInterface(controlInterface, true)).thenReturn(true);
+        when(usbDeviceConnection.claimInterface(dataInterface, true)).thenReturn(true);
+        when(usbDevice.getInterfaceCount()).thenReturn(2);
+        when(usbDevice.getInterface(0)).thenReturn(controlInterface);
+        when(usbDevice.getInterface(1)).thenReturn(dataInterface);
+        when(controlInterface.getId()).thenReturn(0);
+        when(controlInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_COMM);
+        when(controlInterface.getInterfaceSubclass()).thenReturn(USB_SUBCLASS_ACM);
+        when(controlInterface.getEndpointCount()).thenReturn(1);
+        when(controlInterface.getEndpoint(0)).thenReturn(controlEndpoint);
+        when(dataInterface.getId()).thenReturn(1);
+        when(dataInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
+        when(dataInterface.getEndpointCount()).thenReturn(2);
+        when(dataInterface.getEndpoint(0)).thenReturn(writeEndpoint);
+        when(dataInterface.getEndpoint(1)).thenReturn(readEndpoint);
+        when(controlEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_IN);
+        when(controlEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_INT);
+        when(readEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_IN);
+        when(readEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_BULK);
+        when(writeEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_OUT);
+        when(writeEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_BULK);
+
+        CdcAcmSerialDriver driver = new CdcAcmSerialDriver(usbDevice);
+        CdcAcmSerialDriver.CdcAcmSerialPort port = (CdcAcmSerialDriver.CdcAcmSerialPort) driver.getPorts().get(0);
+        port.mConnection = usbDeviceConnection;
+        port.openInt();
+        assertEquals(readEndpoint, port.mReadEndpoint);
+        assertEquals(writeEndpoint, port.mWriteEndpoint);
+    }
+
+    @Test
+    public void acmCapabilitiesAndHandshake() throws Exception {
+        UsbDeviceConnection usbDeviceConnection = mock(UsbDeviceConnection.class);
+        UsbDevice usbDevice = mock(UsbDevice.class);
+        UsbInterface controlInterface = mock(UsbInterface.class);
+        UsbInterface dataInterface = mock(UsbInterface.class);
+        UsbEndpoint controlEndpoint = mock(UsbEndpoint.class);
+        UsbEndpoint readEndpoint = mock(UsbEndpoint.class);
+        UsbEndpoint writeEndpoint = mock(UsbEndpoint.class);
+
+        // capabilities = 0x02 (supports Line parameters, NOT break)
+        when(usbDeviceConnection.getRawDescriptors()).thenReturn(HexDump.hexStringToByteArray(
+                "12 01 10 01 02 00 00 08 D0 16 7E 08 00 01 01 02 00 01\n" +
+                "09 02 43 00 02 01 00 80 32\n" +
+                "09 04 00 00 01 02 02 01 00\n" +
+                "05 24 00 10 01\n" +
+                "04 24 02 02\n" +
+                "05 24 06 00 01\n" +
+                "07 05 83 03 08 00 FF\n" +
+                "09 04 01 00 02 0A 00 00 00\n" +
+                "07 05 01 02 08 00 00\n" +
+                "07 05 81 02 08 00 00"));
+        when(usbDeviceConnection.claimInterface(controlInterface, true)).thenReturn(true);
+        when(usbDeviceConnection.claimInterface(dataInterface, true)).thenReturn(true);
+        when(usbDevice.getInterfaceCount()).thenReturn(2);
+        when(usbDevice.getInterface(0)).thenReturn(controlInterface);
+        when(usbDevice.getInterface(1)).thenReturn(dataInterface);
+        when(controlInterface.getId()).thenReturn(0);
+        when(controlInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_COMM);
+        when(controlInterface.getInterfaceSubclass()).thenReturn(USB_SUBCLASS_ACM);
+        when(controlInterface.getEndpointCount()).thenReturn(1);
+        when(controlInterface.getEndpoint(0)).thenReturn(controlEndpoint);
+        when(dataInterface.getId()).thenReturn(1);
+        when(dataInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
+        when(dataInterface.getEndpointCount()).thenReturn(2);
+        when(dataInterface.getEndpoint(0)).thenReturn(writeEndpoint);
+        when(dataInterface.getEndpoint(1)).thenReturn(readEndpoint);
+        when(controlEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_IN);
+        when(controlEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_INT);
+        when(readEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_IN);
+        when(readEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_BULK);
+        when(writeEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_OUT);
+        when(writeEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_BULK);
+
+        when(usbDeviceConnection.bulkTransfer(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenAnswer(new org.mockito.stubbing.Answer<Integer>() {
+                    private int count = 0;
+                    @Override
+                    public Integer answer(org.mockito.invocation.InvocationOnMock invocation) throws Throwable {
+                        count++;
+                        if (count == 1) {
+                            byte[] buf = invocation.getArgument(1);
+                            buf[0] = (byte) 0xa1;
+                            buf[1] = (byte) 0x20;
+                            buf[2] = 0;
+                            buf[3] = 0;
+                            buf[4] = 0;
+                            buf[5] = 0;
+                            buf[6] = 2;
+                            buf[7] = 0;
+                            buf[8] = 0x0b; // CD (1) | DSR (2) | RI (8) = 11 (0x0b)
+                            buf[9] = 0;
+                            return 10;
+                        }
+                        Thread.sleep(100);
+                        return -1;
+                    }
+                });
+
+        CdcAcmSerialDriver driver = new CdcAcmSerialDriver(usbDevice);
+        CdcAcmSerialDriver.CdcAcmSerialPort port = (CdcAcmSerialDriver.CdcAcmSerialPort) driver.getPorts().get(0);
+        port.mConnection = usbDeviceConnection;
+        port.openInt();
+
+        // Check unsupported break exception
+        assertThrows(UnsupportedOperationException.class, () -> port.setBreak(true));
+
+        // Check handshake lines
+        java.util.EnumSet<UsbSerialPort.ControlLine> supported = port.getSupportedControlLines();
+        org.junit.Assert.assertTrue(supported.contains(UsbSerialPort.ControlLine.CD));
+        org.junit.Assert.assertTrue(supported.contains(UsbSerialPort.ControlLine.DSR));
+        org.junit.Assert.assertTrue(supported.contains(UsbSerialPort.ControlLine.RI));
+
+        // Let the polling thread run and verify line values
+        org.junit.Assert.assertTrue(port.getCD());
+        org.junit.Assert.assertTrue(port.getDSR());
+        org.junit.Assert.assertTrue(port.getRI());
+        java.util.EnumSet<UsbSerialPort.ControlLine> lines = port.getControlLines();
+        org.junit.Assert.assertTrue(lines.contains(UsbSerialPort.ControlLine.CD));
+        org.junit.Assert.assertTrue(lines.contains(UsbSerialPort.ControlLine.DSR));
+        org.junit.Assert.assertTrue(lines.contains(UsbSerialPort.ControlLine.RI));
+
+        port.closeInt();
+    }
+
 }
