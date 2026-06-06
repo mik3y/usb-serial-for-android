@@ -122,6 +122,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
                 throw new IOException("Init RTS,DTR failed: result=" + result);
             }
             setFlowControl(mFlowControl);
+            setLatencyTimer(16);
 
             // mDevice.getVersion() would require API 23
             byte[] rawDescriptors = mConnection.getRawDescriptors();
@@ -178,6 +179,7 @@ public class FtdiSerialDriver implements UsbSerialDriver {
         }
 
         protected int readFilter(byte[] buffer, int totalBytesRead) throws IOException {
+            totalBytesRead = Math.min(totalBytesRead, buffer.length);
             final int maxPacketSize = mReadEndpoint.getMaxPacketSize();
             int destPos = 0;
             for(int srcPos = 0; srcPos < totalBytesRead; srcPos += maxPacketSize) {
