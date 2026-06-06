@@ -199,6 +199,9 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
             if (baudRate == 921600) {
                 divisor = 7;
                 factor = 0xf300;
+            } else if (baudRate == 307200) {
+                divisor = 7;
+                factor = 0xd900;
             } else {
                 final long BAUDBASE_FACTOR = 1532620800;
                 final int BAUDBASE_DIVMAX = 3;
@@ -219,13 +222,19 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
             divisor |= 0x0080; // else ch341a waits until buffer full
             int val1 = (int) ((factor & 0xff00) | divisor);
-            int val2 = (int) (factor & 0xff);
-            Log.d(TAG, String.format("baud rate=%d, 0x1312=0x%04x, 0x0f2c=0x%04x", baudRate, val1, val2));
+            Log.d(TAG, String.format("baud rate=%d, 0x1312=0x%04x", baudRate, val1));
             int ret = controlOut(0x9a, 0x1312, val1);
             if (ret < 0) {
                 throw new IOException("Error setting baud rate: #1)");
             }
-            ret = controlOut(0x9a, 0x0f2c, val2);
+            int timeout = 76800 / baudRate;
+            if (timeout < 0x07) {
+                timeout = 0x07;
+            }
+            if (timeout > 0xff) {
+                timeout = 0xff;
+            }
+            ret = controlOut(0x9a, 0x0f2c, timeout);
             if (ret < 0) {
                 throw new IOException("Error setting baud rate: #2");
             }
