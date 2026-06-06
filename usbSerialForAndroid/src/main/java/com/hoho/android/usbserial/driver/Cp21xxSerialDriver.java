@@ -52,6 +52,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
          */
         private static final int REQTYPE_HOST_TO_DEVICE = 0x41;
         private static final int REQTYPE_DEVICE_TO_HOST = 0xc1;
+        private static final int REQTYPE_DEVICE_TO_HOST_DEV = 0xc0;
 
         /*
          * Configuration Request Codes
@@ -66,6 +67,7 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         private static final int SILABSER_GET_COMM_STATUS_REQUEST_CODE = 0x10;
         private static final int SILABSER_FLUSH_REQUEST_CODE = 0x12;
         private static final int SILABSER_SET_FLOW_REQUEST_CODE = 0x13;
+        private static final int SILABSER_GET_FLOW_REQUEST_CODE = 0x14;
         private static final int SILABSER_SET_CHARS_REQUEST_CODE = 0x19;
         private static final int SILABSER_SET_BAUDRATE_REQUEST_CODE = 0x1E;
 
@@ -96,6 +98,28 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         private static final int STATUS_RI = 0x40;
         private static final int STATUS_CD = 0x80;
 
+        /*
+         * Vendor specific requests and part numbers (from Linux cp210x driver)
+         */
+        private static final int CP210X_VENDOR_SPECIFIC = 0xFF;
+
+        private static final int CP210X_GET_PARTNUM = 0x370B;
+        private static final int CP210X_GET_FW_VER = 0x000E;
+        private static final int CP210X_GET_FW_VER_2N = 0x0010;
+
+        private static final int CP210X_PARTNUM_CP2101 = 0x01;
+        private static final int CP210X_PARTNUM_CP2102 = 0x02;
+        private static final int CP210X_PARTNUM_CP2103 = 0x03;
+        private static final int CP210X_PARTNUM_CP2104 = 0x04;
+        private static final int CP210X_PARTNUM_CP2105 = 0x05;
+        private static final int CP210X_PARTNUM_CP2108 = 0x08;
+        private static final int CP210X_PARTNUM_CP2102N_QFN28 = 0x20;
+        private static final int CP210X_PARTNUM_CP2102N_QFN24 = 0x21;
+        private static final int CP210X_PARTNUM_CP2102N_QFN20 = 0x22;
+        private static final int CP210X_PARTNUM_UNKNOWN = 0xFF;
+
+        private static final int PURGE_ALL = 0x0F;
+
 
         private boolean dtr = false;
         private boolean rts = false;
@@ -103,6 +127,9 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         // second port of Cp2105 has limited baudRate, dataBits, stopBits, parity
         // unsupported baudrate returns error at controlTransfer(), other parameters are silently ignored
         private boolean mIsRestrictedPort;
+
+        private int mPartNum = CP210X_PARTNUM_UNKNOWN;
+        private int mFwVersion = 0;
 
         public Cp21xxSerialPort(UsbDevice device, int portNumber) {
             super(device, portNumber);
@@ -131,6 +158,61 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             return buffer[0];
         }
 
+        private boolean isCp2102N() {
+            return mPartNum == CP210X_PARTNUM_CP2102N_QFN20 ||
+                   mPartNum == CP210X_PARTNUM_CP2102N_QFN24 ||
+                   mPartNum == CP210X_PARTNUM_CP2102N_QFN28;
+        }
+
+        private boolean isFlowControlSupported() {
+            if (isCp2102N() && mFwVersion <= 0x10004) {
+                return false;
+            }
+            return true;
+        }
+
+        private void queryDeviceTypeAndVersion() {
+            try {
+                byte[] partNumBuf = new byte[1];
+                int ret = mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST_DEV, CP210X_VENDOR_SPECIFIC, CP210X_GET_PARTNUM, mPortNumber, partNumBuf, 1, USB_WRITE_TIMEOUT_MILLIS);
+                if (ret == 1) {
+                    mPartNum = partNumBuf[0] & 0xFF;
+                } else {
+                    byte[] partNumBuf2 = new byte[2];
+                    ret = mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST_DEV, CP210X_VENDOR_SPECIFIC, CP210X_GET_PARTNUM, mPortNumber, partNumBuf2, 2, USB_WRITE_TIMEOUT_MILLIS);
+                    if (ret >= 1) {
+                        mPartNum = partNumBuf2[0] & 0xFF;
+                    } else {
+                        mPartNum = CP210X_PARTNUM_UNKNOWN;
+                    }
+                }
+            } catch (Exception e) {
+                mPartNum = CP210X_PARTNUM_UNKNOWN;
+            }
+
+            if (isCp2102N()) {
+                try {
+                    byte[] fwVerBuf = new byte[3];
+                    int ret = mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST_DEV, CP210X_VENDOR_SPECIFIC, CP210X_GET_FW_VER_2N, mPortNumber, fwVerBuf, 3, USB_WRITE_TIMEOUT_MILLIS);
+                    if (ret == 3) {
+                        mFwVersion = ((fwVerBuf[0] & 0xFF) << 16) | ((fwVerBuf[1] & 0xFF) << 8) | (fwVerBuf[2] & 0xFF);
+                    }
+                } catch (Exception e) {
+                    mFwVersion = 0;
+                }
+            } else if (mPartNum == CP210X_PARTNUM_CP2105 || mPartNum == CP210X_PARTNUM_CP2108) {
+                try {
+                    byte[] fwVerBuf = new byte[3];
+                    int ret = mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST_DEV, CP210X_VENDOR_SPECIFIC, CP210X_GET_FW_VER, mPortNumber, fwVerBuf, 3, USB_WRITE_TIMEOUT_MILLIS);
+                    if (ret == 3) {
+                        mFwVersion = ((fwVerBuf[0] & 0xFF) << 16) | ((fwVerBuf[1] & 0xFF) << 8) | (fwVerBuf[2] & 0xFF);
+                    }
+                } catch (Exception e) {
+                    mFwVersion = 0;
+                }
+            }
+        }
+
         @Override
         protected void openInt() throws IOException {
             mIsRestrictedPort = mDevice.getInterfaceCount() == 2 && mPortNumber == 1;
@@ -152,6 +234,8 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
                 }
             }
 
+            queryDeviceTypeAndVersion();
+
             setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_ENABLE);
             setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, (dtr ? DTR_ENABLE : DTR_DISABLE) | (rts ? RTS_ENABLE : RTS_DISABLE));
             setFlowControl(mFlowControl);
@@ -159,6 +243,9 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         protected void closeInt() {
+            try {
+                setConfigSingle(SILABSER_FLUSH_REQUEST_CODE, PURGE_ALL);
+            } catch (Exception ignored) {}
             try {
                 setConfigSingle(SILABSER_IFC_ENABLE_REQUEST_CODE, UART_DISABLE);
             } catch (Exception ignored) {}
@@ -185,6 +272,22 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
         public void setParameters(int baudRate, int dataBits, int stopBits, @Parity int parity) throws IOException {
             if(baudRate <= 0) {
                 throw new IllegalArgumentException("Invalid baud rate: " + baudRate);
+            }
+            int maxBaud = 2000000;
+            int minBaud = 300;
+            if (mPartNum == CP210X_PARTNUM_CP2101) {
+                maxBaud = 921600;
+            } else if (mPartNum == CP210X_PARTNUM_CP2102 || mPartNum == CP210X_PARTNUM_CP2103) {
+                maxBaud = 1000000;
+            } else if (isCp2102N()) {
+                maxBaud = 3000000;
+            }
+            if (mIsRestrictedPort) {
+                minBaud = 2400;
+                maxBaud = 921600;
+            }
+            if (baudRate < minBaud || baudRate > maxBaud) {
+                throw new IllegalArgumentException("Baud rate " + baudRate + " out of bounds [" + minBaud + ", " + maxBaud + "] for this device");
             }
             setBaudRate(baudRate);
 
@@ -334,42 +437,75 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setFlowControl(FlowControl flowControl) throws IOException {
+            if (flowControl != FlowControl.NONE && !isFlowControlSupported()) {
+                throw new UnsupportedOperationException("Flow control not supported on this CP2102N device due to firmware erratum CP2102N_E104");
+            }
+            if (flowControl == FlowControl.XON_XOFF_INLINE) {
+                throw new UnsupportedOperationException();
+            }
+
             byte[] data = new byte[16];
-            if(flowControl == FlowControl.RTS_CTS) {
-                data[4] |=  0b1000_0000; // RTS
-                data[0] |=  0b0000_1000; // CTS
-            } else {
-                if(rts)
-                    data[4] |= 0b0100_0000;
+            int ret = mConnection.controlTransfer(REQTYPE_DEVICE_TO_HOST, SILABSER_GET_FLOW_REQUEST_CODE,
+                    0, mPortNumber, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
+            if (ret != data.length) {
+                throw new IOException("Error getting flow control: " + ret);
             }
-            if(flowControl == FlowControl.DTR_DSR) {
-                data[0] |= 0b0000_0010; // DTR
-                data[0] |= 0b0001_0000; // DSR
+
+            // RTS / CTS
+            if (flowControl == FlowControl.RTS_CTS) {
+                data[0] |= 0x08; // CTS handshake
+                data[4] &= ~0xC0; // clear RTS mask
+                data[4] |= 0x80; // RTS flow control
             } else {
-                if(dtr)
-                    data[0] |= 0b0000_0001;
+                data[0] &= ~0x08; // disable CTS handshake
+                data[4] &= ~0xC0; // clear RTS mask
+                if (rts) {
+                    data[4] |= 0x40; // RTS active
+                }
             }
-            if(flowControl == FlowControl.XON_XOFF) {
+
+            // DTR / DSR
+            if (flowControl == FlowControl.DTR_DSR) {
+                data[0] &= ~0x03; // clear DTR mask
+                data[0] |= 0x02; // DTR flow control
+                data[0] |= 0x10; // DSR handshake
+            } else {
+                data[0] &= ~0x03; // clear DTR mask
+                if (dtr) {
+                    data[0] |= 0x01; // DTR active
+                }
+                data[0] &= ~0x10; // disable DSR handshake
+            }
+
+            // XON / XOFF
+            if (flowControl == FlowControl.XON_XOFF) {
                 byte[] chars = new byte[]{0, 0, 0, 0, CHAR_XON, CHAR_XOFF};
-                int ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_CHARS_REQUEST_CODE,
+                ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_CHARS_REQUEST_CODE,
                         0, mPortNumber, chars, chars.length, USB_WRITE_TIMEOUT_MILLIS);
                 if (ret != chars.length) {
                     throw new IOException("Error setting XON/XOFF chars");
                 }
-                data[4] |= 0b0000_0011;
-                data[7] |= 0b1000_0000;
-                data[8] = (byte)128;
-                data[12] = (byte)128;
+                data[4] |= 0x03; // AUTO_TRANSMIT | AUTO_RECEIVE
+                data[7] |= 0x80; // XOFF_CONTINUE
+                data[8] = (byte) 128;
+                data[9] = 0;
+                data[10] = 0;
+                data[11] = 0;
+                data[12] = (byte) 128;
+                data[13] = 0;
+                data[14] = 0;
+                data[15] = 0;
+            } else {
+                data[4] &= ~0x03; // disable AUTO_TRANSMIT | AUTO_RECEIVE
+                data[7] &= ~0x80; // disable XOFF_CONTINUE
             }
-            if(flowControl == FlowControl.XON_XOFF_INLINE) {
-                throw new UnsupportedOperationException();
-            }
-            int ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_FLOW_REQUEST_CODE,
+
+            ret = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, SILABSER_SET_FLOW_REQUEST_CODE,
                     0, mPortNumber, data, data.length, USB_WRITE_TIMEOUT_MILLIS);
             if (ret != data.length) {
                 throw new IOException("Error setting flow control");
             }
-            if(flowControl == FlowControl.XON_XOFF) {
+            if (flowControl == FlowControl.XON_XOFF) {
                 setXON(true);
             }
             mFlowControl = flowControl;
