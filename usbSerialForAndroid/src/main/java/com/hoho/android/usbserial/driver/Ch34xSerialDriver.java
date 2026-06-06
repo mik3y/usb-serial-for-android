@@ -101,6 +101,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
             initialize();
             setBaudRate(DEFAULT_BAUD_RATE);
+            setFlowControl(mFlowControl);
         }
 
         @Override
@@ -361,6 +362,27 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
         @Override
         public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
             return EnumSet.allOf(ControlLine.class);
+        }
+
+        @Override
+        public void setFlowControl(FlowControl flowControl) throws IOException {
+            if (flowControl == FlowControl.RTS_CTS) {
+                if (controlOut(0x9a, 0x2727, 0x0101) < 0) {
+                    throw new IOException("Failed to set flow control");
+                }
+            } else if (flowControl == FlowControl.NONE) {
+                if (controlOut(0x9a, 0x2727, 0x0000) < 0) {
+                    throw new IOException("Failed to set flow control");
+                }
+            } else {
+                throw new UnsupportedOperationException("Unsupported flow control: " + flowControl);
+            }
+            mFlowControl = flowControl;
+        }
+
+        @Override
+        public EnumSet<FlowControl> getSupportedFlowControl() {
+            return EnumSet.of(FlowControl.NONE, FlowControl.RTS_CTS);
         }
 
         @Override

@@ -2207,6 +2207,9 @@ public class DeviceTest {
         if(usb.serialDriver instanceof FtdiSerialDriver) {
             outputLineLocked = FlowControl_OutputLineLocked.ON_BUFFER_FULL;
         }
+        if(usb.serialDriver instanceof Ch34xSerialDriver) {
+            outputLineLocked = FlowControl_OutputLineLocked.ON_BUFFER_FULL;
+        }
 
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
         telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
