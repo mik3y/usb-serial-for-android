@@ -13,6 +13,7 @@ import android.hardware.usb.UsbInterface;
 import android.util.Log;
 
 import com.hoho.android.usbserial.util.HexDump;
+import com.hoho.android.usbserial.util.MonotonicClock;
 import com.hoho.android.usbserial.util.UsbUtils;
 
 import java.io.IOException;
@@ -91,6 +92,14 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         private boolean mRts = false;
         private boolean mDtr = false;
 
+        private int mCapabilities = -1;
+
+        private int mStatus = 0;
+        private volatile Thread mReadStatusThread = null;
+        private final Object mReadStatusThreadLock = new Object();
+        private boolean mStopReadStatusThread = false;
+        private Exception mReadStatusException = null;
+
         private static final int USB_RECIP_INTERFACE = 0x01;
         private static final int USB_RT_ACM = UsbConstants.USB_TYPE_CLASS | USB_RECIP_INTERFACE;
 
@@ -146,31 +155,73 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             if (mControlEndpoint == null) {
                 throw new IOException("No control endpoint");
             }
+            mCapabilities = getAcmCapabilities();
         }
 
         private void openInterface() throws IOException {
-
             mControlInterface = null;
             mDataInterface = null;
-            int j = getInterfaceIdFromDescriptors();
-            Log.d(TAG, "interface count=" + mDevice.getInterfaceCount() + ", IAD=" + j);
-            if (j >= 0) {
-                for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
-                    UsbInterface usbInterface = mDevice.getInterface(i);
-                    if (usbInterface.getId() == j || usbInterface.getId() == j+1) {
-                        if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_COMM &&
-                                usbInterface.getInterfaceSubclass() == USB_SUBCLASS_ACM) {
-                            mControlIndex = usbInterface.getId();
-                            mControlInterface = usbInterface;
+
+            int controlId = -1;
+            int dataId = -1;
+
+            ArrayList<byte[]> descriptors = UsbUtils.getDescriptors(mConnection);
+            if (descriptors != null) {
+                // 1. Try to find via IAD
+                if (descriptors.size() > 0 &&
+                        descriptors.get(0).length == 18 &&
+                        descriptors.get(0)[1] == 1 && // bDescriptorType
+                        descriptors.get(0)[4] == (byte)(UsbConstants.USB_CLASS_MISC) && //bDeviceClass
+                        descriptors.get(0)[5] == 2 && // bDeviceSubClass
+                        descriptors.get(0)[6] == 1) { // bDeviceProtocol
+                    int port = -1;
+                    for (int d = 1; d < descriptors.size(); d++) {
+                        byte[] desc = descriptors.get(d);
+                        if (desc.length == 8 &&
+                                desc[1] == 0x0b && // bDescriptorType == IAD
+                                desc[4] == UsbConstants.USB_CLASS_COMM && // bFunctionClass == CDC
+                                desc[5] == USB_SUBCLASS_ACM) { // bFunctionSubClass == ACM
+                            port++;
+                            if (port == mPortNumber && desc[3] == 2) { // bInterfaceCount
+                                controlId = desc[2] & 0xff; // bFirstInterface
+                                dataId = controlId + 1;
+                                break;
+                            }
                         }
-                        if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA) {
-                            mDataInterface = usbInterface;
+                    }
+                }
+                // 2. Try to find via Union descriptor
+                if (controlId == -1) {
+                    int port = -1;
+                    for (byte[] desc : descriptors) {
+                        if (desc.length >= 5 && desc[1] == 0x24 && desc[2] == 0x06) { // Union functional descriptor
+                            port++;
+                            if (port == mPortNumber) {
+                                controlId = desc[3] & 0xff; // bMasterInterface
+                                dataId = desc[4] & 0xff;    // bSlaveInterface0
+                                break;
+                            }
                         }
                     }
                 }
             }
+
+            if (controlId >= 0 && dataId >= 0) {
+                Log.d(TAG, "Found interface pairing: control=" + controlId + ", data=" + dataId);
+                for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
+                    UsbInterface usbInterface = mDevice.getInterface(i);
+                    if (usbInterface.getId() == controlId) {
+                        mControlIndex = usbInterface.getId();
+                        mControlInterface = usbInterface;
+                    }
+                    if (usbInterface.getId() == dataId) {
+                        mDataInterface = usbInterface;
+                    }
+                }
+            }
+
             if (mControlInterface == null || mDataInterface == null) {
-                Log.d(TAG, "no IAD fallback");
+                Log.d(TAG, "no IAD/Union fallback");
                 int controlInterfaceCount = 0;
                 int dataInterfaceCount = 0;
                 for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
@@ -219,10 +270,36 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 if (ep.getDirection() == UsbConstants.USB_DIR_OUT && ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK)
                     mWriteEndpoint = ep;
             }
+            mCapabilities = getAcmCapabilities();
+        }
+
+        private int getAcmCapabilities() {
+            ArrayList<byte[]> descriptors = UsbUtils.getDescriptors(mConnection);
+            if (descriptors == null) {
+                return -1;
+            }
+            int port = -1;
+            for (byte[] desc : descriptors) {
+                if (desc.length >= 4 && desc[1] == 0x24 && desc[2] == 0x02) { // ACM Functional Descriptor
+                    port++;
+                    if (port == mPortNumber) {
+                        return desc[3] & 0xff; // bmCapabilities
+                    }
+                }
+            }
+            for (byte[] desc : descriptors) {
+                if (desc.length >= 4 && desc[1] == 0x24 && desc[2] == 0x02) {
+                    return desc[3] & 0xff;
+                }
+            }
+            return -1;
         }
 
         private int getInterfaceIdFromDescriptors() {
             ArrayList<byte[]> descriptors = UsbUtils.getDescriptors(mConnection);
+            if (descriptors == null) {
+                return -1;
+            }
             Log.d(TAG, "USB descriptor:");
             for(byte[] descriptor : descriptors)
                 Log.d(TAG, HexDump.toHexString(descriptor));
@@ -248,6 +325,18 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                     }
                 }
             }
+
+            // Union Descriptor check
+            int port = -1;
+            for (byte[] desc : descriptors) {
+                if (desc.length >= 5 && desc[1] == 0x24 && desc[2] == 0x06) {
+                    port++;
+                    if (port == mPortNumber) {
+                        return desc[3] & 0xff; // bMasterInterface
+                    }
+                }
+            }
+
             return -1;
         }
 
@@ -304,6 +393,90 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             sendAcmControlMessage(SET_LINE_CODING, 0, msg);
         }
 
+        private void readStatusThreadFunction() {
+            try {
+                byte[] buffer = new byte[10];
+                while (!mStopReadStatusThread) {
+                    long endTime = MonotonicClock.millis() + 500;
+                    int readBytesCount = mConnection.bulkTransfer(mControlEndpoint, buffer, buffer.length, 500);
+                    if (readBytesCount == -1) {
+                        testConnection(MonotonicClock.millis() < endTime);
+                    }
+                    if (readBytesCount > 0) {
+                        if (readBytesCount >= 10 && buffer[0] == (byte) 0xa1 && buffer[1] == 0x20) {
+                            int wLength = (buffer[6] & 0xff) | ((buffer[7] & 0xff) << 8);
+                            if (wLength == 2) {
+                                mStatus = (buffer[8] & 0xff) | ((buffer[9] & 0xff) << 8);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                if (isOpen()) {
+                    mReadStatusException = e;
+                }
+            }
+        }
+
+        private int getStatus() throws IOException {
+            if ((mReadStatusThread == null) && (mReadStatusException == null)) {
+                synchronized (mReadStatusThreadLock) {
+                    if (mReadStatusThread == null) {
+                        mStatus = 0;
+                        mReadStatusThread = new Thread(this::readStatusThreadFunction);
+                        mReadStatusThread.setDaemon(true);
+                        mReadStatusThread.start();
+                    }
+                }
+            }
+
+            Exception readStatusException = mReadStatusException;
+            if (mReadStatusException != null) {
+                mReadStatusException = null;
+                throw new IOException(readStatusException);
+            }
+
+            return mStatus;
+        }
+
+        @Override
+        protected void closeInt() {
+            try {
+                synchronized (mReadStatusThreadLock) {
+                    if (mReadStatusThread != null) {
+                        try {
+                            mStopReadStatusThread = true;
+                            mReadStatusThread.join();
+                        } catch (Exception e) {
+                            Log.w(TAG, "An error occurred while waiting for status read thread", e);
+                        }
+                        mStopReadStatusThread = false;
+                        mReadStatusThread = null;
+                        mReadStatusException = null;
+                    }
+                }
+            } catch(Exception ignored) {}
+            try {
+                mConnection.releaseInterface(mControlInterface);
+                mConnection.releaseInterface(mDataInterface);
+            } catch(Exception ignored) {}
+        }
+
+        @Override
+        public boolean getCD() throws IOException {
+            return (getStatus() & 1) != 0;
+        }
+
+        @Override
+        public boolean getDSR() throws IOException {
+            return (getStatus() & 2) != 0;
+        }
+
+        @Override
+        public boolean getRI() throws IOException {
+            return (getStatus() & 8) != 0;
+        }
+
         @Override
         public boolean getDTR() throws IOException {
             return mDtr;
@@ -333,19 +506,26 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         @Override
         public EnumSet<ControlLine> getControlLines() throws IOException {
+            int status = getStatus();
             EnumSet<ControlLine> set = EnumSet.noneOf(ControlLine.class);
             if(mRts) set.add(ControlLine.RTS);
             if(mDtr) set.add(ControlLine.DTR);
+            if((status & 1) != 0) set.add(ControlLine.CD);
+            if((status & 2) != 0) set.add(ControlLine.DSR);
+            if((status & 8) != 0) set.add(ControlLine.RI);
             return set;
         }
 
         @Override
         public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
-            return EnumSet.of(ControlLine.RTS, ControlLine.DTR);
+            return EnumSet.of(ControlLine.RTS, ControlLine.DTR, ControlLine.CD, ControlLine.DSR, ControlLine.RI);
         }
 
         @Override
         public void setBreak(boolean value) throws IOException {
+            if (mCapabilities != -1 && (mCapabilities & 0x04) == 0) {
+                throw new UnsupportedOperationException("Break is not supported by this device");
+            }
             sendAcmControlMessage(SEND_BREAK, value ? 0xffff : 0, null);
         }
 
