@@ -30,9 +30,9 @@ public class ProlificSerialDriver implements UsbSerialDriver {
     private final String TAG = ProlificSerialDriver.class.getSimpleName();
 
     private final static int[] standardBaudRates = {
-            75, 150, 300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600, 14400, 19200,
-            28800, 38400, 57600, 115200, 128000, 134400, 161280, 201600, 230400, 268800,
-            403200, 460800, 614400, 806400, 921600, 1228800, 2457600, 3000000, 6000000
+            75, 150, 300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600,
+            14400, 19200, 28800, 38400, 57600, 115200, 230400, 460800,
+            614400, 921600, 1228800, 2457600, 3000000, 6000000
     };
     protected enum DeviceType { DEVICE_TYPE_01, DEVICE_TYPE_T, DEVICE_TYPE_HX, DEVICE_TYPE_HXN }
 
@@ -159,6 +159,20 @@ public class ProlificSerialDriver implements UsbSerialDriver {
         private void vendorOut(int value, int index, byte[] data) throws IOException {
             int request = (mDeviceType == DeviceType.DEVICE_TYPE_HXN) ? VENDOR_WRITE_HXN_REQUEST : VENDOR_WRITE_REQUEST;
             outControlTransfer(VENDOR_OUT_REQTYPE, request, value, index, data);
+        }
+
+        private void updateReg(int reg, int mask, int val) throws IOException {
+            int current;
+            if (mDeviceType == DeviceType.DEVICE_TYPE_HXN) {
+                byte[] data = vendorIn(reg, 0, 1);
+                current = data[0] & 0xff;
+            } else {
+                byte[] data = vendorIn(reg | 0x80, 0, 1);
+                current = data[0] & 0xff;
+            }
+            current &= ~mask;
+            current |= val & mask;
+            vendorOut(reg, current, null);
         }
 
         private void resetDevice() throws IOException {
@@ -547,28 +561,26 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setFlowControl(FlowControl flowControl) throws IOException {
-            // vendorOut values from https://www.mail-archive.com/linux-usb@vger.kernel.org/msg110968.html
-            switch (flowControl) {
-                case NONE:
-                    if (mDeviceType == DeviceType.DEVICE_TYPE_HXN)
-                        vendorOut(0x0a, 0xff, null);
-                    else
-                        vendorOut(0, 0, null);
-                    break;
-                case RTS_CTS:
-                    if (mDeviceType == DeviceType.DEVICE_TYPE_HXN)
-                        vendorOut(0x0a, 0xfa, null);
-                    else
-                        vendorOut(0, 0x61, null);
-                    break;
-                case XON_XOFF_INLINE:
-                    if (mDeviceType == DeviceType.DEVICE_TYPE_HXN)
-                        vendorOut(0x0a, 0xee, null);
-                    else
-                        vendorOut(0, 0xc1, null);
-                    break;
-                default:
-                    throw new UnsupportedOperationException();
+            if (mDeviceType == DeviceType.DEVICE_TYPE_HXN) {
+                int val;
+                switch (flowControl) {
+                    case NONE: val = 0x1c; break;
+                    case RTS_CTS: val = 0x18; break;
+                    case XON_XOFF_INLINE: val = 0x0c; break;
+                    default: throw new UnsupportedOperationException();
+                }
+                updateReg(0x0a, 0x1c, val);
+            } else {
+                int val;
+                switch (flowControl) {
+                    case NONE: val = 0; break;
+                    case RTS_CTS:
+                        val = (mDeviceType == DeviceType.DEVICE_TYPE_01) ? 0x40 : 0x60;
+                        break;
+                    case XON_XOFF_INLINE: val = 0xc0; break;
+                    default: throw new UnsupportedOperationException();
+                }
+                updateReg(0, 0xf0, val);
             }
             mFlowControl = flowControl;
         }
