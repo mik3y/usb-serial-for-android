@@ -11,6 +11,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.util.Log;
+import android.util.Pair;
 
 import com.hoho.android.usbserial.util.HexDump;
 import com.hoho.android.usbserial.util.MonotonicClock;
@@ -162,51 +163,10 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             mControlInterface = null;
             mDataInterface = null;
 
-            int controlId = -1;
-            int dataId = -1;
-
-            ArrayList<byte[]> descriptors = UsbUtils.getDescriptors(mConnection);
-            if (descriptors != null) {
-                // 1. Try to find via IAD
-                if (descriptors.size() > 0 &&
-                        descriptors.get(0).length == 18 &&
-                        descriptors.get(0)[1] == 1 && // bDescriptorType
-                        descriptors.get(0)[4] == (byte)(UsbConstants.USB_CLASS_MISC) && //bDeviceClass
-                        descriptors.get(0)[5] == 2 && // bDeviceSubClass
-                        descriptors.get(0)[6] == 1) { // bDeviceProtocol
-                    int port = -1;
-                    for (int d = 1; d < descriptors.size(); d++) {
-                        byte[] desc = descriptors.get(d);
-                        if (desc.length == 8 &&
-                                desc[1] == 0x0b && // bDescriptorType == IAD
-                                desc[4] == UsbConstants.USB_CLASS_COMM && // bFunctionClass == CDC
-                                desc[5] == USB_SUBCLASS_ACM) { // bFunctionSubClass == ACM
-                            port++;
-                            if (port == mPortNumber && desc[3] == 2) { // bInterfaceCount
-                                controlId = desc[2] & 0xff; // bFirstInterface
-                                dataId = controlId + 1;
-                                break;
-                            }
-                        }
-                    }
-                }
-                // 2. Try to find via Union descriptor
-                if (controlId == -1) {
-                    int port = -1;
-                    for (byte[] desc : descriptors) {
-                        if (desc.length >= 5 && desc[1] == 0x24 && desc[2] == 0x06) { // Union functional descriptor
-                            port++;
-                            if (port == mPortNumber) {
-                                controlId = desc[3] & 0xff; // bMasterInterface
-                                dataId = desc[4] & 0xff;    // bSlaveInterface0
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (controlId >= 0 && dataId >= 0) {
+            Pair<Integer, Integer> pair = getInterfacePairFromDescriptors();
+            if (pair != null) {
+                int controlId = pair.first;
+                int dataId = pair.second;
                 Log.d(TAG, "Found interface pairing: control=" + controlId + ", data=" + dataId);
                 for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
                     UsbInterface usbInterface = mDevice.getInterface(i);
@@ -221,7 +181,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             }
 
             if (mControlInterface == null || mDataInterface == null) {
-                Log.d(TAG, "no IAD/Union fallback");
+                Log.d(TAG, "no IAD fallback");
                 int controlInterfaceCount = 0;
                 int dataInterfaceCount = 0;
                 for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
@@ -295,14 +255,15 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             return -1;
         }
 
-        private int getInterfaceIdFromDescriptors() {
+        private Pair<Integer, Integer> getInterfacePairFromDescriptors() {
             ArrayList<byte[]> descriptors = UsbUtils.getDescriptors(mConnection);
             if (descriptors == null) {
-                return -1;
+                return null;
             }
             Log.d(TAG, "USB descriptor:");
-            for(byte[] descriptor : descriptors)
+            for (byte[] descriptor : descriptors) {
                 Log.d(TAG, HexDump.toHexString(descriptor));
+            }
 
             if (descriptors.size() > 0 &&
                     descriptors.get(0).length == 18 &&
@@ -313,31 +274,21 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 // is IAD device, see https://www.usb.org/sites/default/files/iadclasscode_r10.pdf
                 int port = -1;
                 for (int d = 1; d < descriptors.size(); d++) {
-                    if (descriptors.get(d).length == 8 &&
-                            descriptors.get(d)[1] == 0x0b && // bDescriptorType == IAD
-                            descriptors.get(d)[4] == UsbConstants.USB_CLASS_COMM && // bFunctionClass == CDC
-                            descriptors.get(d)[5] == USB_SUBCLASS_ACM) { // bFunctionSubClass == ACM
+                    byte[] desc = descriptors.get(d);
+                    if (desc.length == 8 &&
+                            desc[1] == 0x0b && // bDescriptorType == IAD
+                            desc[4] == UsbConstants.USB_CLASS_COMM && // bFunctionClass == CDC
+                            desc[5] == USB_SUBCLASS_ACM) { // bFunctionSubClass == ACM
                         port++;
-                        if (port == mPortNumber &&
-                                descriptors.get(d)[3] == 2) { // bInterfaceCount
-                            return descriptors.get(d)[2]; // bFirstInterface
+                        if (port == mPortNumber && desc[3] == 2) { // bInterfaceCount
+                            int controlId = desc[2] & 0xff; // bFirstInterface
+                            int dataId = controlId + 1;
+                            return Pair.create(controlId, dataId);
                         }
                     }
                 }
             }
-
-            // Union Descriptor check
-            int port = -1;
-            for (byte[] desc : descriptors) {
-                if (desc.length >= 5 && desc[1] == 0x24 && desc[2] == 0x06) {
-                    port++;
-                    if (port == mPortNumber) {
-                        return desc[3] & 0xff; // bMasterInterface
-                    }
-                }
-            }
-
-            return -1;
+            return null;
         }
 
         private int sendAcmControlMessage(int request, int value, byte[] buf) throws IOException {
@@ -347,14 +298,6 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
                 throw new IOException("controlTransfer failed");
             }
             return len;
-        }
-
-        @Override
-        protected void closeInt() {
-            try {
-                mConnection.releaseInterface(mControlInterface);
-                mConnection.releaseInterface(mDataInterface);
-            } catch(Exception ignored) {}
         }
 
         @Override

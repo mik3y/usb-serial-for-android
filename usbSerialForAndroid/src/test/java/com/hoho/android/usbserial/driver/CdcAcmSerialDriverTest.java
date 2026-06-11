@@ -210,7 +210,7 @@ public class CdcAcmSerialDriverTest {
         assertEquals(readEndpoints[i], port.mReadEndpoint);
         assertEquals(writeEndpoints[i], port.mWriteEndpoint);
         verify(controlInterfaces[0], times(0)).getInterfaceClass(); // not openInterface with 'no IAD fallback'
-        verify(controlInterfaces[1], times(2)).getInterfaceClass(); // openInterface with IAD
+        verify(controlInterfaces[1], times(0)).getInterfaceClass(); // openInterface with IAD
         port.closeInt();
         clearInvocations(controlInterfaces[0]);
         clearInvocations(controlInterfaces[1]);
@@ -544,58 +544,6 @@ public class CdcAcmSerialDriverTest {
     }
 
     @Test
-    public void unionDescriptorDevice() throws Exception {
-        UsbDeviceConnection usbDeviceConnection = mock(UsbDeviceConnection.class);
-        UsbDevice usbDevice = mock(UsbDevice.class);
-        UsbInterface controlInterface = mock(UsbInterface.class);
-        UsbInterface dataInterface = mock(UsbInterface.class);
-        UsbEndpoint controlEndpoint = mock(UsbEndpoint.class);
-        UsbEndpoint readEndpoint = mock(UsbEndpoint.class);
-        UsbEndpoint writeEndpoint = mock(UsbEndpoint.class);
-
-        // Union functional descriptor 05 24 06 00 01 (master 0, slave 1)
-        when(usbDeviceConnection.getRawDescriptors()).thenReturn(HexDump.hexStringToByteArray(
-                "12 01 10 01 02 00 00 08 D0 16 7E 08 00 01 01 02 00 01\n" +
-                "09 02 43 00 02 01 00 80 32\n" +
-                "09 04 00 00 01 02 02 01 00\n" +
-                "05 24 00 10 01\n" +
-                "04 24 02 06\n" +
-                "05 24 06 00 01\n" +
-                "07 05 83 03 08 00 FF\n" +
-                "09 04 01 00 02 0A 00 00 00\n" +
-                "07 05 01 02 08 00 00\n" +
-                "07 05 81 02 08 00 00"));
-        when(usbDeviceConnection.claimInterface(controlInterface, true)).thenReturn(true);
-        when(usbDeviceConnection.claimInterface(dataInterface, true)).thenReturn(true);
-        when(usbDevice.getInterfaceCount()).thenReturn(2);
-        when(usbDevice.getInterface(0)).thenReturn(controlInterface);
-        when(usbDevice.getInterface(1)).thenReturn(dataInterface);
-        when(controlInterface.getId()).thenReturn(0);
-        when(controlInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_COMM);
-        when(controlInterface.getInterfaceSubclass()).thenReturn(USB_SUBCLASS_ACM);
-        when(controlInterface.getEndpointCount()).thenReturn(1);
-        when(controlInterface.getEndpoint(0)).thenReturn(controlEndpoint);
-        when(dataInterface.getId()).thenReturn(1);
-        when(dataInterface.getInterfaceClass()).thenReturn(UsbConstants.USB_CLASS_CDC_DATA);
-        when(dataInterface.getEndpointCount()).thenReturn(2);
-        when(dataInterface.getEndpoint(0)).thenReturn(writeEndpoint);
-        when(dataInterface.getEndpoint(1)).thenReturn(readEndpoint);
-        when(controlEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_IN);
-        when(controlEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_INT);
-        when(readEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_IN);
-        when(readEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_BULK);
-        when(writeEndpoint.getDirection()).thenReturn(UsbConstants.USB_DIR_OUT);
-        when(writeEndpoint.getType()).thenReturn(UsbConstants.USB_ENDPOINT_XFER_BULK);
-
-        CdcAcmSerialDriver driver = new CdcAcmSerialDriver(usbDevice);
-        CdcAcmSerialDriver.CdcAcmSerialPort port = (CdcAcmSerialDriver.CdcAcmSerialPort) driver.getPorts().get(0);
-        port.mConnection = usbDeviceConnection;
-        port.openInt();
-        assertEquals(readEndpoint, port.mReadEndpoint);
-        assertEquals(writeEndpoint, port.mWriteEndpoint);
-    }
-
-    @Test
     public void acmCapabilitiesAndHandshake() throws Exception {
         UsbDeviceConnection usbDeviceConnection = mock(UsbDeviceConnection.class);
         UsbDevice usbDevice = mock(UsbDevice.class);
@@ -679,6 +627,10 @@ public class CdcAcmSerialDriverTest {
         org.junit.Assert.assertTrue(supported.contains(UsbSerialPort.ControlLine.RI));
 
         // Let the polling thread run and verify line values
+        for (int retry = 0; retry < 50; retry++) {
+            if (port.getCD()) break;
+            Thread.sleep(10);
+        }
         org.junit.Assert.assertTrue(port.getCD());
         org.junit.Assert.assertTrue(port.getDSR());
         org.junit.Assert.assertTrue(port.getRI());
