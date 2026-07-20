@@ -14,6 +14,7 @@ import android.util.Log;
 import com.hoho.android.usbserial.BuildConfig;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -25,7 +26,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
     private static final String TAG = Ch34xSerialDriver.class.getSimpleName();
 
     private final UsbDevice mDevice;
-    private final UsbSerialPort mPort;
+    private final List<UsbSerialPort> mPorts;
 
     private static final int LCR_ENABLE_RX   = 0x80;
     private static final int LCR_ENABLE_TX   = 0x40;
@@ -47,7 +48,10 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
     public Ch34xSerialDriver(UsbDevice device) {
         mDevice = device;
-        mPort = new Ch340SerialPort(mDevice, 0);
+        mPorts = new ArrayList<>();
+        for (int port = 0; port < device.getInterfaceCount(); port++) {
+            mPorts.add(new Ch340SerialPort(mDevice, port));
+        }
     }
 
     @Override
@@ -57,7 +61,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
     @Override
     public List<UsbSerialPort> getPorts() {
-        return Collections.singletonList(mPort);
+        return mPorts;
     }
 
     public class Ch340SerialPort extends CommonUsbSerialPort {
@@ -80,14 +84,14 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
         @Override
         protected void openInt() throws IOException {
-            for (int i = 0; i < mDevice.getInterfaceCount(); i++) {
-                UsbInterface usbIface = mDevice.getInterface(i);
-                if (!mConnection.claimInterface(usbIface, true)) {
-                    throw new IOException("Could not claim data interface");
-                }
+            if (mPortNumber >= mDevice.getInterfaceCount()) {
+                throw new IOException("Unknown port number");
+            }
+            UsbInterface dataIface = mDevice.getInterface(mPortNumber);
+            if (!mConnection.claimInterface(dataIface, true)) {
+                throw new IOException("Could not claim interface " + mPortNumber);
             }
 
-            UsbInterface dataIface = mDevice.getInterface(mDevice.getInterfaceCount() - 1);
             for (int i = 0; i < dataIface.getEndpointCount(); i++) {
                 UsbEndpoint ep = dataIface.getEndpoint(i);
                 if (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
@@ -101,13 +105,13 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
             initialize();
             setBaudRate(DEFAULT_BAUD_RATE);
+            setFlowControl(mFlowControl);
         }
 
         @Override
         protected void closeInt() {
             try {
-                for (int i = 0; i < mDevice.getInterfaceCount(); i++)
-                    mConnection.releaseInterface(mDevice.getInterface(i));
+                mConnection.releaseInterface(mDevice.getInterface(mPortNumber));
             } catch(Exception ignored) {}
         }
 
@@ -199,6 +203,9 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
             if (baudRate == 921600) {
                 divisor = 7;
                 factor = 0xf300;
+            } else if (baudRate == 307200) {
+                divisor = 7;
+                factor = 0xd900;
             } else {
                 final long BAUDBASE_FACTOR = 1532620800;
                 final int BAUDBASE_DIVMAX = 3;
@@ -217,15 +224,45 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
                 factor = 0x10000 - factor;
             }
 
+            long effectiveBaudRate;
+            if (baudRate == 921600 || baudRate == 307200) {
+                effectiveBaudRate = baudRate;
+            } else {
+                int a = (int) ((factor & 0xff00) >> 8);
+                long baseClock;
+                if (divisor == 3) {
+                    baseClock = 6000000;
+                } else if (divisor == 2) {
+                    baseClock = 750000;
+                } else if (divisor == 1) {
+                    baseClock = 93750;
+                } else if (divisor == 0) {
+                    baseClock = 11719;
+                } else {
+                    throw new UnsupportedOperationException("Unsupported baud rate: " + baudRate);
+                }
+                effectiveBaudRate = baseClock / (256 - a);
+            }
+            double baudRateError = Math.abs(1.0 - (effectiveBaudRate / (double) baudRate));
+            if (baudRateError >= 0.03) {
+                throw new UnsupportedOperationException(String.format(java.util.Locale.US, "Baud rate deviation %.1f%% is higher than allowed 3%%", baudRateError * 100));
+            }
+
             divisor |= 0x0080; // else ch341a waits until buffer full
             int val1 = (int) ((factor & 0xff00) | divisor);
-            int val2 = (int) (factor & 0xff);
-            Log.d(TAG, String.format("baud rate=%d, 0x1312=0x%04x, 0x0f2c=0x%04x", baudRate, val1, val2));
+            Log.d(TAG, String.format("baud rate=%d, 0x1312=0x%04x", baudRate, val1));
             int ret = controlOut(0x9a, 0x1312, val1);
             if (ret < 0) {
                 throw new IOException("Error setting baud rate: #1)");
             }
-            ret = controlOut(0x9a, 0x0f2c, val2);
+            int timeout = 76800 / baudRate;
+            if (timeout < 0x07) {
+                timeout = 0x07;
+            }
+            if (timeout > 0xff) {
+                timeout = 0xff;
+            }
+            ret = controlOut(0x9a, 0x0f2c, timeout);
             if (ret < 0) {
                 throw new IOException("Error setting baud rate: #2");
             }
@@ -352,6 +389,27 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
         @Override
         public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
             return EnumSet.allOf(ControlLine.class);
+        }
+
+        @Override
+        public void setFlowControl(FlowControl flowControl) throws IOException {
+            if (flowControl == FlowControl.RTS_CTS) {
+                if (controlOut(0x9a, 0x2727, 0x0101) < 0) {
+                    throw new IOException("Failed to set flow control");
+                }
+            } else if (flowControl == FlowControl.NONE) {
+                if (controlOut(0x9a, 0x2727, 0x0000) < 0) {
+                    throw new IOException("Failed to set flow control");
+                }
+            } else {
+                throw new UnsupportedOperationException("Unsupported flow control: " + flowControl);
+            }
+            mFlowControl = flowControl;
+        }
+
+        @Override
+        public EnumSet<FlowControl> getSupportedFlowControl() {
+            return EnumSet.of(FlowControl.NONE, FlowControl.RTS_CTS);
         }
 
         @Override
