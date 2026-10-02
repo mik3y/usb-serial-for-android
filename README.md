@@ -158,7 +158,7 @@ This library supports USB to serial converter chips with specific drivers
 * FTDI FT232R, FT232H, FT2232H, FT4232H, FT230X, FT231X, FT234XD
 * Prolific PL2303
 * Silabs CP2102, CP210*
-* Qinheng CH340, CH341A
+* Qinheng CH340, CH341A, CH348
 
 some other device specific drivers
 * GsmModem devices, e.g. for Unisoc based Fibocom GSM modems
