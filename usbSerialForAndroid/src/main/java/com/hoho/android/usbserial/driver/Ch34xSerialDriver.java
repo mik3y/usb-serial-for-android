@@ -199,6 +199,9 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
             if (baudRate == 921600) {
                 divisor = 7;
                 factor = 0xf300;
+            } else if (baudRate == 307200) {
+                divisor = 7;
+                factor = 0xd900;
             } else {
                 final long BAUDBASE_FACTOR = 1532620800;
                 final int BAUDBASE_DIVMAX = 3;
