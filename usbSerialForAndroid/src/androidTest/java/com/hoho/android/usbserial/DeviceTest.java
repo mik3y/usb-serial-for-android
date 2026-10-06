@@ -2185,6 +2185,7 @@ public class DeviceTest {
         boolean outputLineReadable = false; // getControlLines returns configured value
         FlowControl_OutputLineLocked outputLineLocked = FlowControl_OutputLineLocked.FALSE;
         boolean outputLineSet = false;
+        boolean inputFlowControl = true;
         if(usb.serialDriver instanceof ProlificSerialDriver) {
             outputLineSet = true; // line set to 'true' on setFlowControl
             outputLineLocked = FlowControl_OutputLineLocked.TRUE;  // setRts/Dtr has no effect
@@ -2197,7 +2198,9 @@ public class DeviceTest {
         if(usb.serialDriver instanceof FtdiSerialDriver) {
             outputLineLocked = FlowControl_OutputLineLocked.ON_BUFFER_FULL;
         }
-
+        if(usb.serialDriver instanceof Ch34xSerialDriver) {
+            inputFlowControl = false;
+        }
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
         telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -2313,23 +2316,25 @@ public class DeviceTest {
             }
         }
 
-        new NoRead().run();
+        if (inputFlowControl) {
+            new NoRead().run();
 
-        // no read -> buffer full -> RTS/DTR off -> output line locked
-        if(outputLineLocked != FlowControl_OutputLineLocked.TRUE) {
-            assertTrue(usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR));
-            for(i = 0; i < 120 && usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR); i++) {
-                telnet.write(buf64);
-                Thread.sleep(controlLineWait);
-            }
-            assertFalse(usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR));
-            if(m) usb.serialPort.setRTS(true); else usb.serialPort.setDTR(true);
-            Thread.sleep(controlLineWait);
-            if(outputLineLocked == FlowControl_OutputLineLocked.ON_BUFFER_FULL)
-                assertFalse(usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR));
-            else
+            // no read -> buffer full -> RTS/DTR off -> output line locked
+            if (outputLineLocked != FlowControl_OutputLineLocked.TRUE) {
                 assertTrue(usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR));
-            data = usb.read(-1, i*64, 100);
+                for (i = 0; i < 120 && usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR); i++) {
+                    telnet.write(buf64);
+                    Thread.sleep(controlLineWait);
+                }
+                assertFalse(usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR)); // RTS not unset on CH34x
+                if (m) usb.serialPort.setRTS(true); else usb.serialPort.setDTR(true);
+                Thread.sleep(controlLineWait);
+                if (outputLineLocked == FlowControl_OutputLineLocked.ON_BUFFER_FULL)
+                    assertFalse(usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR));
+                else
+                    assertTrue(usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR));
+                data = usb.read(-1, i * 64, 100);
+            }
         }
 
         // mode retained over close
@@ -2341,7 +2346,8 @@ public class DeviceTest {
         assertEquals(flowControl, usb.serialPort.getFlowControl());
         assertTrue(m ? usb.serialPort.getRTS() : usb.serialPort.getDTR());
         assertTrue(usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR));
-        new NoRead().run();
+        if (inputFlowControl)
+            new NoRead().run();
     }
 
     @Test

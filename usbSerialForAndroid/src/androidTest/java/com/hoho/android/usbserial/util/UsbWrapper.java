@@ -135,8 +135,9 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         } else if (serialDriver instanceof Ch34xSerialDriver) {
             outputLinesSupported = true;
             inputLinesSupported = true;
-            if(serialDriver.getDevice().getProductId() == UsbId.QINHENG_CH340)
-                inputLinesConnected = true;  // I only have 74LS138 connected at CH340, not connected at CH341A
+            inputLinesConnected = true;
+            if(serialDriver.getDevice().getProductId() == UsbId.QINHENG_CH341A)
+                inputLinesOnlyRtsCts = true;
         } else if (serialDriver instanceof CdcAcmSerialDriver) {
             outputLinesSupported = true;
             inputLinesSupported = true;
