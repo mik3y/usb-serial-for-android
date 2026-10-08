@@ -43,6 +43,7 @@ public final class UsbId {
     public static final int VENDOR_QINHENG = 0x1a86;
     public static final int QINHENG_CH340 = 0x7523;
     public static final int QINHENG_CH341A = 0x5523;
+    public static final int QINHENG_CH348 = 0x55d9;
 
     public static final int VENDOR_UNISOC = 0x1782;
     public static final int FIBOCOM_L610 = 0x4D10;
