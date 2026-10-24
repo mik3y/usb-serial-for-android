@@ -35,6 +35,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
@@ -66,9 +67,9 @@ public class CrossoverTest {
         if (availableDrivers.size() == 0) {
             fail("no USB device found");
         } else if (availableDrivers.size() == 1) {
-            assertEquals("expected device with 2 ports.", 2, availableDrivers.get(0).getPorts().size());
+            assertTrue("expected device with at least 2 ports.", availableDrivers.get(0).getPorts().size() >= 2);
             usb1 = new UsbWrapper(context, availableDrivers.get(0), 0);
-            usb2 = new UsbWrapper(context, availableDrivers.get(0), 1);
+            usb2 = new UsbWrapper(context, availableDrivers.get(0), availableDrivers.get(0).getPorts().size()/2);
         } else {
             assertEquals("expected 2 devices with 1 port.", 1, availableDrivers.get(0).getPorts().size());
             assertEquals("expected 2 devices with 1 port.", 1, availableDrivers.get(1).getPorts().size());

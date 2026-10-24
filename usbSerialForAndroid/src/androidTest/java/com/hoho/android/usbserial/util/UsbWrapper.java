@@ -61,11 +61,8 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
     public boolean isCp21xxRestrictedPort; // second port of Cp2105 has limited dataBits, stopBits, parity
     public boolean isCdcAcmCh343;
 
-    public boolean outputLinesSupported;
-    public boolean inputLinesSupported;
-    public boolean inputLinesConnected;
-    public boolean inputLinesOnlyRtsCts;
-    public boolean inputLineCtsSupported;
+    public boolean controlLinesConnected2x4; // 74HC139 with RTS, DTR -> CD, DSR, CTS, RI
+    public boolean controlLinesConnectedRtsCts; // only these lines directly connected
     public int writePacketSize = -1;
     public int writeBufferSize = -1;
     public int readBufferSize = -1;
@@ -111,39 +108,25 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         isCp21xxRestrictedPort = serialDriver instanceof Cp21xxSerialDriver && serialDriver.getPorts().size()==2 && serialPort.getPortNumber() == 1;
         isCdcAcmCh343 = serialDriver.getDevice().getVendorId() == UsbId.VENDOR_QINHENG && serialDriver.getDevice().getProductId() == 0x55D3;
 
-        // output lines are supported by all common drivers
-        // input lines are supported by all common drivers, but only partly by CDC
-        inputLineCtsSupported = true;
         if (serialDriver instanceof FtdiSerialDriver) {
-            outputLinesSupported = true;
-            inputLinesSupported = true;
             if(serialDriver.getDevice().getProductId() == UsbId.FTDI_FT2232H)
-                inputLinesConnected = true; // I only have 74LS138 connected at FT2232, not at FT232
+                controlLinesConnected2x4 = true; // I only have 74LS138 connected at FT2232, not at FT232
             if(serialDriver.getDevice().getProductId() == UsbId.FTDI_FT231X) {
-                inputLinesConnected = true;
-                inputLinesOnlyRtsCts = true; // I only test with FT230X that has only these 2 control lines. DTR is silently ignored
+                controlLinesConnectedRtsCts = true; // I only test with FT230X that has only these 2 control lines. DTR is silently ignored
             }
         } else if (serialDriver instanceof Cp21xxSerialDriver) {
-            outputLinesSupported = true;
-            inputLinesSupported = true;
             if(serialDriver.getPorts().size() == 1)
-                inputLinesConnected = true; // I only have 74LS138 connected at CP2102, not at CP2105
+                controlLinesConnected2x4 = true; // I only have 74LS138 connected at CP2102, not at CP2105
         } else if (serialDriver instanceof ProlificSerialDriver) {
-            outputLinesSupported = true;
-            inputLinesSupported = true;
-            inputLinesConnected = true;
+            controlLinesConnected2x4 = true;
         } else if (serialDriver instanceof Ch34xSerialDriver) {
-            outputLinesSupported = true;
-            inputLinesSupported = true;
-            inputLinesConnected = true;
             if(serialDriver.getDevice().getProductId() == UsbId.QINHENG_CH341A)
-                inputLinesOnlyRtsCts = true;
+                controlLinesConnectedRtsCts = true;
+            else
+                controlLinesConnected2x4 = true;
         } else if (serialDriver instanceof CdcAcmSerialDriver) {
-            outputLinesSupported = true;
-            inputLinesSupported = true;
             if(isCdcAcmCh343)
-                inputLinesConnected = true;
-            inputLineCtsSupported = false;
+                controlLinesConnected2x4 = true;
         }
 
         if (serialDriver instanceof Cp21xxSerialDriver) {
@@ -198,8 +181,10 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         if (serialPort != null) {
             try {
                 if(!flags.contains(OpenCloseFlags.NO_CONTROL_LINE_INIT)) {
-                    serialPort.setDTR(false);
-                    serialPort.setRTS(false);
+                    if(serialPort.getSupportedControlLines().contains(UsbSerialPort.ControlLine.DTR))
+                        serialPort.setDTR(false);
+                    if(serialPort.getSupportedControlLines().contains(UsbSerialPort.ControlLine.RTS))
+                        serialPort.setRTS(false);
                     if (serialPort.getFlowControl() != UsbSerialPort.FlowControl.NONE)
                         serialPort.setFlowControl(UsbSerialPort.FlowControl.NONE);
                 }
@@ -341,6 +326,17 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         } catch (UnsupportedOperationException t) {
             return null;
         }
+    }
+
+    public EnumSet<UsbSerialPort.ControlLine> getControlLines() throws Exception {
+        EnumSet<UsbSerialPort.ControlLine> lines = EnumSet.noneOf(UsbSerialPort.ControlLine.class);
+        if(getControlLine(serialPort::getRTS) == Boolean.TRUE) lines.add(UsbSerialPort.ControlLine.RTS);
+        if(getControlLine(serialPort::getCTS) == Boolean.TRUE) lines.add(UsbSerialPort.ControlLine.CTS);
+        if(getControlLine(serialPort::getDTR) == Boolean.TRUE) lines.add(UsbSerialPort.ControlLine.DTR);
+        if(getControlLine(serialPort::getDSR) == Boolean.TRUE) lines.add(UsbSerialPort.ControlLine.DSR);
+        if(getControlLine(serialPort::getCD) == Boolean.TRUE)  lines.add(UsbSerialPort.ControlLine.CD);
+        if(getControlLine(serialPort::getRI) == Boolean.TRUE)  lines.add(UsbSerialPort.ControlLine.RI);
+        return lines;
     }
 
     // return [write packet size, write buffer size(s)]
