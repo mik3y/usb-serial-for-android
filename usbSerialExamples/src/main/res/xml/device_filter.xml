@@ -24,6 +24,7 @@
     <!-- 0x1a86 / 0x?523: Qinheng CH34x -->
     <usb-device vendor-id="6790" product-id="21795" /> <!-- 0x5523: CH341A -->
     <usb-device vendor-id="6790" product-id="29987" /> <!-- 0x7523: CH340 -->
+    <usb-device vendor-id="6790" product-id="21977" /> <!-- 0x55d9: CH348 -->
 
     <!-- CDC driver -->
     <usb-device vendor-id="9025" />                   <!-- 0x2341 / ......: Arduino -->
