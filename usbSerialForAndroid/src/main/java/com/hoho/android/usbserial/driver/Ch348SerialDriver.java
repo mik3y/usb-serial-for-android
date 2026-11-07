@@ -580,12 +580,17 @@ public class Ch348SerialDriver implements UsbSerialDriver {
             mModemStatus = 0;
             mFlowControl = FlowControl.NONE;
             mIsOpen = true;
+            boolean ok = false;
             try {
                 initialize();
-            } catch (Exception e) {
-                mIsOpen = false;
-                cleanup();
-                throw e;
+                ok = true;
+            } finally {
+                if (!ok) {
+                    try {
+                        mIsOpen = false;
+                        cleanup();
+                    } catch (Exception ignored) {}
+                }
             }
         }
 
