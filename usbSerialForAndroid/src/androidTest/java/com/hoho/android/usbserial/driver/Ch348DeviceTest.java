@@ -212,8 +212,9 @@ public class Ch348DeviceTest {
         UsbSerialPort port0 = open(0, 115200);
         UsbSerialPort portX = open(crossPort, 115200);
         Log.i(TAG, "port0 lines=" + port0.getSupportedControlLines() + " portX lines=" + portX.getSupportedControlLines());
-        // CH348Q: port 4..7 without control lines
-        assertEquals(EnumSet.allOf(UsbSerialPort.ControlLine.class), port0.getSupportedControlLines());
+        // CH348Q: ports 0..3 have RTS+CTS+DTR, ports 4..7 have no control lines
+        assertEquals(EnumSet.of(UsbSerialPort.ControlLine.RTS, UsbSerialPort.ControlLine.CTS, UsbSerialPort.ControlLine.DTR),
+                port0.getSupportedControlLines());
         assertEquals(EnumSet.noneOf(UsbSerialPort.ControlLine.class), portX.getSupportedControlLines());
         assertThrows(UnsupportedOperationException.class, () -> portX.setDTR(true));
         assertThrows(UnsupportedOperationException.class, () -> portX.setFlowControl(UsbSerialPort.FlowControl.RTS_CTS));

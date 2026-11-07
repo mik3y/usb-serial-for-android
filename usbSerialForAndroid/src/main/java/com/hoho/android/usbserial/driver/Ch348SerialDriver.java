@@ -38,7 +38,9 @@ import java.util.concurrent.TimeUnit;
  * RX packet: sequence of 32 byte sub-packets [port][len][data(max 30)][padding]
  * Status notifications on EP 0x81 must be drained continuously, else EP 0x82 stalls.
  *
- * CH348Q ports 4..7 have no modem control lines.
+ * CH348Q ports 4..7 have no modem control lines, ports 0..3 have RTS+CTS+DTR.
+ * CH348L has all 6 control lines on all ports
+ * The DTR/TNOW pins have to be configured as DTR with the CFG pin or the CH34xSerCfg tool.
  *
  * Protocol references: WCHSoftGroup/ch9344ser_linux (ch9344.c) and USB captures
  * of the Windows driver.
@@ -100,6 +102,7 @@ public class Ch348SerialDriver implements UsbSerialDriver {
     private static final int RX_QUEUE_SIZE = 1024;
 
     enum ChipType { CH348Q, CH348L, UNKNOWN }
+    private enum ControlLinesType { NONE, RTS_CTS_DTR, ALL }
 
     private final UsbDevice mDevice;
     private final Ch348SerialPort[] mPortArray;
@@ -499,8 +502,23 @@ public class Ch348SerialDriver implements UsbSerialDriver {
             return Ch348SerialDriver.this;
         }
 
-        private boolean hasControlLines() {
-            return !(mChipType == ChipType.CH348Q && mPortNumber >= 4);
+        private ControlLinesType getControlLinesType() {
+            if (mChipType == ChipType.CH348Q)
+                return mPortNumber < 4 ? ControlLinesType.RTS_CTS_DTR : ControlLinesType.NONE;
+            return ControlLinesType.ALL;
+        }
+
+        private boolean isControlLineSupported(ControlLine line) {
+            ControlLinesType type = getControlLinesType();
+            return type == ControlLinesType.ALL ||
+                    (type == ControlLinesType.RTS_CTS_DTR &&
+                            (line == ControlLine.RTS || line == ControlLine.CTS || line == ControlLine.DTR));
+        }
+
+        private boolean getControlLine(ControlLine line) throws IOException {
+            if (!isControlLineSupported(line))
+                throw new UnsupportedOperationException();
+            return getControlLines().contains(line);
         }
 
         private void checkOpen() throws IOException {
@@ -827,26 +845,26 @@ public class Ch348SerialDriver implements UsbSerialDriver {
         // control lines
 
         @Override
-        public boolean getCD() throws IOException { return getControlLines().contains(ControlLine.CD); }
+        public boolean getCD() throws IOException { return getControlLine(ControlLine.CD); }
 
         @Override
-        public boolean getCTS() throws IOException { return getControlLines().contains(ControlLine.CTS); }
+        public boolean getCTS() throws IOException { return getControlLine(ControlLine.CTS); }
 
         @Override
-        public boolean getDSR() throws IOException { return getControlLines().contains(ControlLine.DSR); }
+        public boolean getDSR() throws IOException { return getControlLine(ControlLine.DSR); }
 
         @Override
-        public boolean getDTR() throws IOException { return getControlLines().contains(ControlLine.DTR); }
+        public boolean getDTR() throws IOException { return getControlLine(ControlLine.DTR); }
 
         @Override
-        public boolean getRI() throws IOException { return getControlLines().contains(ControlLine.RI); }
+        public boolean getRI() throws IOException { return getControlLine(ControlLine.RI); }
 
         @Override
-        public boolean getRTS() throws IOException { return getControlLines().contains(ControlLine.RTS); }
+        public boolean getRTS() throws IOException { return getControlLine(ControlLine.RTS); }
 
         @Override
         public void setDTR(boolean value) throws IOException {
-            if (!hasControlLines())
+            if (getControlLinesType() == ControlLinesType.NONE)
                 throw new UnsupportedOperationException();
             checkOpen();
             regWrite(mPortNumber, R_C4, value ? 0x01 : 0x00);
@@ -855,7 +873,7 @@ public class Ch348SerialDriver implements UsbSerialDriver {
 
         @Override
         public void setRTS(boolean value) throws IOException {
-            if (!hasControlLines())
+            if (getControlLinesType() == ControlLinesType.NONE)
                 throw new UnsupportedOperationException();
             checkOpen();
             regWrite(mPortNumber, R_C4, value ? 0x11 : 0x10);
@@ -864,7 +882,8 @@ public class Ch348SerialDriver implements UsbSerialDriver {
 
         @Override
         public EnumSet<ControlLine> getControlLines() throws IOException {
-            if (!hasControlLines())
+            ControlLinesType type = getControlLinesType();
+            if (type == ControlLinesType.NONE)
                 throw new UnsupportedOperationException();
             checkOpen();
             int status = mModemStatus;
@@ -872,15 +891,25 @@ public class Ch348SerialDriver implements UsbSerialDriver {
             if (mRts) set.add(ControlLine.RTS);
             if ((status & CTI_C) != 0) set.add(ControlLine.CTS);
             if (mDtr) set.add(ControlLine.DTR);
-            if ((status & CTI_DS) != 0) set.add(ControlLine.DSR);
-            if ((status & CTI_DC) != 0) set.add(ControlLine.CD);
-            if ((status & CTI_R) != 0) set.add(ControlLine.RI);
+            if (type == ControlLinesType.ALL) {
+                if ((status & CTI_DS) != 0) set.add(ControlLine.DSR);
+                if ((status & CTI_DC) != 0) set.add(ControlLine.CD);
+                if ((status & CTI_R) != 0) set.add(ControlLine.RI);
+            }
             return set;
         }
 
         @Override
         public EnumSet<ControlLine> getSupportedControlLines() throws IOException {
-            return hasControlLines() ? EnumSet.allOf(ControlLine.class) : EnumSet.noneOf(ControlLine.class);
+            checkOpen();
+            switch (getControlLinesType()) {
+                case NONE:
+                    return EnumSet.noneOf(ControlLine.class);
+                case RTS_CTS_DTR:
+                    return EnumSet.of(ControlLine.RTS, ControlLine.CTS, ControlLine.DTR);
+                default:
+                    return EnumSet.allOf(ControlLine.class);
+            }
         }
 
         @Override
@@ -894,7 +923,9 @@ public class Ch348SerialDriver implements UsbSerialDriver {
 
         @Override
         public EnumSet<FlowControl> getSupportedFlowControl() {
-            return hasControlLines() ? EnumSet.of(FlowControl.NONE, FlowControl.RTS_CTS) : EnumSet.of(FlowControl.NONE);
+            return getControlLinesType() == ControlLinesType.NONE
+                    ? EnumSet.of(FlowControl.NONE)
+                    : EnumSet.of(FlowControl.NONE, FlowControl.RTS_CTS);
         }
 
         @Override
