@@ -13,6 +13,7 @@ import android.os.Build;
 import android.util.Log;
 
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
+import com.hoho.android.usbserial.driver.Ch348SerialDriver;
 import com.hoho.android.usbserial.driver.Ch34xSerialDriver;
 import com.hoho.android.usbserial.driver.CommonUsbSerialPort;
 import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
@@ -63,6 +64,7 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
 
     public boolean controlLinesConnected2x4; // 74HC139 with RTS, DTR -> CD, DSR, CTS, RI
     public boolean controlLinesConnectedRtsCts; // only these lines directly connected
+    public boolean controlLinesRetained = true;
     public int writePacketSize = -1;
     public int writeBufferSize = -1;
     public int readBufferSize = -1;
@@ -120,10 +122,13 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         } else if (serialDriver instanceof ProlificSerialDriver) {
             controlLinesConnected2x4 = true;
         } else if (serialDriver instanceof Ch34xSerialDriver) {
-            if(serialDriver.getDevice().getProductId() == UsbId.QINHENG_CH341A)
+            if (serialDriver.getDevice().getProductId() == UsbId.QINHENG_CH341A)
                 controlLinesConnectedRtsCts = true;
             else
                 controlLinesConnected2x4 = true;
+        } else if (serialDriver instanceof Ch348SerialDriver) {
+            controlLinesConnected2x4 = true;
+            controlLinesRetained = false; // reset on open
         } else if (serialDriver instanceof CdcAcmSerialDriver) {
             if(isCdcAcmCh343)
                 controlLinesConnected2x4 = true;
@@ -223,8 +228,10 @@ public class UsbWrapper implements SerialInputOutputManager.Listener {
         }
         serialPort.open(deviceConnection);
         if(!flags.contains(OpenCloseFlags.NO_CONTROL_LINE_INIT)) {
-            serialPort.setDTR(true);
-            serialPort.setRTS(true);
+            if(serialPort.getSupportedControlLines().contains(UsbSerialPort.ControlLine.DTR))
+                serialPort.setDTR(true);
+            if(serialPort.getSupportedControlLines().contains(UsbSerialPort.ControlLine.RTS))
+                serialPort.setRTS(true);
         }
         if(!flags.contains(OpenCloseFlags.NO_IOMANAGER_THREAD)) {
             ioManager = new SerialInputOutputManager(serialPort, this);

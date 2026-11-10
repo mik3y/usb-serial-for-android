@@ -640,7 +640,6 @@ public class Ch348SerialDriver implements UsbSerialDriver {
         private void initialize() throws IOException {
             regWriteWithResponse(mPortNumber, R_C2, 0x87);
             regWriteWithResponse(mPortNumber, R_C4, 0x08);
-            setLineParameters(mBaudRate, 8, STOPBITS_1, PARITY_NONE);
             if (getControlLinesType() != ControlLinesType.NONE) {
                 setFlowControl(FlowControl.NONE);
             }

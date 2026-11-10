@@ -6,7 +6,18 @@
  *  - missing functionality on certain devices, see:
  *      - if(rfc2217_server_nonstandard_baudrates)
  *      - if(usbSerialDriver instanceof ...)
- *
+ * - wiring:
+ *   - device connected to Raspi/... running rfc2217_server.py
+ *     see https://github.com/mik3y/usb-serial-for-android/wiki/Device-Tests-&-Coverage-Report#test-execution
+ *   - for multiport devices use port 1
+ *   - control lines connected with 2-N decoder 74HC139,...
+ *     see https://github.com/mik3y/usb-serial-for-android/wiki/Device-Tests-&-Coverage-Report#serial-device-setup
+ *     - input A  = RTS
+ *     - input B  = DTR
+ *     - output 0 = CD
+ *     - output 1 = DSR
+ *     - output 2 = CTS
+ *     - output 3 = RI
  */
 package com.hoho.android.usbserial;
 
@@ -22,6 +33,7 @@ import androidx.test.runner.AndroidJUnit4;
 import android.util.Log;
 
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
+import com.hoho.android.usbserial.driver.Ch348SerialDriver;
 import com.hoho.android.usbserial.driver.Ch34xSerialDriver;
 import com.hoho.android.usbserial.driver.ChromeCcdSerialDriver;
 import com.hoho.android.usbserial.driver.CommonUsbSerialPort;
@@ -63,6 +75,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -506,6 +519,8 @@ public class DeviceTest {
                 ;
             else if (usb.serialDriver instanceof CdcAcmSerialDriver)
                 ;
+            else if (usb.serialDriver instanceof Ch348SerialDriver)
+                ;
             else
                 fail("invalid baudrate 1");
         } catch (UnsupportedOperationException ignored) { // ch340
@@ -528,6 +543,8 @@ public class DeviceTest {
         }
 
         for(int baudRate : new int[] {300, 2400, 19200, 115200} ) {
+            if(baudRate == 300 && usb.serialDriver instanceof Ch348SerialDriver)
+                baudRate = 1200; // lowest supported
             if(baudRate == 300 && usb.isCp21xxRestrictedPort) {
                 try {
                     usb.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -623,8 +640,9 @@ public class DeviceTest {
             Thread.sleep(10);
             usb.write(new byte[]{(byte) 0xff});
             data = telnet.read(2);
-            if(usb.serialDriver instanceof CdcAcmSerialDriver && !usb.isCdcAcmCh343) {
-                // not supported by MCP2221 and CH9143
+            if((usb.serialDriver instanceof CdcAcmSerialDriver && !usb.isCdcAcmCh343) || usb.serialDriver instanceof Ch348SerialDriver) {
+                // not supported by CdcAcm MCP2221 and CH9143
+                // not support by older CH348, see https://github.com/WCHSoftGroup/ch9344ser_linux/issues/48#issuecomment-4264924574
                 assertThat("19000/7N1", data, equalTo(new byte[]{(byte) 0x00, (byte) 0xff}));
                 return;
             } else {
@@ -703,8 +721,9 @@ public class DeviceTest {
         usb.write(_8n1);
         data = telnet.read(4);
 
-        if (usb.serialDriver instanceof CdcAcmSerialDriver && !usb.isCdcAcmCh343) {
-            // not supported by MCP2221 and CH9143
+        if ((usb.serialDriver instanceof CdcAcmSerialDriver && !usb.isCdcAcmCh343) || usb.serialDriver instanceof Ch348SerialDriver) {
+            // not supported by CdcAcm: MCP2221 and CH9143
+            // not support by older CH348, see https://github.com/WCHSoftGroup/ch9344ser_linux/issues/48#issuecomment-4264924574
             assertThat("19200/8N1", data, equalTo(_8n1));
         } else {
             assertThat("19200/7O1", data, equalTo(_7o1));
@@ -752,8 +771,8 @@ public class DeviceTest {
         data = usb.read(4);
         assertThat("19200/7S1", data, equalTo(_7s1));
 
-        if (usb.serialDriver instanceof CdcAcmSerialDriver && !usb.isCdcAcmCh343) {
-            ; // not supported by MCP2221, other CDC devices might support it
+        if ((usb.serialDriver instanceof CdcAcmSerialDriver && !usb.isCdcAcmCh343) || usb.serialDriver instanceof Ch348SerialDriver) {
+            ; // see above
         } else {
             usb.setParameters(19200, 7, 1, UsbSerialPort.PARITY_ODD);
             telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -1185,7 +1204,14 @@ public class DeviceTest {
         }
 
         CommonUsbSerialPortWrapper.setReadQueueRequestSupplier(usb.serialPort, CountingUsbRequest::new);
-        usb.serialPort.setReadQueue(2, 0);
+        try {
+            usb.serialPort.setReadQueue(2, 0);
+        } catch(UnsupportedOperationException ex) {
+            if(usb.serialDriver instanceof Ch348SerialDriver)
+                Assume.assumeTrue("control lines not supported", false);
+            else
+                throw ex;
+        }
         assertEquals(0, usb.serialPort.getReadQueueBufferSize());
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_IOMANAGER_START));
         int len = usb.serialPort.getReadEndpoint().getMaxPacketSize();
@@ -1779,14 +1805,6 @@ public class DeviceTest {
         byte[] data;
         int sleep = 10;
 
-        boolean isCdcAcm = usb.serialDriver instanceof CdcAcmSerialDriver; // does not know input line values after initial connect
-        boolean rtsSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.RTS);
-        boolean ctsSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.CTS);
-        boolean dtrSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.DTR);
-        boolean dsrSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.DSR);
-        boolean cdSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.CD);
-        boolean riSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.RI);
-
         // UsbSerialProber creates new UsbSerialPort objects which resets control lines,
         // so the initial open has the output control lines unset.
         // On additional close+open the output control lines can be retained.
@@ -1794,6 +1812,14 @@ public class DeviceTest {
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         telnet.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
         Thread.sleep(sleep);
+
+        boolean isCdcAcm = usb.serialDriver instanceof CdcAcmSerialDriver; // does not know input line values after initial connect
+        boolean rtsSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.RTS);
+        boolean ctsSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.CTS);
+        boolean dtrSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.DTR);
+        boolean dsrSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.DSR);
+        boolean cdSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.CD);
+        boolean riSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.RI);
 
         if(!rtsSupported) {
             assertThrows(UnsupportedOperationException.class, usb.serialPort::getRTS);
@@ -1898,10 +1924,11 @@ public class DeviceTest {
         usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
         usb.setParameters(19200, 8, 1, UsbSerialPort.PARITY_NONE);
-
+        boolean rtsExpected = usb.controlLinesRetained;
+        boolean ctsExpected = usb.controlLinesRetained && (usb.controlLinesConnected2x4 || usb.controlLinesConnectedRtsCts);
         assertEquals(usb.getControlLines(), usb.serialPort.getControlLines());
-        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.TRUE));
-        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(ctsSupported ? usb.controlLinesConnected2x4 || usb.controlLinesConnectedRtsCts : null));
+        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(rtsExpected));
+        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(ctsSupported ? ctsExpected : null));
         assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.FALSE));
         assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(dsrSupported ? Boolean.FALSE : null));
         assertThat(usb.getControlLine(usb.serialPort::getCD),  equalTo(cdSupported ? Boolean.FALSE : null));
@@ -1950,29 +1977,31 @@ public class DeviceTest {
         } catch (IOException ignored) {
         }
 
+        Callable<Boolean> getInputLine = riSupported ? usb.serialPort::getRI : usb.serialPort::getCTS;
         try {
             if (usb.serialDriver instanceof ProlificSerialDriver
-             || usb.serialDriver instanceof CdcAcmSerialDriver) {
+             || usb.serialDriver instanceof CdcAcmSerialDriver
+             || usb.serialDriver instanceof Ch348SerialDriver) {
                 for(int i = 0; i < 10; i++) { // can take some time until background thread fails
-                    usb.serialPort.getRI();
+                    getInputLine.call();
                     Thread.sleep(100);
                 }
             } else {
-                usb.serialPort.getRI();
+                getInputLine.call();
             }
             fail("connection closed expected");
         } catch (IOException ignored) {
         } catch (UnsupportedOperationException ignored) {
         }
         try {
-            usb.serialPort.getRI();
+            getInputLine.call();
             fail("connection closed expected");
         } catch (IOException ignored) {
         }
         // reset error
         usb.close(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT));
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
-        usb.serialPort.getRI();
+        getInputLine.call();
         usb.serialPort.setRTS(true);
     }
 
@@ -2191,6 +2220,10 @@ public class DeviceTest {
         if(usb.serialDriver instanceof Ch34xSerialDriver) {
             inputFlowControl = false;
         }
+        if(usb.serialDriver instanceof Ch348SerialDriver) {
+            outputLineLocked = FlowControl_OutputLineLocked.TRUE;
+            inputFlowControl = false; // has input flow control, but not testable as dataReaderLoop permanently reads
+        }
         usb.open(EnumSet.of(UsbWrapper.OpenCloseFlags.NO_CONTROL_LINE_INIT, UsbWrapper.OpenCloseFlags.NO_IOMANAGER_THREAD));
         telnet.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
         usb.setParameters(115200, 8, 1, UsbSerialPort.PARITY_NONE);
@@ -2198,7 +2231,8 @@ public class DeviceTest {
         // early exit, if flow control not supported
         if (!usb.serialPort.getSupportedFlowControl().contains(flowControl))
             Assume.assumeTrue("flow control not supported", false);
-        assertEquals(usb.controlLinesConnected2x4 ? EnumSet.of(ControlLine.RI) : EnumSet.noneOf(ControlLine.class), usb.serialPort.getControlLines()); // [1]
+        boolean riSupported = usb.serialPort.getSupportedControlLines().contains(ControlLine.RI);
+        assertEquals(usb.controlLinesConnected2x4 && riSupported ? EnumSet.of(ControlLine.RI) : EnumSet.noneOf(ControlLine.class), usb.serialPort.getControlLines());
         usb.serialPort.setFlowControl(flowControl);
         assertEquals(flowControl, usb.serialPort.getFlowControl());
         if (!usb.controlLinesConnected2x4)
@@ -2216,7 +2250,7 @@ public class DeviceTest {
                 assertFalse(usb.serialPort.getControlLines().contains(m ? ControlLine.RTS : ControlLine.DTR));  // configured value
             }
         } else {
-            assertTrue(usb.serialPort.getControlLines().contains(ControlLine.RI));
+            assertThat(usb.getControlLine(usb.serialPort::getRI),  equalTo(riSupported ? Boolean.TRUE : null));
         }
         if(m) usb.serialPort.setRTS(true); else usb.serialPort.setDTR(true);
         assertTrue(usb.serialPort.getControlLines().contains(m ? ControlLine.CTS : ControlLine.DSR));
@@ -2378,7 +2412,8 @@ public class DeviceTest {
 
         usb.write("x".getBytes());
         usb.serialPort.read(buf, 1000);
-        usb.serialPort.setRTS(true);
+        if(usb.serialPort.getSupportedControlLines().contains(ControlLine.RTS))
+            usb.serialPort.setRTS(true);
         try {
             usb.serialPort.getRI();
         } catch (UnsupportedOperationException ignored) {
@@ -2513,7 +2548,9 @@ public class DeviceTest {
             CommonUsbSerialPortWrapper.testConnection(usb.serialPort, true);
         } catch(IOException ex) {
             // CdcAcm: the standard USB request is not supported by CH9143, which also makes various other tests failing
-            assertTrue(usb.serialPort.getDevice().getVendorId() == UsbId.VENDOR_QINHENG && usb.serialPort.getDevice().getProductId() == 0x55D6);
+            // CH348: the test exists but is implemented differently
+            assertTrue((usb.serialPort.getDevice().getVendorId() == UsbId.VENDOR_QINHENG && usb.serialPort.getDevice().getProductId() == 0x55D6) ||
+                    usb.serialDriver instanceof Ch348SerialDriver);
         }
 
         // use driver that does not override base class

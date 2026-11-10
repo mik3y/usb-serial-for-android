@@ -2,8 +2,9 @@
  * CH348 specific device test
  *
  * wiring:
- *   port 0 TxD/RxD cross connected with port 4..7 (default 4)
- *   port 1 TxD connected with RxD (loopback)
+ *   port 0 TxD/RxD cross connected with port 4
+ *   port 1 not used here - reserved for DeviceTest with control lines connected
+ *   port 2 TxD connected with RxD (loopback)
  *
  * instrumentation arguments:
  *   ch348_device  optional, UsbDevice name, e.g. /dev/bus/usb/001/019, else first CH348 device
@@ -19,6 +20,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -116,6 +119,8 @@ public class Ch348DeviceTest {
     private void requestPermission() throws Exception {
         if (usbManager.hasPermission(driver.getDevice()))
             return;
+        Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        RingtoneManager.getRingtone(context, notification).play();
         final Boolean[] granted = {null};
         BroadcastReceiver usbReceiver = new BroadcastReceiver() {
             @Override
@@ -233,11 +238,11 @@ public class Ch348DeviceTest {
         assumeTrue("manual test", "true".equals(InstrumentationRegistry.getArguments().getString("ch348_disconnect")));
         UsbSerialPort port0 = open(0, 115200);
         UsbSerialPort portX = open(crossPort, 115200);
-        UsbSerialPort port1 = open(1, 115200);
+        UsbSerialPort port2 = open(2, 115200);
 
         AtomicReference<Exception> ioManagerError = new AtomicReference<>();
         long[] ioManagerErrorTime = {0};
-        SerialInputOutputManager ioManager = new SerialInputOutputManager(port1, new SerialInputOutputManager.Listener() {
+        SerialInputOutputManager ioManager = new SerialInputOutputManager(port2, new SerialInputOutputManager.Listener() {
             @Override
             public void onNewData(byte[] data) {}
             @Override
@@ -319,8 +324,8 @@ public class Ch348DeviceTest {
 
     @Test
     public void loopback() throws Exception {
-        UsbSerialPort port1 = open(1, 115200);
-        assertTransfer(port1, port1, "hello CH348".getBytes(), 115200, 512);
+        UsbSerialPort port2 = open(2, 115200);
+        assertTransfer(port2, port2, "hello CH348".getBytes(), 115200, 512);
     }
 
     @Test
@@ -338,26 +343,26 @@ public class Ch348DeviceTest {
         UsbSerialPort portX = open(crossPort, 921600);
         assertTransfer(port0, portX, randomData(300, 1), 921600, 512);
         assertTransfer(portX, port0, randomData(16 * 1024, 2), 921600, 512);
-        UsbSerialPort port1 = open(1, 921600);
-        assertTransfer(port1, port1, randomData(16 * 1024, 3), 921600, 512);
+        UsbSerialPort port2 = open(2, 921600);
+        assertTransfer(port2, port2, randomData(16 * 1024, 3), 921600, 512);
     }
 
     @Test
     public void smallReadBuffer() throws Exception {
         // read buffer smaller than RX sub-packets must not lose data
-        UsbSerialPort port1 = open(1, 115200);
-        assertTransfer(port1, port1, randomData(2000, 4), 115200, 7);
-        assertTransfer(port1, port1, randomData(2000, 5), 115200, 1);
+        UsbSerialPort port2 = open(2, 115200);
+        assertTransfer(port2, port2, randomData(2000, 4), 115200, 7);
+        assertTransfer(port2, port2, randomData(2000, 5), 115200, 1);
     }
 
     @Test
     public void baudRates() throws Exception {
-        UsbSerialPort port1 = open(1, 9600);
+        UsbSerialPort port2 = open(2, 9600);
         for (int baudRate : new int[]{1200, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000, 1500000, 2000000, 3000000, 6000000}) {
-            port1.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
-            purge(port1);
+            port2.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+            purge(port2);
             int length = baudRate < 9600 ? 64 : 1024;
-            assertTransfer(port1, port1, randomData(length, baudRate), baudRate, 512);
+            assertTransfer(port2, port2, randomData(length, baudRate), baudRate, 512);
         }
     }
 
@@ -405,11 +410,11 @@ public class Ch348DeviceTest {
     @Test
     public void concurrentPorts() throws Exception {
         UsbSerialPort port0 = open(0, 460800);
-        UsbSerialPort port1 = open(1, 460800);
+        UsbSerialPort port2 = open(2, 460800);
         UsbSerialPort portX = open(crossPort, 460800);
         List<Thread> threads = new ArrayList<>();
         AtomicReference<Throwable> error = new AtomicReference<>();
-        UsbSerialPort[][] pairs = {{port0, portX}, {portX, port0}, {port1, port1}};
+        UsbSerialPort[][] pairs = {{port0, portX}, {portX, port0}, {port2, port2}};
         for (int i = 0; i < pairs.length; i++) {
             UsbSerialPort tx = pairs[i][0], rx = pairs[i][1];
             byte[] data = randomData(32 * 1024, 100 + i);
@@ -472,10 +477,10 @@ public class Ch348DeviceTest {
 
     @Test
     public void readTimeout() throws Exception {
-        UsbSerialPort port1 = open(1, 115200);
+        UsbSerialPort port2 = open(2, 115200);
         byte[] buf = new byte[64];
         long t0 = System.currentTimeMillis();
-        assertEquals(0, port1.read(buf, 200));
+        assertEquals(0, port2.read(buf, 200));
         long dt = System.currentTimeMillis() - t0;
         assertTrue("read timeout " + dt, dt >= 180 && dt < 500);
 
@@ -483,7 +488,7 @@ public class Ch348DeviceTest {
         AtomicReference<Exception> readError = new AtomicReference<>();
         Thread reader = new Thread(() -> {
             try {
-                port1.read(buf, 0);
+                port2.read(buf, 0);
             } catch (Exception e) {
                 readError.set(e);
             }
@@ -491,7 +496,7 @@ public class Ch348DeviceTest {
         reader.start();
         Thread.sleep(300);
         assertTrue(reader.isAlive());
-        port1.close();
+        port2.close();
         reader.join(1000);
         assertTrue(!reader.isAlive());
         assertTrue(readError.get() instanceof IOException);
@@ -521,15 +526,15 @@ public class Ch348DeviceTest {
     @Test
     public void openClose() throws Exception {
         UsbSerialPort port0 = open(0, 115200);
-        UsbSerialPort port1 = open(1, 115200);
+        UsbSerialPort port2 = open(2, 115200);
         assertThrows(IOException.class, () -> port0.open(usbManager.openDevice(driver.getDevice())));
 
-        // port0 owns the shared connection, port1 still works after port0 is closed
+        // port0 owns the shared connection, port2 still works after port0 is closed
         port0.close();
         assertThrows(IOException.class, port0::close);
         assertThrows(IOException.class, () -> port0.read(new byte[1], 100));
-        assertTransfer(port1, port1, "port0 closed".getBytes(), 115200, 512);
-        port1.close();
+        assertTransfer(port2, port2, "port0 closed".getBytes(), 115200, 512);
+        port2.close();
 
         for (int i = 0; i < 3; i++) {
             UsbSerialPort portX = open(crossPort, 115200);
@@ -555,10 +560,10 @@ public class Ch348DeviceTest {
     @Test
     public void flowControl() throws Exception {
         // CTS not connected, only check that the command is accepted on a port with control lines
-        UsbSerialPort port1 = open(1, 115200);
-        port1.setFlowControl(UsbSerialPort.FlowControl.RTS_CTS);
-        assertEquals(UsbSerialPort.FlowControl.RTS_CTS, port1.getFlowControl());
-        port1.setFlowControl(UsbSerialPort.FlowControl.NONE);
-        assertTransfer(port1, port1, "flow control off".getBytes(), 115200, 512);
+        UsbSerialPort port2 = open(2, 115200);
+        port2.setFlowControl(UsbSerialPort.FlowControl.RTS_CTS);
+        assertEquals(UsbSerialPort.FlowControl.RTS_CTS, port2.getFlowControl());
+        port2.setFlowControl(UsbSerialPort.FlowControl.NONE);
+        assertTransfer(port2, port2, "flow control off".getBytes(), 115200, 512);
     }
 }
