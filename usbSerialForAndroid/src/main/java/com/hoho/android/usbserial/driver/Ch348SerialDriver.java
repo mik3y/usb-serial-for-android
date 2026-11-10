@@ -635,29 +635,14 @@ public class Ch348SerialDriver implements UsbSerialDriver {
         }
 
         /**
-         * open sequence, taken from USB capture of the Windows driver
+         * open sequence, similar to Linux driver with control lines reset
          */
         private void initialize() throws IOException {
-            int base = regBase(mPortNumber);
-            cmdOutWaitResponse(new byte[]{(byte) (CMD_WB_E | mPortNumber), (byte) R_INIT2, (byte) (0xF0 | mPortNumber), 0});
             regWriteWithResponse(mPortNumber, R_C2, 0x87);
             regWriteWithResponse(mPortNumber, R_C4, 0x08);
-            if (hasControlLines()) {
-                regWrite(mPortNumber, R_C4, 0x50);
-                cmdOutWaitResponse(new byte[]{(byte) (CMD_WB_E | mPortNumber), (byte) VEN_R, (byte) (base | R_C5)});
-                setLineParameters(mBaudRate, 8, STOPBITS_1, PARITY_NONE);
-                regWrite(mPortNumber, R_C4, 0x10);
-                regWrite(mPortNumber, R_C4, 0x01);
-                regWrite(mPortNumber, R_C4, 0x10);
-                cmdOutWaitResponse(new byte[]{(byte) (CMD_WB_E | mPortNumber), (byte) VEN_R, (byte) (base | R_C5)});
-                regWrite(mPortNumber, R_C4, 0x50);
-                regWrite(mPortNumber, R_C4, 0x11);
-                regWrite(mPortNumber, R_C4, 0x01);
-                regWrite(mPortNumber, R_C3, 0x60);
-                mDtr = mRts = true;
-            } else {
-                setLineParameters(mBaudRate, 8, STOPBITS_1, PARITY_NONE);
-                regWrite(mPortNumber, R_C4, 0x01);
+            setLineParameters(mBaudRate, 8, STOPBITS_1, PARITY_NONE);
+            if (getControlLinesType() != ControlLinesType.NONE) {
+                setFlowControl(FlowControl.NONE);
             }
         }
 
