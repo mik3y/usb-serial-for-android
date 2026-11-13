@@ -419,6 +419,17 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
         }
 
         @Override
+        public void setControlLines(EnumSet<ControlLine> lines) throws IOException {
+            requireControlLines(lines);
+            boolean newDtr = lines.contains(ControlLine.DTR);
+            boolean newRts = lines.contains(ControlLine.RTS);
+            sendAcmControlMessage(SET_CONTROL_LINE_STATE,
+                    (newDtr ? 0x1 : 0) | (newRts ? 0x2 : 0), null);
+            mDtr = newDtr;
+            mRts = newRts;
+        }
+
+        @Override
         public EnumSet<ControlLine> getControlLines() throws IOException {
             int serialState = getSerialState();
             EnumSet<ControlLine> set = EnumSet.noneOf(ControlLine.class);

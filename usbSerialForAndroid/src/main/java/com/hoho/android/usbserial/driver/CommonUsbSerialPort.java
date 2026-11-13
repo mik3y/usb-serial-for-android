@@ -408,6 +408,17 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     @Override
     public void setRTS(boolean value) throws IOException { throw new UnsupportedOperationException(); }
 
+    protected static void requireControlLines(EnumSet<ControlLine> lines) {
+        if (lines == null)
+            throw new IllegalArgumentException("lines is null");
+    }
+
+    @Override
+    public void setControlLines(EnumSet<ControlLine> lines) throws IOException {
+        requireControlLines(lines);
+        throw new UnsupportedOperationException();
+    }
+
     @Override
     public EnumSet<ControlLine> getControlLines() throws IOException { throw new UnsupportedOperationException(); }
 
