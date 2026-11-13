@@ -423,7 +423,6 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
             requireControlLines(lines);
             boolean newDtr = lines.contains(ControlLine.DTR);
             boolean newRts = lines.contains(ControlLine.RTS);
-            if (mDtr == newDtr && mRts == newRts) return;
             sendAcmControlMessage(SET_CONTROL_LINE_STATE,
                     (newDtr ? 0x1 : 0) | (newRts ? 0x2 : 0), null);
             mDtr = newDtr;

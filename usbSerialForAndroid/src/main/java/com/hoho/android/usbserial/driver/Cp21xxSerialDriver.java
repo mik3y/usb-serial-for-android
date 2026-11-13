@@ -298,7 +298,6 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
             requireControlLines(lines);
             boolean newDtr = lines.contains(ControlLine.DTR);
             boolean newRts = lines.contains(ControlLine.RTS);
-            if (dtr == newDtr && rts == newRts) return;
             setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE,
                     (newDtr ? DTR_ENABLE : DTR_DISABLE) | (newRts ? RTS_ENABLE : RTS_DISABLE));
             dtr = newDtr;

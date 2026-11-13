@@ -366,7 +366,6 @@ public class FtdiSerialDriver implements UsbSerialDriver {
             requireControlLines(lines);
             boolean newDtr = lines.contains(ControlLine.DTR);
             boolean newRts = lines.contains(ControlLine.RTS);
-            if (dtr == newDtr && rts == newRts) return;
             int result = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, MODEM_CONTROL_REQUEST,
                     (newDtr ? MODEM_CONTROL_DTR_ENABLE : MODEM_CONTROL_DTR_DISABLE) |
                             (newRts ? MODEM_CONTROL_RTS_ENABLE : MODEM_CONTROL_RTS_DISABLE),

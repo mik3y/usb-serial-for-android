@@ -84,10 +84,15 @@ public class SetControlLinesTest {
                 withInputs.addAll(EnumSet.of(ControlLine.CTS, ControlLine.DSR,
                         ControlLine.CD, ControlLine.RI));
                 c.port.setControlLines(withInputs);
-                verifyNoInteractions(c.connection);
+                verify(c.connection).controlTransfer(c.requestType, c.request, c.values[i],
+                        c.index, null, 0, 5000);
+                verifyNoMoreInteractions(c.connection);
+                clearInvocations(c.connection);
             }
             c.port.setControlLines(STATES.get(STATES.size() - 1));
-            verifyNoInteractions(c.connection);
+            verify(c.connection).controlTransfer(c.requestType, c.request,
+                    c.values[STATES.size() - 1], c.index, null, 0, 5000);
+            verifyNoMoreInteractions(c.connection);
         }
     }
 
@@ -95,9 +100,13 @@ public class SetControlLinesTest {
     public void nullAndFailedTransferDoNotChangeCache() throws Exception {
         for (Case c : cases()) {
             assertThrows(IllegalArgumentException.class, () -> c.port.setControlLines(null));
+            verifyNoInteractions(c.connection);
             c.port.setControlLines(EnumSet.of(ControlLine.CTS, ControlLine.DSR,
                     ControlLine.CD, ControlLine.RI));
-            verifyNoInteractions(c.connection);
+            verify(c.connection).controlTransfer(c.requestType, c.request, c.values[3],
+                    c.index, null, 0, 5000);
+            verifyNoMoreInteractions(c.connection);
+            clearInvocations(c.connection);
             when(c.connection.controlTransfer(anyInt(), anyInt(), anyInt(), anyInt(),
                     isNull(), anyInt(), anyInt())).thenReturn(-1);
             assertThrows(IOException.class,
@@ -113,6 +122,24 @@ public class SetControlLinesTest {
             verify(c.connection).controlTransfer(c.requestType, c.request, c.values[1],
                     c.index, null, 0, 5000);
             verifyNoMoreInteractions(c.connection);
+        }
+    }
+
+    @Test
+    public void combinedUpdateRetriesAfterFailedIndividualSetter() throws Exception {
+        for (Case c : cases()) {
+            when(c.connection.controlTransfer(anyInt(), anyInt(), anyInt(), anyInt(),
+                    isNull(), anyInt(), anyInt())).thenReturn(-1);
+            assertThrows(IOException.class, () -> c.port.setDTR(true));
+            clearInvocations(c.connection);
+            when(c.connection.controlTransfer(anyInt(), anyInt(), anyInt(), anyInt(),
+                    isNull(), anyInt(), anyInt())).thenReturn(0);
+            c.port.setControlLines(EnumSet.of(ControlLine.DTR));
+            verify(c.connection).controlTransfer(c.requestType, c.request, c.values[0],
+                    c.index, null, 0, 5000);
+            verifyNoMoreInteractions(c.connection);
+            assertTrue(c.port.getDTR());
+            assertFalse(c.port.getRTS());
         }
     }
 

@@ -128,7 +128,7 @@ port.setControlLines(EnumSet.of(UsbSerialPort.ControlLine.DTR)); // DTR on, RTS 
 
 Import `java.util.EnumSet`. An empty set deasserts both lines; input lines in
 the set (CTS, DSR, CD, RI) are ignored. All drivers that
-support DTR and RTS send one USB control transfer for a changed state; ports
+support DTR and RTS send one USB control transfer on every call; ports
 without those outputs throw `UnsupportedOperationException`. Existing `setDTR()`
 and `setRTS()` calls continue to work as before.
 

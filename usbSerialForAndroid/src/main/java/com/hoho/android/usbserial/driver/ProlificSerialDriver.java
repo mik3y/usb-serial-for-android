@@ -519,7 +519,6 @@ public class ProlificSerialDriver implements UsbSerialDriver {
             requireControlLines(lines);
             int value = (lines.contains(ControlLine.DTR) ? CONTROL_DTR : 0) |
                     (lines.contains(ControlLine.RTS) ? CONTROL_RTS : 0);
-            if (mControlLinesValue == value) return;
             setControlLines(value);
         }
 

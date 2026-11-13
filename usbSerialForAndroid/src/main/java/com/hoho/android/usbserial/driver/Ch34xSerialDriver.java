@@ -345,7 +345,6 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
             requireControlLines(lines);
             boolean newDtr = lines.contains(ControlLine.DTR);
             boolean newRts = lines.contains(ControlLine.RTS);
-            if (dtr == newDtr && rts == newRts) return;
             if (controlOut(0xa4, ~((newDtr ? SCL_DTR : 0) | (newRts ? SCL_RTS : 0)), 0) < 0)
                 throw new IOException("Failed to set control lines");
             dtr = newDtr;

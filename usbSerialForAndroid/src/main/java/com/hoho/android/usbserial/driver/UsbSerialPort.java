@@ -276,7 +276,8 @@ public interface UsbSerialPort extends Closeable {
      * asserts DTR and deasserts RTS.
      *
      * <p>Drivers supporting these outputs send both states in one USB control transfer, so a
-     * simultaneous change has no intermediate USB request. Unchanged states may send no request.
+     * simultaneous change has no intermediate USB request. Every call sends one request, even
+     * when the desired state matches the cached state, so callers can retry an uncertain update.
      * This does not guarantee simultaneous physical pin edges. Ports without both outputs throw
      * {@link UnsupportedOperationException}. The existing {@link #setDTR(boolean)} and
      * {@link #setRTS(boolean)} methods remain available with their existing behavior.
