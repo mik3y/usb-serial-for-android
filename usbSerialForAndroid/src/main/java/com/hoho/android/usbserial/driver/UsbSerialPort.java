@@ -269,6 +269,26 @@ public interface UsbSerialPort extends Closeable {
     void setRTS(boolean value) throws IOException;
 
     /**
+     * Sets the desired DTR and RTS output states. A line present in {@code lines} is asserted;
+     * an absent line is deasserted. Input lines ({@link ControlLine#CTS},
+     * {@link ControlLine#DSR}, {@link ControlLine#CD}, and {@link ControlLine#RI})
+     * are ignored. For example, {@code setControlLines(EnumSet.of(ControlLine.DTR))}
+     * asserts DTR and deasserts RTS.
+     *
+     * <p>Drivers supporting these outputs send both states in one USB control transfer, so a
+     * simultaneous change has no intermediate USB request. Unchanged states may send no request.
+     * This does not guarantee simultaneous physical pin edges. Ports without both outputs throw
+     * {@link UnsupportedOperationException}. The existing {@link #setDTR(boolean)} and
+     * {@link #setRTS(boolean)} methods remain available with their existing behavior.
+     *
+     * @param lines desired output states; must not be null
+     * @throws IllegalArgumentException if {@code lines} is null
+     * @throws IOException if an error occurred during writing
+     * @throws UnsupportedOperationException if the port does not support both outputs
+     */
+    void setControlLines(EnumSet<ControlLine> lines) throws IOException;
+
+    /**
      * Gets all control line values from the underlying UART, if supported.
      * Requires less USB calls than calling getRTS() + ... + getRI() individually.
      *

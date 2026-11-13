@@ -120,6 +120,18 @@ for a more complete example with:
 * Background service to stay connected while the app is not visible or rotating
 * Flow control 
 
+To change DTR and RTS together, pass the desired asserted output lines in one call:
+
+```java
+port.setControlLines(EnumSet.of(UsbSerialPort.ControlLine.DTR)); // DTR on, RTS off
+```
+
+Import `java.util.EnumSet`. An empty set deasserts both lines; input lines in
+the set (CTS, DSR, CD, RI) are ignored. All drivers that
+support DTR and RTS send one USB control transfer for a changed state; ports
+without those outputs throw `UnsupportedOperationException`. Existing `setDTR()`
+and `setRTS()` calls continue to work as before.
+
 ## Probing for Unrecognized Devices
 
 Sometimes you may need to do a little extra work to support devices which
