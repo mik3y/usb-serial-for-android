@@ -99,7 +99,7 @@ public class SetControlLinesTest {
     @Test
     public void nullAndFailedTransferDoNotChangeCache() throws Exception {
         for (Case c : cases()) {
-            assertThrows(IllegalArgumentException.class, () -> c.port.setControlLines(null));
+            assertThrows(NullPointerException.class, () -> c.port.setControlLines(null));
             verifyNoInteractions(c.connection);
             c.port.setControlLines(EnumSet.of(ControlLine.CTS, ControlLine.DSR,
                     ControlLine.CD, ControlLine.RI));
@@ -153,7 +153,7 @@ public class SetControlLinesTest {
         for (UsbSerialPort port : ports) {
             assertThrows(UnsupportedOperationException.class,
                     () -> port.setControlLines(EnumSet.noneOf(ControlLine.class)));
-            assertThrows(IllegalArgumentException.class, () -> port.setControlLines(null));
+            assertThrows(UnsupportedOperationException.class, () -> port.setControlLines(null));
             assertThrows(UnsupportedOperationException.class,
                     () -> port.setControlLines(EnumSet.of(ControlLine.CTS)));
         }

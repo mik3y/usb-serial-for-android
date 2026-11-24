@@ -273,8 +273,8 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setDTR(boolean value) throws IOException {
+            setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, value ? DTR_ENABLE : DTR_DISABLE);
             dtr = value;
-            setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, dtr ? DTR_ENABLE : DTR_DISABLE);
         }
 
         @Override
@@ -289,13 +289,12 @@ public class Cp21xxSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setRTS(boolean value) throws IOException {
+            setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, value ? RTS_ENABLE : RTS_DISABLE);
             rts = value;
-            setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE, rts ? RTS_ENABLE : RTS_DISABLE);
         }
 
         @Override
         public void setControlLines(EnumSet<ControlLine> lines) throws IOException {
-            requireControlLines(lines);
             boolean newDtr = lines.contains(ControlLine.DTR);
             boolean newRts = lines.contains(ControlLine.RTS);
             setConfigSingle(SILABSER_SET_MHS_REQUEST_CODE,

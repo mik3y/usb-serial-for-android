@@ -363,7 +363,6 @@ public class FtdiSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setControlLines(EnumSet<ControlLine> lines) throws IOException {
-            requireControlLines(lines);
             boolean newDtr = lines.contains(ControlLine.DTR);
             boolean newRts = lines.contains(ControlLine.RTS);
             int result = mConnection.controlTransfer(REQTYPE_HOST_TO_DEVICE, MODEM_CONTROL_REQUEST,

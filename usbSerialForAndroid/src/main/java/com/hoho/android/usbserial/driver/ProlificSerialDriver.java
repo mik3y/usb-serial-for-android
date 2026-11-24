@@ -516,7 +516,6 @@ public class ProlificSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setControlLines(EnumSet<ControlLine> lines) throws IOException {
-            requireControlLines(lines);
             int value = (lines.contains(ControlLine.DTR) ? CONTROL_DTR : 0) |
                     (lines.contains(ControlLine.RTS) ? CONTROL_RTS : 0);
             setControlLines(value);
