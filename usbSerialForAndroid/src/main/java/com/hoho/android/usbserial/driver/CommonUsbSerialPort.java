@@ -409,6 +409,9 @@ public abstract class CommonUsbSerialPort implements UsbSerialPort {
     public void setRTS(boolean value) throws IOException { throw new UnsupportedOperationException(); }
 
     @Override
+    public void setControlLines(EnumSet<ControlLine> lines) throws IOException { throw new UnsupportedOperationException(); }
+
+    @Override
     public EnumSet<ControlLine> getControlLines() throws IOException { throw new UnsupportedOperationException(); }
 
     @Override

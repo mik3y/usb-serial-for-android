@@ -269,6 +269,16 @@ public interface UsbSerialPort extends Closeable {
     void setRTS(boolean value) throws IOException;
 
     /**
+     * Sets the desired DTR and RTS output states atomically.
+     * Input lines in {@code lines} are ignored.
+     *
+     * @param lines desired output states; must not be null
+     * @throws IOException if an error occurred during writing
+     * @throws UnsupportedOperationException if the port does not support both outputs
+     */
+    void setControlLines(EnumSet<ControlLine> lines) throws IOException;
+
+    /**
      * Gets all control line values from the underlying UART, if supported.
      * Requires less USB calls than calling getRTS() + ... + getRI() individually.
      *

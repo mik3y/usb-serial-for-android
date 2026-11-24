@@ -171,6 +171,8 @@ and devices implementing the generic CDC/ACM protocol like
 * Digispark using V-USB software USB
 * ...
 
+Not all drivers support all features, check the [Feature Matrix](https://github.com/mik3y/usb-serial-for-android/wiki/FAQ#feature-matrix) for details. 
+
 ## Help & Discussion
 
 For common problems, see the [FAQ](https://github.com/mik3y/usb-serial-for-android/wiki/FAQ) wiki page.

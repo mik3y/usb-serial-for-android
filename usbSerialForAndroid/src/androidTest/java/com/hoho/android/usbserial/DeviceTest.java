@@ -1892,6 +1892,36 @@ public class DeviceTest {
         usb.write(data);
         assertThat(Arrays.toString(data), telnet.read(4), equalTo(data));
 
+        data = "rts ".getBytes();
+        usb.serialPort.setControlLines(EnumSet.of(ControlLine.RTS));
+        Thread.sleep(sleep);
+        assertEquals(usb.getControlLines(), usb.serialPort.getControlLines());
+        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.TRUE));
+        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(ctsSupported ? usb.controlLinesConnected2x4 || usb.controlLinesConnectedRtsCts : null));
+        assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.FALSE));
+        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(dsrSupported ? Boolean.FALSE : null));
+        assertThat(usb.getControlLine(usb.serialPort::getCD),  equalTo(cdSupported ? Boolean.FALSE : null));
+        assertThat(usb.getControlLine(usb.serialPort::getRI),  equalTo(riSupported ? Boolean.FALSE : null));
+        telnet.write(data);
+        assertThat(Arrays.toString(data), usb.read(4), equalTo(data));
+        usb.write(data);
+        assertThat(Arrays.toString(data), telnet.read(4), equalTo(data));
+
+        data = "dtr ".getBytes();
+        usb.serialPort.setControlLines(EnumSet.of(ControlLine.DTR));
+        Thread.sleep(sleep);
+        assertEquals(usb.getControlLines(), usb.serialPort.getControlLines());
+        assertThat(usb.getControlLine(usb.serialPort::getRTS), equalTo(Boolean.FALSE));
+        assertThat(usb.getControlLine(usb.serialPort::getCTS), equalTo(ctsSupported ? Boolean.FALSE : null));
+        assertThat(usb.getControlLine(usb.serialPort::getDTR), equalTo(Boolean.TRUE));
+        assertThat(usb.getControlLine(usb.serialPort::getDSR), equalTo(dsrSupported ? usb.controlLinesConnected2x4 : null));
+        assertThat(usb.getControlLine(usb.serialPort::getCD),  equalTo(cdSupported ? Boolean.FALSE : null));
+        assertThat(usb.getControlLine(usb.serialPort::getRI),  equalTo(riSupported ? Boolean.FALSE : null));
+        telnet.write(data);
+        assertThat(Arrays.toString(data), usb.read(4), equalTo(data));
+        usb.write(data);
+        assertThat(Arrays.toString(data), telnet.read(4), equalTo(data));
+
         // control lines retained over close+open
         usb.serialPort.setRTS(true);
         usb.serialPort.setDTR(false);

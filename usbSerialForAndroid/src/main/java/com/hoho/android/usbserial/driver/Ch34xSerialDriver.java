@@ -150,10 +150,12 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
             }
         }
 
-        private void setControlLines() throws IOException {
-            if (controlOut(0xa4, ~((dtr ? SCL_DTR : 0) | (rts ? SCL_RTS : 0)), 0) < 0) {
+        private void setDtrRts(boolean newDtr, boolean newRts) throws IOException {
+            if (controlOut(0xa4, ~((newDtr ? SCL_DTR : 0) | (newRts ? SCL_RTS : 0)), 0) < 0) {
                 throw new IOException("Failed to set control lines");
             }
+            dtr = newDtr;
+            rts = newRts;
         }
 
         private byte getStatus() throws IOException {
@@ -187,7 +189,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
             setBaudRate(DEFAULT_BAUD_RATE);
 
-            setControlLines();
+            setDtrRts(dtr, rts);
 
             checkState("init #10", 0x95, 0x0706, new int[]{-1/* 0x9f, 0xff*/, -1/*0xec,0xee*/});
         }
@@ -320,8 +322,7 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setDTR(boolean value) throws IOException {
-            dtr = value;
-            setControlLines();
+            setDtrRts(value, rts);
         }
 
         @Override
@@ -336,8 +337,12 @@ public class Ch34xSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setRTS(boolean value) throws IOException {
-            rts = value;
-            setControlLines();
+            setDtrRts(dtr, value);
+        }
+
+        @Override
+        public void setControlLines(EnumSet<ControlLine> lines) throws IOException {
+            setDtrRts(lines.contains(ControlLine.DTR), lines.contains(ControlLine.RTS));
         }
 
         @Override

@@ -383,8 +383,7 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setDTR(boolean value) throws IOException {
-            mDtr = value;
-            setDtrRts();
+            setDtrRts(value, mRts);
         }
 
         @Override
@@ -409,13 +408,19 @@ public class CdcAcmSerialDriver implements UsbSerialDriver {
 
         @Override
         public void setRTS(boolean value) throws IOException {
-            mRts = value;
-            setDtrRts();
+            setDtrRts(mDtr, value);
         }
 
-        private void setDtrRts() throws IOException {
-            int value = (mRts ? 0x2 : 0) | (mDtr ? 0x1 : 0);
+        @Override
+        public void setControlLines(EnumSet<ControlLine> lines) throws IOException {
+            setDtrRts(lines.contains(ControlLine.DTR), lines.contains(ControlLine.RTS));
+        }
+        
+        private void setDtrRts(boolean dtr, boolean rts) throws IOException {
+            int value = (rts ? 0x2 : 0) | (dtr ? 0x1 : 0);
             sendAcmControlMessage(SET_CONTROL_LINE_STATE, value, null);
+            mDtr = dtr;
+            mRts = rts;
         }
 
         @Override
