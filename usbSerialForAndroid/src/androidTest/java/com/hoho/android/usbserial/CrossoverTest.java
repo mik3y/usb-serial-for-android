@@ -2,6 +2,7 @@
  * test multiple devices or multiple ports on same device
  *
  * TxD and RxD have to be cross connected
+ * for single device use port 0 + number/2
  */
 package com.hoho.android.usbserial;
 

@@ -37,6 +37,7 @@ public class UsbSerialProber {
         probeTable.addDriver(FtdiSerialDriver.class);
         probeTable.addDriver(ProlificSerialDriver.class);
         probeTable.addDriver(Ch34xSerialDriver.class);
+        probeTable.addDriver(Ch348SerialDriver.class);
         probeTable.addDriver(GsmModemSerialDriver.class);
         probeTable.addDriver(ChromeCcdSerialDriver.class);
         return probeTable;
